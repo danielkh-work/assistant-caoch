@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\SportController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -24,6 +25,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('userUpdate',[AuthController::class,'userUpdate']);
     Route::post('change-password',[AuthController::class,'changePassword'])->name('password.change');
+    Route::get('/sport',[SportController::class,'sport'])->name('sport');
+    Route::get('/leaque',[SportController::class,'leaque'])->name('leaque');
 });
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
