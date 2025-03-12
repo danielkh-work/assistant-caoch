@@ -11,10 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('leaques', function (Blueprint $table) {
+        Schema::create('leaque_rules', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('sport_id');
-            $table->unsignedBigInteger('leaque_rule_id');
             $table->string('title');
             $table->integer('number_of_downs')->nullable();
             $table->string('length_of_field')->nullable(); // Dropdown
@@ -35,6 +33,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('leaques');
+        Schema::dropIfExists('leaque_rules');
     }
 };
