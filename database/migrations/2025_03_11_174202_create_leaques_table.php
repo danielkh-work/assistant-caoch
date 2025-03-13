@@ -11,10 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('leaques', function (Blueprint $table) {
+        Schema::create('leagues', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('sport_id');
-            $table->unsignedBigInteger('leaque_rule_id');
+            $table->unsignedBigInteger('league_rule_id');
             $table->string('title');
             $table->integer('number_of_team')->nullable();
             $table->integer('number_of_downs')->nullable();
@@ -36,6 +36,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('leaques');
+        Schema::dropIfExists('leagues');
     }
 };

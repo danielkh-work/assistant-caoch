@@ -26,10 +26,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('userUpdate',[AuthController::class,'userUpdate']);
     Route::post('change-password',[AuthController::class,'changePassword'])->name('password.change');
     Route::get('/sport',[SportController::class,'sport'])->name('sport');
-    Route::get('/leaque',[SportController::class,'leaque'])->name('leaque');
-    Route::post('/leaque-create',[SportController::class,'store'])->name('leaque.create');
+    Route::get('/leaque',[SportController::class,'league'])->name('leaque');
+    Route::post('/leaque-create',[SportController::class,'store'])->name('league.create');
     Route::post('/add-player',[SportController::class,'addPlayer'])->name('add.player');
-    Route::get('/leaque-view/{id}',[SportController::class,'leaqueView'])->name('leaqueView');
+    Route::get('/leaque-view/{id}',[SportController::class,'leagueView'])->name('leagueView');
 });
 
 Route::post('/register', [AuthController::class, 'register']);

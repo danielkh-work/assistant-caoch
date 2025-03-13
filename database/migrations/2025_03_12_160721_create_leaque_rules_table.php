@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('leaque_rules', function (Blueprint $table) {
+        Schema::create('league_rules', function (Blueprint $table) {
             $table->id();
             $table->string('title');
             $table->integer('number_of_downs')->nullable();
@@ -33,6 +33,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('leaque_rules');
+        Schema::dropIfExists('league_rules');
     }
 };

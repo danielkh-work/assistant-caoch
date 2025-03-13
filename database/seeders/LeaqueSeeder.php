@@ -14,7 +14,7 @@ class LeaqueSeeder extends Seeder
      */
     public function run(): void
     {
-        DB::table('leaque_rules')->insert([
+        DB::table('league_rules')->insert([
             // CFL Entry
             [
                 'title' => 'Canadian Football League (CFL)',

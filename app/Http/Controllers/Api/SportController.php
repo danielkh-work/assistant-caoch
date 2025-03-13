@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Responses\BaseResponse;
-use App\Models\Leaque;
-use App\Models\LeaqueRule;
-use App\Models\LeaqueTeam;
+use App\Models\League;
+use App\Models\LeagueRule;
+use App\Models\LeagueTeam;
 use App\Models\Player;
 use App\Models\Sport;
 use Illuminate\Http\Request;
@@ -19,41 +19,41 @@ class SportController extends Controller
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "sport", $sport);
     }
 
-    public function leaque(Request $request)
+    public function league(Request $request)
     {
-        $leaque = LeaqueRule::all();
-        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "leaque Rule ", $leaque);
+        $League = LeagueRule::all();
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "League Rule ", $League);
     }
     public function store(Request $request)
     {
         DB::beginTransaction();
         try {
 
-           $leaque =  new Leaque;
-           $leaque->sport_id=$request->sport_id;
-           $leaque->leaque_rule_id=$request->leaque_rule_id;
-           $leaque->number_of_team=$request->number_of_team;
-           $leaque->title=$request->title;
-           $leaque->number_of_downs=$request->number_of_downs;
-           $leaque->length_of_field=$request->length_of_field;
-           $leaque->number_of_timeouts=$request->number_of_timeouts;
-           $leaque->clock_time=$request->clock_time;
-           $leaque->number_of_quarters=$request->number_of_quarters;
-           $leaque->length_of_quarters=$request->length_of_quarters;
-           $leaque->stop_time_reason=$request->stop_time_reason;
-           $leaque->overtime_rules=$request->overtime_rules;
-           $leaque->number_of_players=$request->number_of_players;
-           $leaque->flag_tbd =$request->flag_tbd;
-           $leaque->save();
+           $League =  new League;
+           $League->sport_id=$request->sport_id;
+           $League->league_rule_id=$request->league_rule_id;
+           $League->number_of_team=$request->number_of_team;
+           $League->title=$request->title;
+           $League->number_of_downs=$request->number_of_downs;
+           $League->length_of_field=$request->length_of_field;
+           $League->number_of_timeouts=$request->number_of_timeouts;
+           $League->clock_time=$request->clock_time;
+           $League->number_of_quarters=$request->number_of_quarters;
+           $League->length_of_quarters=$request->length_of_quarters;
+           $League->stop_time_reason=$request->stop_time_reason;
+           $League->overtime_rules=$request->overtime_rules;
+           $League->number_of_players=$request->number_of_players;
+           $League->flag_tbd =$request->flag_tbd;
+           $League->save();
            foreach($request->team_name as $value)
            {
-             $team =  new LeaqueTeam;
-             $team->leaque_id =  $leaque->id;
+             $team =  new LeagueTeam;
+             $team->league_id =  $League->id;
              $team->team_name = $value;
              $team->save();
            }
            DB::commit();
-           return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "leaque Created SuccessFully ", $leaque);
+           return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "League Created SuccessFully ", $League);
         } catch (\Throwable $th) {
           DB::rollBack();
           return new BaseResponse(STATUS_CODE_BADREQUEST, STATUS_CODE_BADREQUEST, $th->getMessage());
@@ -80,9 +80,9 @@ class SportController extends Controller
         }
     }
 
-    public function leaqueView(Request $request)
+    public function leagueView(Request $request)
     {
-      $leauqe =   Leaque::with('teams')->find($request->id);
+      $leauqe =   League::with('teams')->find($request->id);
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "leauqe List  ", $leauqe);
     }
 }

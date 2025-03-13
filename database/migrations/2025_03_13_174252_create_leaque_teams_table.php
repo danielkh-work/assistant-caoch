@@ -11,9 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('leaque_teams', function (Blueprint $table) {
+        Schema::create('league_teams', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('leaque_id');
+            $table->unsignedBigInteger('league_id');
             $table->string('team_name');
             $table->timestamps();
         });
@@ -24,6 +24,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('leaque_teams');
+        Schema::dropIfExists('league_teams');
     }
 };
