@@ -16,6 +16,7 @@ return new class extends Migration
             $table->unsignedBigInteger('sport_id');
             $table->unsignedBigInteger('leaque_rule_id');
             $table->string('title');
+            $table->integer('number_of_team')->nullable();
             $table->integer('number_of_downs')->nullable();
             $table->string('length_of_field')->nullable(); // Dropdown
             $table->integer('number_of_timeouts')->nullable();

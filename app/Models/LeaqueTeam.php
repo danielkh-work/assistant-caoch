@@ -5,12 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Leaque extends Model
+class LeaqueTeam extends Model
 {
     use HasFactory;
-
-    public function teams()
-    {
-        return $this->hasMany(LeaqueTeam::class,'leaque_id');
-    }
 }

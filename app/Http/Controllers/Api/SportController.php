@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Responses\BaseResponse;
 use App\Models\Leaque;
 use App\Models\LeaqueRule;
+use App\Models\LeaqueTeam;
 use App\Models\Player;
 use App\Models\Sport;
 use Illuminate\Http\Request;
@@ -27,9 +28,11 @@ class SportController extends Controller
     {
         DB::beginTransaction();
         try {
+
            $leaque =  new Leaque;
            $leaque->sport_id=$request->sport_id;
            $leaque->leaque_rule_id=$request->leaque_rule_id;
+           $leaque->number_of_team=$request->number_of_team;
            $leaque->title=$request->title;
            $leaque->number_of_downs=$request->number_of_downs;
            $leaque->length_of_field=$request->length_of_field;
@@ -42,6 +45,13 @@ class SportController extends Controller
            $leaque->number_of_players=$request->number_of_players;
            $leaque->flag_tbd =$request->flag_tbd;
            $leaque->save();
+           foreach($request->team_name as $value)
+           {
+             $team =  new LeaqueTeam;
+             $team->leaque_id =  $leaque->id;
+             $team->team_name = $value;
+             $team->save();
+           }
            DB::commit();
            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "leaque Created SuccessFully ", $leaque);
         } catch (\Throwable $th) {
@@ -68,5 +78,11 @@ class SportController extends Controller
             DB::rollBack();
             return new BaseResponse(STATUS_CODE_BADREQUEST, STATUS_CODE_BADREQUEST, $th->getMessage());
         }
+    }
+
+    public function leaqueView(Request $request)
+    {
+      $leauqe =   Leaque::with('teams')->find($request->id);
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "leauqe List  ", $leauqe);
     }
 }
