@@ -13,4 +13,12 @@ class League extends Model
     {
         return $this->hasMany(LeagueTeam::class,'league_id');
     }
+    public function leaque_rule()
+    {
+        return $this->belongsTo(LeagueRule::class,'league_rule_id');
+    }
+    public function sport()
+    {
+        return $this->belongsTo(Sport::class,'sport_id');
+    }
 }

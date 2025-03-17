@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\FormationController;
 use App\Http\Controllers\Api\SportController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -30,6 +31,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/leaque-create',[SportController::class,'store'])->name('league.create');
     Route::post('/add-player',[SportController::class,'addPlayer'])->name('add.player');
     Route::get('/leaque-view/{id}',[SportController::class,'leagueView'])->name('leagueView');
+    Route::get('/dashboard',[SportController::class,'dashboard'])->name('dashboard');
+    Route::post('/create-formation',[FormationController::class,'store'])->name('create-formation');
 });
 
 Route::post('/register', [AuthController::class, 'register']);

@@ -85,4 +85,9 @@ class SportController extends Controller
       $leauqe =   League::with('teams')->find($request->id);
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "leauqe List  ", $leauqe);
     }
+    public function dashboard(Request $request)
+    {
+        $leauqe =  League::with('teams','leaque_rule','sport')->get();
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "leauqe List  ", $leauqe);
+    }
 }
