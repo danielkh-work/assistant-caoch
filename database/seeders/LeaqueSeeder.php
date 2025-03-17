@@ -62,6 +62,21 @@ class LeaqueSeeder extends Seeder
                 'flag_tbd' => 'NO',
                 'created_at' => now(),
                 'updated_at' => now()
+            ],
+            [
+                'title' => 'Special',
+                'number_of_downs' => 0,
+                'length_of_field' => '',
+                'number_of_timeouts' => 0,
+                'clock_time' => '',
+                'number_of_quarters' => 0,
+                'length_of_quarters' => 0,
+                'stop_time_reason' =>0,
+                'overtime_rules' => 0,
+                'number_of_players' => 0,
+                'flag_tbd' => '',
+                'created_at' => now(),
+                'updated_at' => now()
             ]
         ]);
     }
