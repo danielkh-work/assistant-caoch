@@ -13,7 +13,7 @@ class League extends Model
     {
         return $this->hasMany(LeagueTeam::class,'league_id');
     }
-    public function leaque_rule()
+    public function league_rule()
     {
         return $this->belongsTo(LeagueRule::class,'league_rule_id');
     }

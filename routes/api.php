@@ -28,6 +28,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('change-password',[AuthController::class,'changePassword'])->name('password.change');
     Route::get('/sport',[SportController::class,'sport'])->name('sport');
     Route::get('/leaque',[SportController::class,'league'])->name('leaque');
+    Route::get('/leaque-rule',[SportController::class,'leagueRule'])->name('leaque-rule');
     Route::post('/leaque-create',[SportController::class,'store'])->name('league.create');
     Route::post('/add-player',[SportController::class,'addPlayer'])->name('add.player');
     Route::get('/leaque-view/{id}',[SportController::class,'leagueView'])->name('leagueView');

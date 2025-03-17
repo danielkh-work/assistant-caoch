@@ -21,6 +21,16 @@ class SportController extends Controller
 
     public function league(Request $request)
     {
+        $id =  auth()->user()->id;
+        $league = League::with([
+            'teams',  // Selecting only 'id' and 'name' from teams
+            'league_rule:id,title', // Selecting only 'id' and 'title' from leaque_rule
+            'sport:id,title' // Selecting only 'id' and 'title' from sport
+        ])->get();
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "leauqe List  ", $league);
+    }
+    public function leagueRule(Request $request)
+    {
         $League = LeagueRule::all();
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "League Rule ", $League);
     }
@@ -87,7 +97,7 @@ class SportController extends Controller
     }
     public function dashboard(Request $request)
     {
-        $leauqe =  League::with('teams','leaque_rule','sport')->get();
+        $leauqe =  League::with('teams','league_rule','sport')->get();
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "leauqe List  ", $leauqe);
     }
 }
