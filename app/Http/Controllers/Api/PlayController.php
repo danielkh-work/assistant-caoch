@@ -38,6 +38,7 @@ class PlayController extends Controller
             $zipArchive->extractTo($extractPath);
             $zipArchive->close();
 
+
             // Find the video file (assuming it's MP4)
             $videoFile = collect(scandir($extractPath))->first(fn($file) => Str::endsWith($file, ['.mp4', '.avi', '.mov']));
 
@@ -57,6 +58,7 @@ class PlayController extends Controller
                 $play->pre_snap_motion = $request->pre_snap_motion;
                 $play->play_action_fake = $request->play_action_fake;
                 $play->video_path = $videoPath;
+                $play->perfer_down_selection =  $request->perfer_down_selection;
                 $play->save();
             }
 
