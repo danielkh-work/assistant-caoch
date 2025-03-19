@@ -12,6 +12,12 @@ use ZipArchive;
 
 class PlayController extends Controller
 {
+
+    public function index(Request $request)
+    {
+       $play =  Play::all();
+       return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play Uploaded List ", $play);
+    }
     public function store(Request $request)
     {
         $play =  new Play();
@@ -45,8 +51,6 @@ class PlayController extends Controller
             if ($videoFile) {
                 $videoPath = 'uploads/videos/' . $videoFile;
                 Storage::disk('public')->put($videoPath, file_get_contents($extractPath . '/' . $videoFile));
-
-                // Save to database
                 $play = new Play();
                 $play->play_name = $request->play_name;
                 $play->play_type = $request->play_type;
