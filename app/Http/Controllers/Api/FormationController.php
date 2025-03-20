@@ -14,14 +14,15 @@ class FormationController extends Controller
        
         DB::beginTransaction();
         try {
+          
             $formation  =  new Formation();
             $formation->league_id = $request->league_id;
             $formation->formation = $request->formation_name;
-            if ($request->hasFile('image')) {
+          
+                $path =  storeBase64Image($request->image);
 
-                $path =  uploadImage($request->image, 'public');
                 $formation->image =  $path ;
-            }
+            
 
             $formation->save();
             foreach ($request->players as $key => $value) {
