@@ -3,6 +3,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Responses\BaseResponse;
 use App\Models\Formation;
+use App\Models\FormationData;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -10,10 +11,11 @@ class FormationController extends Controller
 {
     public function store(Request $request)
     {
+       
         DB::beginTransaction();
         try {
             $formation  =  new Formation();
-            $formation->leaque_id = $request->leaque_id;
+            $formation->league_id = $request->league_id;
             $formation->formation = $request->formation_name;
             if ($request->hasFile('image')) {
 
@@ -22,6 +24,15 @@ class FormationController extends Controller
             }
 
             $formation->save();
+            foreach ($request->players as $key => $value) {
+                $f_data =new FormationData;
+                $f_data->formation_id =  $formation->id;
+                $f_data->name = $value['name'];
+                $f_data->y=$value['y'];
+                $f_data->x=$value['x'];
+                $f_data->type=$value['type'];
+                $f_data->save();
+            }
             DB::commit();
             return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Formation save successFully", $formation);
         } catch (\Throwable $th) {

@@ -13,8 +13,8 @@ return new class extends Migration
     {
         Schema::create('leagues', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('sport_id');
-            $table->unsignedBigInteger('league_rule_id');
+            $table->unsignedBigInteger('sport_id')->constrained('sports')->onDelete('cascade');
+            $table->unsignedBigInteger('league_rule_id')->constrained('league_rules')->onDelete('cascade');
             $table->string('title');
             $table->integer('number_of_team')->nullable();
             $table->integer('number_of_downs')->nullable();

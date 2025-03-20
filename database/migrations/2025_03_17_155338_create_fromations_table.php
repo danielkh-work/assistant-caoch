@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('formations', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('leaque_id');
+            $table->unsignedBigInteger('league_id')->constrained('leagues')->onDelete('cascade');
             $table->string('formation');
             $table->string('image')->nullable();
             $table->timestamps();
