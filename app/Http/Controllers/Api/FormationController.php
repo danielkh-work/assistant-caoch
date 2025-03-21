@@ -26,7 +26,7 @@ class FormationController extends Controller
             
 
             $formation->save();
-            foreach ($request['players'] as $key => $value) {
+            foreach ($request->players as $key => $value) {
                 $f_data =new FormationData;
                 $f_data->formation_id =  $formation->id;
                 $f_data->name = $value['name'];
