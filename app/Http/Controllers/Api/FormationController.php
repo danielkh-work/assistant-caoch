@@ -18,6 +18,7 @@ class FormationController extends Controller
             $formation  =  new Formation();
             $formation->league_id = $request->league_id;
             $formation->formation = $request->formation_name;
+            $formation->base_64 = $request->image;
           
                 $path =  storeBase64Image($request->image);
 
@@ -40,5 +41,11 @@ class FormationController extends Controller
           DB::rollBack();
           return new BaseResponse(STATUS_CODE_UNPROCESSABLE, STATUS_CODE_UNPROCESSABLE, $th->getMessage());
         }
+    }
+
+    public function view(Request $request)
+    {
+        $formation =  Formation::with('formation_data')->find($request->id);
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Formation view", $formation);
     }
 }
