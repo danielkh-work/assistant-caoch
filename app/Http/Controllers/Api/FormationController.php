@@ -33,6 +33,7 @@ class FormationController extends Controller
                 $f_data->y=$value['y'];
                 $f_data->x=$value['x'];
                 $f_data->type=$value['type'];
+                $f_data->player_number=$value['player_number'];
                 $f_data->save();
             }
             DB::commit();
