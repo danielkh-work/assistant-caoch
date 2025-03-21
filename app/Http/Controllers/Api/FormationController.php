@@ -16,17 +16,17 @@ class FormationController extends Controller
         try {
           
             $formation  =  new Formation();
-            $formation->league_id = $request->league_id;
-            $formation->formation = $request->formation_name;
-            $formation->base_64 = $request->image;
+            $formation->league_id = $request['league_id'];
+            $formation->formation = $request['formation_name'];
+            $formation->base_64 = $request['image'];
           
-                $path =  storeBase64Image($request->image);
+                $path =  storeBase64Image($request['image']);
 
                 $formation->image =  $path ;
             
 
             $formation->save();
-            foreach ($request->players as $key => $value) {
+            foreach ($request['players'] as $key => $value) {
                 $f_data =new FormationData;
                 $f_data->formation_id =  $formation->id;
                 $f_data->name = $value['name'];
