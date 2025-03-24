@@ -92,7 +92,7 @@ class SportController extends Controller
 
     public function leagueView(Request $request)
     {
-      $leauqe =   League::with('teams')->find($request->id);
+      $leauqe =   League::with('teams','league_rule','sport')->find($request->id);
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "leauqe List  ", $leauqe);
     }
     public function dashboard(Request $request)
