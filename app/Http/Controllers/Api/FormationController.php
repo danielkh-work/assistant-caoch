@@ -49,4 +49,10 @@ class FormationController extends Controller
         $formation =  Formation::with('formation_data')->find($request->id);
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Formation view", $formation);
     }
+
+    public function list(Request $request)
+    {
+        $formation =  Formation::with('formation_data')->get();
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Formation List", $formation);
+    }
 }

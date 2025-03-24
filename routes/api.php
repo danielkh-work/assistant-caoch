@@ -36,6 +36,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/dashboard',[SportController::class,'dashboard'])->name('dashboard');
     Route::post('/create-formation',[FormationController::class,'store'])->name('create-formation');
     Route::get('/formation-view/{id}',[FormationController::class,'view'])->name('formation-view');
+    Route::get('/formation-list',[FormationController::class,'list'])->name('formation-list');
+
     Route::post('/uplaod-play',[PlayController::class,'store'])->name('uplaod-play');
     Route::get('/upload-play-list',[PlayController::class,'index'])->name('upload-play-list');
 });
