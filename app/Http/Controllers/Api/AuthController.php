@@ -156,6 +156,12 @@ class AuthController extends Controller
         $user  = auth('api')->user();
         $user->name =  $request->name;
         $user->email =  $request->email;
+        if($request->hasFile('image')){
+
+          $file =  $request->image;
+          $path =   uploadImage($file,'public');
+          $user->image =  $path ;
+        }
         $user->save();
 
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "User Updated Successfully",$user );

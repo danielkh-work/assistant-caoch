@@ -9,6 +9,7 @@ class League extends Model
 {
     use HasFactory;
 
+    protected $appends = ['sport_name', 'rules_name']; // Correct spelling
     public function teams()
     {
         return $this->hasMany(LeagueTeam::class,'league_id');
@@ -20,5 +21,14 @@ class League extends Model
     public function sport()
     {
         return $this->belongsTo(Sport::class,'sport_id');
+    }
+
+    public function getSportNameAttribute()
+    {
+        return $this->sport ? $this->sport->title : '-';
+    }
+    public function getRulesNameAttribute()
+    {
+        return $this->league_rule ? $this->league_rule->title : '-';
     }
 }
