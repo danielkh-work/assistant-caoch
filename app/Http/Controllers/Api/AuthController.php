@@ -144,4 +144,20 @@ class AuthController extends Controller
             ? response()->json(['message' => 'Password reset successfully.'], 200)
             : response()->json(['error' => 'Invalid token or email.'], 500);
     }
+
+    public function viewProfile(Request $request)
+    {
+        $user  = auth('api')->user();
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "User List",$user );
+    }
+
+    public function profileUpdate(Request $request)
+    {
+        $user  = auth('api')->user();
+        $user->name =  $request->name;
+        $user->email =  $request->email;
+        $user->save();
+
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "User Updated Successfully",$user );
+    }
 }

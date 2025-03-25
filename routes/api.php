@@ -38,7 +38,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/formation-view/{id}',[FormationController::class,'view'])->name('formation-view');
     Route::get('/formation-list',[FormationController::class,'list'])->name('formation-list');
     Route::post('/update-formation/{id}',[FormationController::class,'update'])->name('update-formation');
-
+    Route::get('view-profile',[AuthController::class,'viewProfile'])->name('view-profile');
+    Route::post('profile-update',[AuthController::class,'profileUpdate'])->name('profile-update');
+  
     Route::post('/uplaod-play',[PlayController::class,'store'])->name('uplaod-play');
     Route::get('/upload-play-list',[PlayController::class,'index'])->name('upload-play-list');
 });
