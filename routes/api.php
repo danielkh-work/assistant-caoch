@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\FormationController;
 use App\Http\Controllers\Api\PlayController;
 use App\Http\Controllers\Api\SportController;
+use App\Http\Controllers\Api\TeamController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -40,9 +41,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/update-formation/{id}',[FormationController::class,'update'])->name('update-formation');
     Route::get('view-profile',[AuthController::class,'viewProfile'])->name('view-profile');
     Route::post('profile-update',[AuthController::class,'profileUpdate'])->name('profile-update');
-  
     Route::post('/uplaod-play',[PlayController::class,'store'])->name('uplaod-play');
     Route::get('/upload-play-list',[PlayController::class,'index'])->name('upload-play-list');
+
+    Route::post('create-team',[TeamController::class,'store']);
+    Route::get('team-list',[TeamController::class,'index']);
+    Route::get('view-team/{id}',[TeamController::class,'view']);
+    Route::post('update-team/{id}',[TeamController::class,'update']);
 });
 
 Route::post('/register', [AuthController::class, 'register']);
