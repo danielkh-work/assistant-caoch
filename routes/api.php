@@ -29,21 +29,32 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('userUpdate',[AuthController::class,'userUpdate']);
     Route::post('change-password',[AuthController::class,'changePassword'])->name('password.change');
     Route::get('/sport',[SportController::class,'sport'])->name('sport');
-    Route::get('/leaque',[SportController::class,'league'])->name('leaque');
-    Route::get('/leaque-rule',[SportController::class,'leagueRule'])->name('leaque-rule');
+
+    //  Leaque 
     Route::post('/leaque-create',[SportController::class,'store'])->name('league.create');
-    Route::post('/add-player',[SportController::class,'addPlayer'])->name('add.player');
+    Route::get('/leaque',[SportController::class,'league'])->name('leaque');
     Route::get('/leaque-view/{id}',[SportController::class,'leagueView'])->name('leagueView');
+    
+    
+    Route::get('/leaque-rule',[SportController::class,'leagueRule'])->name('leaque-rule');
+    Route::post('/add-player',[SportController::class,'addPlayer'])->name('add.player');
     Route::get('/dashboard',[SportController::class,'dashboard'])->name('dashboard');
+
+    // Formation  
     Route::post('/create-formation',[FormationController::class,'store'])->name('create-formation');
     Route::get('/formation-view/{id}',[FormationController::class,'view'])->name('formation-view');
     Route::get('/formation-list',[FormationController::class,'list'])->name('formation-list');
     Route::post('/update-formation/{id}',[FormationController::class,'update'])->name('update-formation');
+  
+    //profile 
     Route::get('view-profile',[AuthController::class,'viewProfile'])->name('view-profile');
     Route::post('profile-update',[AuthController::class,'profileUpdate'])->name('profile-update');
+   
+    // upload Play 
     Route::post('/uplaod-play',[PlayController::class,'store'])->name('uplaod-play');
     Route::get('/upload-play-list',[PlayController::class,'index'])->name('upload-play-list');
 
+    // Team 
     Route::post('create-team',[TeamController::class,'store']);
     Route::get('team-list',[TeamController::class,'index']);
     Route::get('view-team/{id}',[TeamController::class,'view']);
