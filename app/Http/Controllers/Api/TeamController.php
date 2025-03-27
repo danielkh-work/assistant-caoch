@@ -14,10 +14,7 @@ class TeamController extends Controller
     public function store(Request $request)
     {
         DB::beginTransaction();
-
-      
         try {
-            $players = json_decode($request->players, true);
             $team =  new Team();
             $team->name =  $request->team_name;
             if ($request->hasFile('image')) {
@@ -26,11 +23,11 @@ class TeamController extends Controller
             }
             $team->save();
            
-            foreach ($players as $player) {
+            foreach ($request->playerid as  $key=> $id) {
                 $t_player =  new TeamPlayer();
                 $t_player->team_id = $team->id;
-                $t_player->player_id = $player['id'];
-                $t_player->type = $player['type'];
+                $t_player->player_id = $id;
+                $t_player->type = $request->playertype[$key];
                 $t_player->save();
             }
             DB::commit();
