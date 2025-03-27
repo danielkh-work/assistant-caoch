@@ -23,10 +23,11 @@ class TeamController extends Controller
             }
             $team->save();
            
-            foreach ($request->playerid as $id) {
+            foreach ($request->playerid as  $key=> $id) {
                 $t_player =  new TeamPlayer();
                 $t_player->team_id = $team->id;
                 $t_player->player_id = $id;
+                $t_player->type = $request->playertype[$key];
                 $t_player->save();
             }
             DB::commit();
@@ -61,10 +62,11 @@ class TeamController extends Controller
             }
             $team->save();
             TeamPlayer::where('team_id',$id)->delete();
-            foreach ($request->playerid as $id) {
+            foreach ($request->playerid as $key=>$id) {
                 $t_player =  new TeamPlayer();
                 $t_player->team_id = $team->id;
                 $t_player->player_id = $id;
+                $t_player->type = $request->playertype[$key];
                 $t_player->save();
             }
             DB::commit();

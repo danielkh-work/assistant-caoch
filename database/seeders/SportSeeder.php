@@ -13,7 +13,7 @@ class SportSeeder extends Seeder
      */
     public function run(): void
     {
-        $data =['Soccer','Football','Hockey'];
+        $data =['American FootBall League'];
         foreach( $data as $value){
             Sport::FirstOrCreate([
                 'title'=>$value
