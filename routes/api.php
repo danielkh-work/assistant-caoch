@@ -38,6 +38,8 @@ Route::middleware('auth:sanctum')->group(function () {
     
     Route::get('/leaque-rule',[SportController::class,'leagueRule'])->name('leaque-rule');
     Route::post('/add-player',[SportController::class,'addPlayer'])->name('add.player');
+    Route::get('/player-list',[SportController::class,'playerList'])->name('player.list');
+    
     Route::get('/dashboard',[SportController::class,'dashboard'])->name('dashboard');
 
     // Formation  

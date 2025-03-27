@@ -100,4 +100,10 @@ class SportController extends Controller
         $leauqe =  League::with('teams','league_rule','sport')->get();
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "leauqe List  ", $leauqe);
     }
+
+    public function playerList(Request $request)
+    {
+        $players = Player::all();
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Player List  ", $players);
+    }
 }
