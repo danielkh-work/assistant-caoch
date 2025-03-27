@@ -61,6 +61,7 @@ class PlayController extends Controller
                 $play->opposing_defensive = $request->opposing_defensive;
                 $play->pre_snap_motion = $request->pre_snap_motion;
                 $play->play_action_fake = $request->play_action_fake;
+                $play->type = $request->type;
                 $play->video_path = $videoPath;
                 $play->perfer_down_selection =  $request->perfer_down_selection;
                 $play->save();
