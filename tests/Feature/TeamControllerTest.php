@@ -29,7 +29,8 @@ class TeamControllerTest extends TestCase
         $data = [
             'team_name' => 'Test Team',
             'image' => $image,
-            'playerid' => [1, 2, 3] // Fake player IDs
+            'playerid' => [1, 2, 3],// Fake player IDs
+            'playertype' => ['offensive','defensive', 'offensive']
         ];
         $token = $this->user->createToken('auth_token')->plainTextToken;
         $response = $this->withHeaders(['Authorization' => "Bearer $token"]);
@@ -80,7 +81,8 @@ class TeamControllerTest extends TestCase
         $data = [
             'team_name' => 'Updated Team',
             'image' => $image,
-            'playerid' => [4, 5, 6]
+            'playerid' => [4, 5, 6],
+            'playertype' => ['offensive','defensive', 'offensive']
         ];
         $token = $this->user->createToken('auth_token')->plainTextToken;
         $response = $this->withHeaders(['Authorization' => "Bearer $token"]);
