@@ -8,4 +8,11 @@ use Illuminate\Database\Eloquent\Model;
 class TeamPlayer extends Model
 {
     use HasFactory;
+
+    protected $appends = ['player_name'];
+
+    public function getPlayerNameAttribute()
+    {
+        return optional(Player::find($this->player_id))->name;
+    }
 }
