@@ -15,4 +15,9 @@ class TeamPlayer extends Model
     {
         return optional(Player::find($this->player_id))->name;
     }
+
+    public function  player()
+    {
+        return $this->belongsTo(Player::class,'player_id');
+    }
 }
