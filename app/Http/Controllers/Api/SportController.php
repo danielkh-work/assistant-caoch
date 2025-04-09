@@ -63,7 +63,7 @@ class SportController extends Controller
              $team->save();
            }
            DB::commit();
-           return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "League Created SuccessFully ", $League);
+           return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "League Created SuccessFully",$League);
         } catch (\Throwable $th) {
           DB::rollBack();
           return new BaseResponse(STATUS_CODE_BADREQUEST, STATUS_CODE_BADREQUEST, $th->getMessage());
