@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::table('leagues', function (Blueprint $table) {
             $table->string('number_of_downs')->nullable()->change();
-            $table->string('stop_time_reason ')->nullable()->change();
+            $table->string('stop_time_reason')->nullable()->change();
         });
     }
 
