@@ -26,7 +26,7 @@ class SportController extends Controller
             'teams',  // Selecting only 'id' and 'name' from teams
             'league_rule:id,title', // Selecting only 'id' and 'title' from leaque_rule
             'sport:id,title' // Selecting only 'id' and 'title' from sport
-        ])->get();
+        ])->where('user_id',auth('api')->user()->id)->get();
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "leauqe List  ", $league);
     }
     public function leagueRule(Request $request)
@@ -40,6 +40,7 @@ class SportController extends Controller
         try {
 
            $League =  new League;
+           $League->user_id=  auth('api')->user()->id;
            $League->sport_id=$request->sport_id;
            $League->league_rule_id=$request->league_rule_id;
            $League->number_of_team=$request->number_of_team;
