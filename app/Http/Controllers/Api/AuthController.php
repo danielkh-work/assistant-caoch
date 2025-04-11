@@ -153,6 +153,7 @@ class AuthController extends Controller
 
     public function profileUpdate(Request $request)
     {
+   
         $user  = auth('api')->user();
         $user->name =  $request->name;
         $user->email =  $request->email;

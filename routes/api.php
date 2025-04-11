@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\FormationController;
 use App\Http\Controllers\Api\PlayController;
+use App\Http\Controllers\Api\PlayerController;
 use App\Http\Controllers\Api\SportController;
 use App\Http\Controllers\Api\TeamController;
 use Illuminate\Http\Request;
@@ -38,8 +39,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
 
     Route::get('/leaque-rule',[SportController::class,'leagueRule'])->name('leaque-rule');
-    Route::post('/add-player',[SportController::class,'addPlayer'])->name('add.player');
-    Route::get('/player-list',[SportController::class,'playerList'])->name('player.list');
+
+    Route::post('/add-player',[PlayerController::class,'store'])->name('add.player');
+    Route::get('/player-list',[PlayerController::class,'list'])->name('player.list');
+    Route::post('/update-player/{id}',[PlayerController::class,'update'])->name('player.update');
+    Route::get('/delete-player/{id}',[PlayerController::class,'delete'])->name('player.delete');
+    Route::get('/view-player/{id}',[PlayerController::class,'view'])->name('player.view');
 
     Route::get('/dashboard',[SportController::class,'dashboard'])->name('dashboard');
 

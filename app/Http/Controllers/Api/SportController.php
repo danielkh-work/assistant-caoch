@@ -71,25 +71,7 @@ class SportController extends Controller
         }
     }
 
-    public  function addPlayer(Request $request)
-    {
-        DB::beginTransaction();
-        try {
-            $player = new Player();
-            $player->name = $request->name;
-            $player->number=  $request->number;
-            $player->position = $request->position;
-            $player->size= $request->size;
-            $player->speed= $request->speed;
-            $player->strength =  $request->strength;
-            $player->save();
-            DB::commit();
-            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Player Added SuccessFully ", $player);
-        } catch (\Throwable $th) {
-            DB::rollBack();
-            return new BaseResponse(STATUS_CODE_BADREQUEST, STATUS_CODE_BADREQUEST, $th->getMessage());
-        }
-    }
+ 
 
     public function leagueView(Request $request)
     {
@@ -138,9 +120,5 @@ class SportController extends Controller
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "leauqe List  ", $leauqe);
     }
 
-    public function playerList(Request $request)
-    {
-        $players = Player::all();
-        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Player List  ", $players);
-    }
+ 
 }
