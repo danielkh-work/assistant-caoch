@@ -65,8 +65,17 @@ class TeamController extends Controller
                 $team->image = $path;
             }
             $team->save();
+            TeamPlayer::where('team_id',$id)->delete();
+            foreach ($request->playerid as $key=>$id) {
+                $t_player =  new TeamPlayer();
+                $t_player->team_id = $team->id;
+                $t_player->player_id = $id;
+                $t_player->league_id = $request->league_id;
+                $t_player->type = $request->playertype[$key];
+                $t_player->save();
+            }
             DB::commit();
-            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Team update successFully", $team);
+            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Team Update successFully", $team);
         } catch (\Throwable $th) {
             DB::rollBack();
             return new BaseResponse(STATUS_CODE_UNPROCESSABLE, STATUS_CODE_UNPROCESSABLE, $th->getMessage());
