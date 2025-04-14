@@ -67,6 +67,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('team-list',[TeamController::class,'index']);
     Route::get('view-team/{id}',[TeamController::class,'view']);
     Route::post('update-team/{id}',[TeamController::class,'update']);
+    Route::get('team-list-by-league/{id}',[TeamController::class,'teamListByLeague']);
 });
 
 Route::post('/register', [AuthController::class, 'register']);

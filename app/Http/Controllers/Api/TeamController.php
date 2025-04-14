@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Responses\BaseResponse;
+use App\Models\LeagueTeam;
 use App\Models\Team;
 use App\Models\TeamPlayer;
 use Illuminate\Http\Request;
@@ -77,5 +78,11 @@ class TeamController extends Controller
             DB::rollBack();
             return new BaseResponse(STATUS_CODE_UNPROCESSABLE, STATUS_CODE_UNPROCESSABLE, $th->getMessage());
         }
+    }
+
+    public  function teamListByLeague(Request $request)
+    {
+        $team = LeagueTeam::where('league_id',$request->id)->get();
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Team List", $team);
     }
 }
