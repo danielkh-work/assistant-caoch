@@ -48,7 +48,7 @@ class TeamController extends Controller
     }
     public function view($id)
     {
-        $team =  Team::with('teamplayer.player')->find($id);
+        $team =  LeagueTeam::find($id);
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Team view", $team);
     }
 
@@ -57,21 +57,14 @@ class TeamController extends Controller
     {
         DB::beginTransaction();
         try {
-            $team =  Team::find($id);
-            $team->name =  $request->team_name;
+
+            $team = LeagueTeam::find($id);
+            $team->team_name =  $request->team_name;
             if ($request->hasFile('image')) {
                 $path =  uploadImage($request->image, 'uploads');
                 $team->image = $path;
             }
             $team->save();
-            TeamPlayer::where('team_id',$id)->delete();
-            foreach ($request->playerid as $key=>$id) {
-                $t_player =  new TeamPlayer();
-                $t_player->team_id = $team->id;
-                $t_player->player_id = $id;
-                $t_player->type = $request->playertype[$key];
-                $t_player->save();
-            }
             DB::commit();
             return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Team update successFully", $team);
         } catch (\Throwable $th) {
