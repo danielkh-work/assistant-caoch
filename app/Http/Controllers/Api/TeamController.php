@@ -43,12 +43,12 @@ class TeamController extends Controller
 
     public function index()
     {
-        $team =  Team::with('teamplayer')->get();
+        $team =  Team::with('teamplayer.player')->get();
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Team list", $team);
     }
     public function view($id)
     {
-        $team =  LeagueTeam::with('teamplayer')->find($id);
+        $team =  LeagueTeam::with('teamplayer.player')->find($id);
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Team view", $team);
     }
 

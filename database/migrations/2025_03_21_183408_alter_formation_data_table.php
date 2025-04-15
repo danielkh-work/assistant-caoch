@@ -13,7 +13,6 @@ return new class extends Migration
     {
         Schema::table('formation_data', function (Blueprint $table) {
             $table->string('player_number')->nullable();
-
         });
     }
 
