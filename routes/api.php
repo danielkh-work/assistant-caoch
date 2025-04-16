@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\ConfigureController;
 use App\Http\Controllers\Api\FormationController;
 use App\Http\Controllers\Api\PlayController;
 use App\Http\Controllers\Api\PlayerController;
@@ -68,6 +69,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('view-team/{id}',[TeamController::class,'view']);
     Route::post('update-team/{id}',[TeamController::class,'update']);
     Route::get('team-list-by-league/{id}',[TeamController::class,'teamListByLeague']);
+
+    Route::post('/configure-player',[ConfigureController::class,'store']);
 });
 
 Route::post('/register', [AuthController::class, 'register']);
