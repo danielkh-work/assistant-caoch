@@ -71,6 +71,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('team-list-by-league/{id}',[TeamController::class,'teamListByLeague']);
 
     Route::post('/configure-player',[ConfigureController::class,'store']);
+    Route::post('/configure-player-visiting',[ConfigureController::class,'storevisiting']);
 });
 
 Route::post('/register', [AuthController::class, 'register']);
