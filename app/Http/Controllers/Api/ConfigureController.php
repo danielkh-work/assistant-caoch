@@ -56,7 +56,7 @@ class ConfigureController extends Controller
                         'team_id' => $request->team_id,
                         'player_id' => $playerId,
                         'type' => $request->type[$index],
-                        'team_type'=>1
+                        'team_type'=>2
                     ],
                     [] 
                 );
