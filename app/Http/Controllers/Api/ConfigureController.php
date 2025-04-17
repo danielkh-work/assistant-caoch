@@ -14,15 +14,27 @@ class ConfigureController extends Controller
     {
         DB::beginTransaction();
         try {
-            foreach($request->player_id as $key=>$id)
-            {
-                $configure = new ConfiguredPlayingTeamPlayer;
-                $configure->team_id =  $request->team_id;
-                $configure->player_id =  $id;
-                $configure->type =  $request->type[$key];
-                $configure->team_type = 1;
-                $configure->save();
+
+            $types = collect($request->type)->unique();
+
+          
+            ConfiguredPlayingTeamPlayer::where('team_id', $request->team_id)
+                ->whereIn('type', $types)
+                ->delete();
+    
+         
+            foreach ($request->player_id as $index => $playerId) {
+                ConfiguredPlayingTeamPlayer::updateOrCreate(
+                    [
+                        'team_id' => $request->team_id,
+                        'player_id' => $playerId,
+                        'type' => $request->type[$index],
+                        'team_type'=>1
+                    ],
+                    [] 
+                );
             }
+          
            DB::commit();
            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "configure Player successFully");
         } catch (\Throwable $th) {
@@ -34,14 +46,20 @@ class ConfigureController extends Controller
     {
         DB::beginTransaction();
         try {
-            foreach($request->player_id as $key=>$id)
-            {
-                $configure = new ConfiguredPlayingTeamPlayer;
-                $configure->team_id =  $request->team_id;
-                $configure->player_id =  $id;
-                $configure->type =  $request->type[$key];
-                $configure->team_type = 2;
-                $configure->save();
+            $types = collect($request->type)->unique();
+            ConfiguredPlayingTeamPlayer::where('team_id', $request->team_id)
+                ->whereIn('type', $types)
+                ->delete();
+            foreach ($request->player_id as $index => $playerId) {
+                ConfiguredPlayingTeamPlayer::updateOrCreate(
+                    [
+                        'team_id' => $request->team_id,
+                        'player_id' => $playerId,
+                        'type' => $request->type[$index],
+                        'team_type'=>1
+                    ],
+                    [] 
+                );
             }
            DB::commit();
            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "configure Player successFully");
