@@ -50,4 +50,9 @@ class ConfigureController extends Controller
           return new BaseResponse(STATUS_CODE_UNPROCESSABLE, STATUS_CODE_UNPROCESSABLE, $th->getMessage());
         }
     }
+    public function view(Request $request)
+    {
+        $configure =  ConfiguredPlayingTeamPlayer::with('player')->where('team_id',$request->team_id)->get();
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "configure Player List",$configure);
+    }
 }
