@@ -16,6 +16,7 @@ class PlayerController extends Controller
         try {
             $player = new Player();
             $player->name = $request->name;
+            $player->user_id = auth()->user()->id;
             $player->number=  $request->number;
             $player->position = $request->position;
             $player->size= $request->size;
