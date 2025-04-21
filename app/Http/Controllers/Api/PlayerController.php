@@ -38,7 +38,7 @@ class PlayerController extends Controller
 
     public function list(Request $request)
     {
-        $players = Player::all();
+        $players = Player::where('user_id',auth()->user()->id)->get();
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Player List  ", $players);
     }
     public function update(Request $request,$id)
