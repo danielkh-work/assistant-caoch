@@ -73,6 +73,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/configure-player',[ConfigureController::class,'store']);
     Route::post('/configure-player-visiting',[ConfigureController::class,'storevisiting']);
     Route::get('/configure-player-view',[ConfigureController::class,'view']);
+
+    Route::post('/configure-formation',[ConfigureController::class,'configureFormation']);
+    Route::get('/configure-formation-view',[ConfigureController::class,'configureFormationView']);
 });
 
 Route::post('/register', [AuthController::class, 'register']);
