@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Responses\BaseResponse;
 use App\Models\ConfiguredPlayingTeamPlayer;
 use App\Models\ConfigureFormation;
+use App\Models\ConfigurePlay;
 use Illuminate\Support\Facades\DB;
 
 class ConfigureController extends Controller
@@ -96,6 +97,33 @@ class ConfigureController extends Controller
     {
         $configure =  ConfigureFormation::with('league','team')->where('league_id',$request->league_id)->get();
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "configure formation List",$configure);
+  
+    }
+    public function configurePlay(Request $request)
+    {
+        DB::beginTransaction();
+        try {
+            foreach($request->play_id as $value)
+            {
+
+                $configureFormation =  new ConfigurePlay();
+                $configureFormation->user_id = auth()->user()->id;
+                $configureFormation->play_id = $value;
+                $configureFormation->league_id =  $request->league_id;
+                $configureFormation->save();
+            }
+
+            DB::commit();
+            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "configure Play successFully");
+        } catch (\Throwable $th) {
+            DB::rollBack();
+            return new BaseResponse(STATUS_CODE_UNPROCESSABLE, STATUS_CODE_UNPROCESSABLE, $th->getMessage());
+        }
+    }
+    public function configurePlayView(Request $request)
+    {
+        $configure =  ConfigurePlay::with('league','play')->where('league_id',$request->league_id)->get();
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "configure Play List",$configure);
   
     }
 }
