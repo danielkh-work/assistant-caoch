@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('players', function (Blueprint $table) {
+        Schema::table('plays', function (Blueprint $table) {
             $table->unsignedBigInteger('league_id')->nullable()->constrained('leagues')->onDelete('cascade');
         });
     }
