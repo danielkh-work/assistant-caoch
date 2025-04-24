@@ -62,6 +62,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // upload Play
     Route::post('/uplaod-play',[PlayController::class,'store'])->name('uplaod-play');
     Route::get('/upload-play-list',[PlayController::class,'index'])->name('upload-play-list');
+    Route::get('/delete-play/{id}',[PlayController::class,'delete'])->name('delete-play');
 
     // Team
     Route::post('create-team',[TeamController::class,'store']);

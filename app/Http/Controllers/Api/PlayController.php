@@ -15,7 +15,7 @@ class PlayController extends Controller
 
     public function index(Request $request)
     {
-       $play =  Play::all();
+       $play =  Play::where('league_id',$request->league_id)->get();
        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play Uploaded List ", $play);
     }
     public function store(Request $request)
@@ -35,6 +35,7 @@ class PlayController extends Controller
         ]);
         $play = new Play();
         $play->play_name = $request->play_name;
+        $play->league_id = $request->league_id;
         $play->play_type = $request->play_type;
         $play->zone_selection = $request->zone_selection;
         $play->min_expected_yard = $request->min_expected_yard;
@@ -57,5 +58,12 @@ class PlayController extends Controller
 
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play Uploaded Successfully ", $play);
 
+    }
+    public function delete(Request $request)
+    {
+       $play = Play::find($request->id);
+       if($play)
+       $play->delete();
+       return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play Delete Successfully ");
     }
 }
