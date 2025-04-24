@@ -80,6 +80,7 @@ class ConfigureController extends Controller
     {
         DB::beginTransaction();
         try {
+            ConfigureFormation::where(['user_id'=> auth()->user()->id,'league_id'=>$request->league_id])->delete();
             $configureFormation =  new ConfigureFormation();
             $configureFormation->user_id = auth()->user()->id;
             $configureFormation->formation_id = $request->formation_id;
@@ -103,6 +104,7 @@ class ConfigureController extends Controller
     {
         DB::beginTransaction();
         try {
+            ConfigurePlay::where(['user_id'=> auth()->user()->id,'league_id'=>$request->league_id])->delete();
             foreach($request->play_id as $value)
             {
 
