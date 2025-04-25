@@ -54,6 +54,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/formation-view/{id}',[FormationController::class,'view'])->name('formation-view');
     Route::get('/formation-list',[FormationController::class,'list'])->name('formation-list');
     Route::post('/update-formation/{id}',[FormationController::class,'update'])->name('update-formation');
+    Route::get('/delete-formation/{id}',[FormationController::class,'delete']);
 
     //profile
     Route::get('view-profile',[AuthController::class,'viewProfile'])->name('view-profile');

@@ -52,7 +52,7 @@ class FormationController extends Controller
 
     public function list(Request $request)
     {
-        $formation =  Formation::with('formation_data')->get();
+        $formation =  Formation::with('formation_data')->where('league_id',$request->league_id)->get();
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Formation List", $formation);
     }
 
@@ -89,5 +89,14 @@ class FormationController extends Controller
           DB::rollBack();
           return new BaseResponse(STATUS_CODE_UNPROCESSABLE, STATUS_CODE_UNPROCESSABLE, $th->getMessage());
         } 
+    }
+
+    public function delete(Request $request)
+    {
+       $Formation = Formation::find($request->id);
+       if($Formation)
+       FormationData::where('formation_id',$request->id)->delete();
+       $Formation->delete();
+       return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Formation Delete Successfully ");
     }
 }
