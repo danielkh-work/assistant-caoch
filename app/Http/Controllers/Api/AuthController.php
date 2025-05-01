@@ -167,4 +167,12 @@ class AuthController extends Controller
 
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "User Updated Successfully",$user );
     }
+
+    public function saveSport(Request $request)
+    {
+       $user = auth('api')->user();
+       $user->sport_id = $request->sport_id;
+       $user->save();
+       return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "User Updated Successfully",$user );
+    }
 }

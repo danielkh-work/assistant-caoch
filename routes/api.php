@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\FormationController;
 use App\Http\Controllers\Api\PlayController;
 use App\Http\Controllers\Api\PlayerController;
 use App\Http\Controllers\Api\SportController;
+use App\Http\Controllers\Api\SubscriptionPlanController;
 use App\Http\Controllers\Api\TeamController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -29,6 +30,7 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('userUpdate',[AuthController::class,'userUpdate']);
+    Route::post('save-sport',[AuthController::class,'saveSport']);
     Route::post('change-password',[AuthController::class,'changePassword'])->name('password.change');
     Route::get('/sport',[SportController::class,'sport'])->name('sport');
 
@@ -87,3 +89,11 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/forget-password',[AuthController::class,'forgotPassword'])->name('forget.change');
 Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('password.reset');
+
+
+Route::controller(SubscriptionPlanController::class)->group(function () {
+    Route::get('/subscriptionPlane', 'subscriptionPlane');
+    Route::post('/addSubscription', 'addSubscription');
+    Route::get('/cancel-subscription', 'cancelSubscription');
+    Route::get('/getPlane','getPlane');
+});
