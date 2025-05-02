@@ -18,7 +18,7 @@ class SubscriptionPlanController extends Controller
     public  $view,$currentVendor;
     public function __construct()
     {
-        Stripe::setApiKey(config('services.stripe.secret'));
+        // Stripe::setApiKey(config('services.stripe.secret'));
         $this->currentVendor = auth()->user();
 
     }
@@ -41,24 +41,25 @@ class SubscriptionPlanController extends Controller
 
         DB::beginTransaction();
         $id =  $request->id;
-        if(auth()->user()->is_subscribed)
+        $user = User::find(auth()->user()->id);
+        if(auth()->user()->is_subscribe)
         {
-            return new BaseResponse(STATUS_CODE_FORBIDDEN, STATUS_CODE_FORBIDDEN, 'You already Subsribe This Plan');
+            return new BaseResponse(STATUS_CODE_FORBIDDEN, STATUS_CODE_FORBIDDEN, 'You already Subsribe This Plan',$user);
         }
 
         $packages = SubscriptionPlan::where('id', $id)->first();
 
-        if(!auth()->user()->stripe_token)
-        {
-            return new BaseResponse(STATUS_CODE_NOTFOUND, STATUS_CODE_NOTFOUND, 'Please Add Card First');
+        // if(!auth()->user()->stripe_token)
+        // {
+        //     return new BaseResponse(STATUS_CODE_NOTFOUND, STATUS_CODE_NOTFOUND, 'Please Add Card First');
 
-        }
+        // }
         try {
-            $strip = new StripeService();
+            // $strip = new StripeService();
 
-            $isAmmountCharge = $strip::chargeIntentAmount($packages->amount ?? 500,auth()->user()->stripe_token,$request->card_id, "subscription buy successfullly.");
+            // $isAmmountCharge = $strip::chargeIntentAmount($packages->amount ?? 500,auth()->user()->stripe_token,$request->card_id, "subscription buy successfullly.");
 
-            if ($isAmmountCharge?->id) {
+            // if ($isAmmountCharge?->id) {
                 PackageSubscription::create([
                     'subscription_plan_id' => $id ?? 1,
                     'user_id' => auth()->user()->id,
@@ -66,12 +67,13 @@ class SubscriptionPlanController extends Controller
                     'end_date' => now()->addMonth(),
                     'is_expire' => 0
                 ]);
-                $user = User::find(auth()->user()->id);
-                $user->is_subscribed = 1;
+                
+                $user->is_subscribe = 1;
+                $user->subscription_id = $id;
                 $user->save();
                 DB::commit();
-                return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "subscription buy successfullly");
-            }
+                return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "subscription buy successfullly",$user);
+            // }
             return new BaseResponse(STATUS_CODE_FORBIDDEN, STATUS_CODE_FORBIDDEN, 'Something went wrong');
 
         } catch (Exception $e) {

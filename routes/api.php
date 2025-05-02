@@ -83,6 +83,13 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/configure-play',[ConfigureController::class,'configurePlay']);
     Route::get('/configure-play-view',[ConfigureController::class,'configurePlayView']);
+
+    Route::controller(SubscriptionPlanController::class)->group(function () {
+        Route::get('/subscriptionPlane', 'subscriptionPlane');
+        Route::post('/addSubscription', 'addSubscription');
+        Route::get('/cancel-subscription', 'cancelSubscription');
+        Route::get('/getPlane','getPlane');
+    });
 });
 
 Route::post('/register', [AuthController::class, 'register']);
@@ -91,9 +98,3 @@ Route::post('/forget-password',[AuthController::class,'forgotPassword'])->name('
 Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('password.reset');
 
 
-Route::controller(SubscriptionPlanController::class)->group(function () {
-    Route::get('/subscriptionPlane', 'subscriptionPlane');
-    Route::post('/addSubscription', 'addSubscription');
-    Route::get('/cancel-subscription', 'cancelSubscription');
-    Route::get('/getPlane','getPlane');
-});

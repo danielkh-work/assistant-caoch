@@ -13,7 +13,13 @@ return new class extends Migration
     {
         Schema::create('package_subscriptions', function (Blueprint $table) {
             $table->id();
+            $table->unsignedBigInteger('user_id');
+            $table->unsignedBigInteger('subscription_plan_id');
+            $table->string('is_expire')->comment('0=not expire , 1 = expire');
+            $table->date('package_date');
+            $table->string('end_date')->nullable();
             $table->timestamps();
+        
         });
     }
 
