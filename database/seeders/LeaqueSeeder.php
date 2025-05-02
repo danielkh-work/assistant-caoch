@@ -17,6 +17,7 @@ class LeaqueSeeder extends Seeder
         DB::table('league_rules')->insert([
             // CFL Entry
             [
+                'sport_id'=>1,
                 'title' => 'Canadian Football League (CFL)',
                 'number_of_downs' => 3,
                 'length_of_field' => '110 yards',
@@ -33,6 +34,7 @@ class LeaqueSeeder extends Seeder
             ],
             // NFL Entry
             [
+                'sport_id'=>1,
                 'title' => 'American Football (NFL)',
                 'number_of_downs' => 4,
                 'length_of_field' => '100 yards',
@@ -49,6 +51,7 @@ class LeaqueSeeder extends Seeder
             ],
             // Hybrid (SICA) Entry
             [
+                'sport_id'=>1,
                 'title' => 'Hybrid Canadian/American (SICA)',
                 'number_of_downs' => 4,
                 'length_of_field' => '105 yards',
@@ -64,6 +67,7 @@ class LeaqueSeeder extends Seeder
                 'updated_at' => now()
             ],
             [
+                'sport_id'=>1,
                 'title' => 'Special',
                 'number_of_downs' => 0,
                 'length_of_field' => '',
