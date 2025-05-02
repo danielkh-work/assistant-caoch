@@ -49,7 +49,7 @@ class AuthController extends Controller
         }
 
         $token = $user->createToken('auth_token')->plainTextToken;
-
+        $user['permissions'] = $user->getPermissionsViaRoles()->pluck('name');
         $expiresIn = now()->addMinutes(config('sanctum.expiration', 60))->timestamp;
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Login SuccessFully", $user,$token);
     }
@@ -74,6 +74,7 @@ class AuthController extends Controller
             $user->image = $path;
         }
         $user->save();
+        $user['permissions'] = $user->getPermissionsViaRoles()->pluck('name');
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "User Updated successfully", $user);
     }
 
@@ -148,6 +149,7 @@ class AuthController extends Controller
     public function viewProfile(Request $request)
     {
         $user  = auth('api')->user();
+        $user['permissions'] = $user->getPermissionsViaRoles()->pluck('name');
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "User List",$user );
     }
 

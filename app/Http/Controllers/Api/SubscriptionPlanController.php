@@ -42,10 +42,10 @@ class SubscriptionPlanController extends Controller
         DB::beginTransaction();
         $id =  $request->id;
         $user = User::find(auth()->user()->id);
-        if(auth()->user()->is_subscribe)
-        {
-            return new BaseResponse(STATUS_CODE_FORBIDDEN, STATUS_CODE_FORBIDDEN, 'You already Subsribe This Plan',$user);
-        }
+        // if(auth()->user()->is_subscribe)
+        // {
+        //     return new BaseResponse(STATUS_CODE_FORBIDDEN, STATUS_CODE_FORBIDDEN, 'You already Subsribe This Plan',$user);
+        // }
 
         $packages = SubscriptionPlan::where('id', $id)->first();
 
@@ -60,6 +60,10 @@ class SubscriptionPlanController extends Controller
             // $isAmmountCharge = $strip::chargeIntentAmount($packages->amount ?? 500,auth()->user()->stripe_token,$request->card_id, "subscription buy successfullly.");
 
             // if ($isAmmountCharge?->id) {
+            
+
+
+         
                 PackageSubscription::create([
                     'subscription_plan_id' => $id ?? 1,
                     'user_id' => auth()->user()->id,
@@ -67,7 +71,7 @@ class SubscriptionPlanController extends Controller
                     'end_date' => now()->addMonth(),
                     'is_expire' => 0
                 ]);
-                
+                $user->assignRole([$packages->title]);
                 $user->is_subscribe = 1;
                 $user->subscription_id = $id;
                 $user->save();
