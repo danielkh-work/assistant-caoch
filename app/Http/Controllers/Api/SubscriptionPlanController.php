@@ -72,9 +72,12 @@ class SubscriptionPlanController extends Controller
                     'is_expire' => 0
                 ]);
                 $user->assignRole([$packages->title]);
+
                 $user->is_subscribe = 1;
                 $user->subscription_id = $id;
-                $user->save();
+                  $user->save();
+                  $user['permissions'] = $user->getPermissionsViaRoles()->pluck('name');
+              
                 DB::commit();
                 return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "subscription buy successfullly",$user);
             // }
