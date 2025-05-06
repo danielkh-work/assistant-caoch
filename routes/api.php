@@ -87,8 +87,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::controller(SubscriptionPlanController::class)->group(function () {
         Route::get('/subscriptionPlane', 'subscriptionPlane');
         Route::post('/addSubscription', 'addSubscription');
+        Route::post('/updateSubscription', 'updateSubscription');
         Route::get('/cancel-subscription', 'cancelSubscription');
         Route::get('/getPlane','getPlane');
+
     });
 });
 
