@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\ConfigureController;
 use App\Http\Controllers\Api\FormationController;
 use App\Http\Controllers\Api\PlayController;
 use App\Http\Controllers\Api\PlayerController;
+use App\Http\Controllers\Api\PlayGameModeController;
 use App\Http\Controllers\Api\SportController;
 use App\Http\Controllers\Api\SubscriptionPlanController;
 use App\Http\Controllers\Api\TeamController;
@@ -92,8 +93,15 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/getPlane','getPlane');
 
     });
-});
 
+    Route::controller(PlayGameModeController::class)->group(function () {
+       Route::post('/start-game-mode', 'startGameGode');
+       Route::post('/add-points-update-state', 'addPoints');
+
+    });
+
+});
+// start-game-mode
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/forget-password',[AuthController::class,'forgotPassword'])->name('forget.change');

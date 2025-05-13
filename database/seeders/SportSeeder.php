@@ -15,15 +15,15 @@ class SportSeeder extends Seeder
     {
         $sports = [
             'American Football ',
-            'Baseball',
-            'Basketball',
-            'Soccer',
-            'Volleyball',
-            'Tennis',
-            'Cornhole',
-            'Spikeball',
-            'Badminton',
-            'Ultimate Frisbee'
+            // 'Baseball',
+            // 'Basketball',
+            // 'Soccer',
+            // 'Volleyball',
+            // 'Tennis',
+            // 'Cornhole',
+            // 'Spikeball',
+            // 'Badminton',
+            // 'Ultimate Frisbee'
         ];
 
         foreach ($sports as $sport) {
