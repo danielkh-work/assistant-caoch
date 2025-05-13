@@ -36,19 +36,13 @@ class RolesAndPermissionsSeeder extends Seeder
             'edit_upload_play',
             'list_upload_play'
         ],
-        'Silver' => [
+        'Expert' => [
             'add_upload_play',
             'view_upload_play',
             'edit_upload_play',
             'list_upload_play'
         ],
-        'Gold' => [
-            'add_upload_play',
-            'view_upload_play',
-            'edit_upload_play',
-            'list_upload_play'
-        ],
-        'Premium' => [
+        'Pro' => [
             'add_upload_play',
             'view_upload_play',
             'edit_upload_play',
