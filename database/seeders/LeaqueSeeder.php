@@ -16,22 +16,22 @@ class LeaqueSeeder extends Seeder
     {
         DB::table('league_rules')->insert([
             // CFL Entry
-            [
-                'sport_id'=>1,
-                'title' => 'Canadian Football League (CFL)',
-                'number_of_downs' => 3,
-                'length_of_field' => '110 yards',
-                'number_of_timeouts' => 1,
-                'clock_time' => 'CFL',
-                'number_of_quarters' => 4,
-                'length_of_quarters' => 15,
-                'stop_time_reason' => 1,
-                'overtime_rules' => 1,
-                'number_of_players' => 12,
-                'flag_tbd' => 'No',
-                'created_at' => now(),
-                'updated_at' => now()
-            ],
+            // [
+            //     'sport_id'=>1,
+            //     'title' => 'Canadian Football League (CFL)',
+            //     'number_of_downs' => 3,
+            //     'length_of_field' => '110 yards',
+            //     'number_of_timeouts' => 1,
+            //     'clock_time' => 'CFL',
+            //     'number_of_quarters' => 4,
+            //     'length_of_quarters' => 15,
+            //     'stop_time_reason' => 1,
+            //     'overtime_rules' => 1,
+            //     'number_of_players' => 12,
+            //     'flag_tbd' => 'No',
+            //     'created_at' => now(),
+            //     'updated_at' => now()
+            // ],
             // NFL Entry
             [
                 'sport_id'=>1,
@@ -50,22 +50,22 @@ class LeaqueSeeder extends Seeder
                 'updated_at' => now()
             ],
             // Hybrid (SICA) Entry
-            [
-                'sport_id'=>1,
-                'title' => 'Hybrid Canadian/American (SICA)',
-                'number_of_downs' => 4,
-                'length_of_field' => '105 yards',
-                'number_of_timeouts' => 2,
-                'clock_time' => 'SICA',
-                'number_of_quarters' => 4,
-                'length_of_quarters' => 15,
-                'stop_time_reason' => 3,
-                'overtime_rules' => 3,
-                'number_of_players' => 11,
-                'flag_tbd' => 'NO',
-                'created_at' => now(),
-                'updated_at' => now()
-            ],
+            // [
+            //     'sport_id'=>1,
+            //     'title' => 'Hybrid Canadian/American (SICA)',
+            //     'number_of_downs' => 4,
+            //     'length_of_field' => '105 yards',
+            //     'number_of_timeouts' => 2,
+            //     'clock_time' => 'SICA',
+            //     'number_of_quarters' => 4,
+            //     'length_of_quarters' => 15,
+            //     'stop_time_reason' => 3,
+            //     'overtime_rules' => 3,
+            //     'number_of_players' => 11,
+            //     'flag_tbd' => 'NO',
+            //     'created_at' => now(),
+            //     'updated_at' => now()
+            // ],
             [
                 'sport_id'=>1,
                 'title' => 'Special',

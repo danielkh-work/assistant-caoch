@@ -19,13 +19,10 @@ class SubsCription extends Seeder
                'title'=>'Beginner'
             ],
             [
-                'title'=>'Silver'
+                'title'=>'Expert'
             ],
             [
-                'title'=>'Gold'
-            ],
-            [
-                'title'=>'Premium'
+                'title'=>'Pro'
             ]
         ]);
     }
