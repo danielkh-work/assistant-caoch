@@ -42,7 +42,6 @@ class PlayGameModeController extends Controller
                 $game->score = $game->score+$request->my_points;
                 $game->save();
 
-
                 $game_log= new PlayGameLog();
                 $game_log->game_id =  $request->game_id;
                 $game_log->sport_id=  $request->sport_id;
@@ -59,7 +58,6 @@ class PlayGameModeController extends Controller
                 $game_log->time=  $request->time;
                 $game_log->type_of_log=  $request->type_of_log;
                 $game_log->save();
-
 
                 DB::commit();
              return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Update Changes Added ", $game);

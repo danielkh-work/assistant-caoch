@@ -3,12 +3,15 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ConfigureController;
 use App\Http\Controllers\Api\FormationController;
+use App\Http\Controllers\Api\LogController;
+use App\Http\Controllers\Api\MatchController;
 use App\Http\Controllers\Api\PlayController;
 use App\Http\Controllers\Api\PlayerController;
 use App\Http\Controllers\Api\PlayGameModeController;
 use App\Http\Controllers\Api\SportController;
 use App\Http\Controllers\Api\SubscriptionPlanController;
 use App\Http\Controllers\Api\TeamController;
+use App\Http\Responses\BaseResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -97,7 +100,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::controller(PlayGameModeController::class)->group(function () {
        Route::post('/start-game-mode', 'startGameGode');
        Route::post('/add-points-update-state', 'addPoints');
+    });
 
+    Route::prefix('leagues')->group(function () {
+        Route::prefix('/{league}/matches')->group(function () {
+            Route::get('/', [MatchController::class, 'index']);
+            Route::prefix('/{match}/logs')->group(function () {
+                Route::get('/', [LogController::class, 'index']);
+            });
+        });
     });
 
 });
