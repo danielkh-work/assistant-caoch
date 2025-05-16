@@ -13,4 +13,14 @@ class Team extends Model
     {
         return $this->hasMany(TeamPlayer::class,'team_id');
     }
+
+    public function logsAsMyTeam()
+    {
+        return $this->hasMany(PlayGameLog::class, 'my_team_id');
+    }
+
+    public function logsAsOpponent()
+    {
+        return $this->hasMany(PlayGameLog::class, 'oponent_team_id');
+    }
 }

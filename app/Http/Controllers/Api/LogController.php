@@ -11,7 +11,7 @@ use App\Models\PlayGameMode;
 class LogController extends Controller
 {
     public function index(League $league, $match) {
-        $logs = PlayGameLog::where('league_id', $league->id)->where('game_id', $match)->get();
+        $logs = PlayGameLog::where('league_id', $league->id)->where('game_id', $match)->with(['myTeam', 'opponentTeam'])->get();
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Logs List  ", $logs);
     }
 }
