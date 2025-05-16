@@ -27,8 +27,14 @@ class League extends Model
     {
         return $this->sport ? $this->sport->title : '-';
     }
+
     public function getRulesNameAttribute()
     {
         return $this->league_rule ? $this->league_rule->title : '-';
+    }
+
+    public function matches()
+    {
+        return $this->hasMany(PlayGameMode::class,'league_id');
     }
 }
