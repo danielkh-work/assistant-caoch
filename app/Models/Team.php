@@ -11,7 +11,7 @@ class Team extends Model
 
     public function teamplayer()
     {
-        return $this->hasMany(TeamPlayer::class,'team_id');
+        return $this->hasMany(TeamPlayer::class, 'team_id');
     }
 
     public function logsAsMyTeam()

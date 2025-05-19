@@ -13,4 +13,14 @@ class PlayGameMode extends Model
     {
         return $this->hasMany(PlayGameLog::class, 'game_id');
     }
+
+    public function myTeam()
+    {
+        return $this->belongsTo(Team::class, 'my_team_id');
+    }
+
+    public function opponentTeam()
+    {
+        return $this->belongsTo(Team::class, 'oponent_team_id');
+    }
 }
