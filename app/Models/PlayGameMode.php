@@ -16,11 +16,11 @@ class PlayGameMode extends Model
 
     public function myTeam()
     {
-        return $this->belongsTo(Team::class, 'my_team_id');
+        return $this->belongsTo(LeagueTeam::class, 'my_team_id');
     }
 
     public function opponentTeam()
     {
-        return $this->belongsTo(Team::class, 'oponent_team_id');
+        return $this->belongsTo(LeagueTeam::class, 'oponent_team_id');
     }
 }
