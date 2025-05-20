@@ -20,7 +20,6 @@ class PlayGameModeController extends Controller
             $game->league_id = $request->league_id;
             $game->my_team_id =$request->my_team_id;
             $game->oponent_team_id =$request->oponent_team_id;
-            $game->score =0;
             $game->quater = '';
             $game->downs ='';
             $game->status = 0;
@@ -39,7 +38,6 @@ class PlayGameModeController extends Controller
         try {
 
                 $game =  PlayGameMode::find($request->game_id);
-                $game->score = $game->score+$request->my_points;
                 $game->save();
 
                 $game_log= new PlayGameLog();
