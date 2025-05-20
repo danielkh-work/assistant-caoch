@@ -11,9 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('plays', function (Blueprint $table) {
-            $table->integer('perfer_down_selection')->nullable();
-
+        Schema::create('offensive_positions', function (Blueprint $table) {
+            $table->id();
+            $table->string('name'); // e.g., QB, RB, WR, etc.
+            $table->timestamps();
         });
     }
 
@@ -22,6 +23,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        //
+        Schema::dropIfExists('offensive_positions');
     }
 };

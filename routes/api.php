@@ -105,6 +105,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('leagues')->group(function () {
         Route::prefix('/{league}/matches')->group(function () {
             Route::get('/', [MatchController::class, 'index']);
+            Route::put('/{match}/', [MatchController::class, 'update']);
             Route::prefix('/{match}/logs')->group(function () {
                 Route::get('/', [LogController::class, 'index']);
             });
