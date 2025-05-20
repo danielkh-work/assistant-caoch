@@ -14,9 +14,13 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-
-        $this->call(SportSeeder::class);
-        $this->call(LeaqueSeeder::class);
+        $this->call([
+            SportSeeder::class,
+            LeaqueSeeder::class,
+            OffensivePositionsTableSeeder::class,
+            DefensivePositionsTableSeeder::class,
+        ]);
+        
         // \App\Models\User::factory(10)->create();
 
         // \App\Models\User::factory()->create([

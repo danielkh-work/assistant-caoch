@@ -9,6 +9,11 @@ class PlayGameMode extends Model
 {
     use HasFactory;
 
+    protected $fillable = [
+        'my_team_score',
+        'oponent_team_score',
+    ];
+
     public function logs()
     {
         return $this->hasMany(PlayGameLog::class, 'game_id');
