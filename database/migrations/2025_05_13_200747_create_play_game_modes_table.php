@@ -17,7 +17,8 @@ return new class extends Migration
             $table->unsignedBigInteger('league_id')->constrained('leagues')->onDelete('cascade');
             $table->unsignedBigInteger('my_team_id')->constrained('league_teams')->onDelete('cascade');
             $table->unsignedBigInteger('oponent_team_id')->constrained('league_teams')->onDelete('cascade');
-            $table->integer('score');
+            $table->integer('my_team_score')->nullable();
+            $table->integer('oponent_team_score')->nullable();
             $table->string('quater')->nullable();
             $table->string('downs')->nullable();
             $table->integer('status')->default(0)->comment('0=start 1= completed');

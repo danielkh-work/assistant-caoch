@@ -11,8 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('plays', function (Blueprint $table) {
-            $table->unsignedBigInteger('league_id')->nullable()->constrained('leagues')->onDelete('cascade');
+        Schema::create('defensive_positions', function (Blueprint $table) {
+            $table->id();
+            $table->string('name'); // e.g., CB, FS, EDGE, etc.
+            $table->timestamps();
         });
     }
 
@@ -21,6 +23,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        //
+        Schema::dropIfExists('defensive_positions');
     }
 };
