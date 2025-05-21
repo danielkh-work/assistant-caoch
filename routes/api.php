@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\PlayerController;
 use App\Http\Controllers\Api\PlayGameModeController;
 use App\Http\Controllers\Api\SportController;
 use App\Http\Controllers\Api\SubscriptionPlanController;
+use App\Http\Controllers\Api\SuggestionController;
 use App\Http\Controllers\Api\TeamController;
 use App\Http\Responses\BaseResponse;
 use Illuminate\Http\Request;
@@ -112,6 +113,9 @@ Route::middleware('auth:sanctum')->group(function () {
         });
     });
 
+    Route::prefix('leagues')->group(function () {
+        Route::get('/{league}/get-suggested-plays', [SuggestionController::class, 'getSuggestedPlays']);
+    });
 });
 // start-game-mode
 Route::post('/register', [AuthController::class, 'register']);

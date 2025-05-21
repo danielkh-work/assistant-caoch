@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             LeaqueSeeder::class,
             OffensivePositionsTableSeeder::class,
             DefensivePositionsTableSeeder::class,
+            SubscriptionPlanSeeder::class
         ]);
         
         // \App\Models\User::factory(10)->create();
