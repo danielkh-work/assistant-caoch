@@ -90,12 +90,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/configure-play-view',[ConfigureController::class,'configurePlayView']);
 
     Route::controller(SubscriptionPlanController::class)->group(function () {
-        Route::get('/subscriptionPlane', 'subscriptionPlane');
+        Route::get('/subscription-plan', 'subscriptionPlan');
         Route::post('/addSubscription', 'addSubscription');
         Route::post('/updateSubscription', 'updateSubscription');
         Route::get('/cancel-subscription', 'cancelSubscription');
         Route::get('/getPlane','getPlane');
-
     });
 
     Route::controller(PlayGameModeController::class)->group(function () {
