@@ -35,6 +35,7 @@ class SubscriptionPlanController extends Controller
                 ->map(function (Collection $group) {
                     return $group->map(function ($plan) {
                         return [
+                            'id'          => $plan->id,
                             'type'        => $plan->type,
                             'currency'    => $plan->currency,
                             'amount'      => $plan->amount,
