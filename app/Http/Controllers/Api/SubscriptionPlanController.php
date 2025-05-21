@@ -11,6 +11,7 @@ use App\Models\PackageSubscription;
 use App\Models\User;
 use Stripe\Stripe;
 use App\Http\Services\StripeService;
+use Illuminate\Support\Collection;
 use Exception;
 
 class SubscriptionPlanController extends Controller
@@ -22,20 +23,44 @@ class SubscriptionPlanController extends Controller
         $this->currentVendor = auth()->user();
 
     }
+
     /**
      * Display a listing of the resource.
      */
-    public function subscriptionPlane()
+    public function subscriptionPlan()
     {
-        DB::beginTransaction();
         try {
-
-            $subscriptionPlane = SubscriptionPlan::all();
-            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Subscription Plane List",$subscriptionPlane);
+            $subscriptionPlans = SubscriptionPlan::all()
+                ->groupBy('title') // Group by title
+                ->map(function (Collection $group) {
+                    return $group->map(function ($plan) {
+                        return [
+                            'type'        => $plan->type,
+                            'currency'    => $plan->currency,
+                            'amount'      => $plan->amount,
+                            'month'       => $plan->month,
+                            'description' => $plan->description,
+                            'commission'  => $plan->commission,
+                        ];
+                    })->values();
+                });
+    
+            return new BaseResponse(
+                STATUS_CODE_OK,
+                STATUS_CODE_OK,
+                "Subscription Plan List Grouped by Title",
+                $subscriptionPlans
+            );
+    
         } catch (\Exception $e) {
-            return new BaseResponse(STATUS_CODE_NOTAUTHORISED, STATUS_CODE_NOTAUTHORISED, $e->getMessage());
+            return new BaseResponse(
+                STATUS_CODE_NOTAUTHORISED,
+                STATUS_CODE_NOTAUTHORISED,
+                $e->getMessage()
+            );
         }
     }
+
     public function addSubscription(Request $request)
     {
 

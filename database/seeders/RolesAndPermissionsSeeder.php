@@ -14,43 +14,50 @@ class RolesAndPermissionsSeeder extends Seeder
      */
     public function run(): void
     {
-       // Define permissions
-       $permissions = [
-        'add_upload_play',
-        'view_upload_play',
-        'edit_upload_play',
-        'list_upload_play'
+        // Define all permissions
+        $permissions = [
+            'add_upload_play',
+            'view_upload_play',
+            'edit_upload_play',
+            'list_upload_play'
+        ];
     
-    ];
-
-    // Create Permissions
-    foreach ($permissions as $permission) {
-        Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
-    }
-
-    // Define roles
-    $roles = [
-        'Beginner' => [
-            'add_upload_play',
-            'view_upload_play',
-            'edit_upload_play',
-            'list_upload_play'
-        ],
-        'Expert' => [
-            'add_upload_play',
-            'view_upload_play',
-            'edit_upload_play',
-            'list_upload_play'
-        ],
-        'Pro' => [
-            'add_upload_play',
-            'view_upload_play',
-            'edit_upload_play',
-            'list_upload_play'
-        ]
-    ];
-
-    // Create roles and assign permissions
+        // Create permissions
+        foreach ($permissions as $permission) {
+            Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
+        }
+    
+        // Define roles (including sub-levels)
+        $roles = [
+            'Classic Basic' => [
+                'view_upload_play',
+                'list_upload_play'
+            ],
+            'Classic Advanced' => [
+                'add_upload_play',
+                'view_upload_play',
+                'edit_upload_play',
+                'list_upload_play'
+            ],
+            'Pro Basic' => [
+                'view_upload_play',
+                'list_upload_play'
+            ],
+            'Pro Advanced' => [
+                'add_upload_play',
+                'view_upload_play',
+                'edit_upload_play',
+                'list_upload_play'
+            ],
+            'HD HUMAN DASHBOARD' => [
+                'add_upload_play',
+                'view_upload_play',
+                'edit_upload_play',
+                'list_upload_play'
+            ]
+        ];
+    
+        // Create roles and assign permissions
         foreach ($roles as $roleName => $rolePermissions) {
             $role = Role::firstOrCreate(['name' => $roleName, 'guard_name' => 'web']);
             $role->syncPermissions($rolePermissions);

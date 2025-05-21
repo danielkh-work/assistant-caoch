@@ -14,9 +14,9 @@ class SubscriptionPlanSeeder extends Seeder
     public function run(): void
     {
         $plans = [
-            ['title' => 'Starter', 'currency' => 'USD', 'amount' => '10', 'month' => '1', 'description' => 'Starter Plan', 'commission' => '5'],
-            ['title' => 'Pro',     'currency' => 'USD', 'amount' => '30', 'month' => '1', 'description' => 'Pro Plan',     'commission' => '10'],
-            ['title' => 'Enterprise','currency' => 'USD', 'amount' => '100', 'month' => '1', 'description' => 'Enterprise Plan', 'commission' => '15'],
+            ['title' => 'Classic', 'currency' => 'USD', 'amount' => '10', 'month' => '1', 'description' => 'Starter Plan', 'commission' => '5'],
+            ['title' => 'HD HUMAN DASHBOARD',     'currency' => 'USD', 'amount' => '30', 'month' => '1', 'description' => 'Pro Plan',     'commission' => '10'],
+            ['title' => 'Pro','currency' => 'USD', 'amount' => '100', 'month' => '1', 'description' => 'Enterprise Plan', 'commission' => '15'],
         ];
 
         foreach ($plans as $plan) {
