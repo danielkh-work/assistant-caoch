@@ -116,6 +116,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/{league}/get-suggested-plays', [SuggestionController::class, 'getSuggestedPlays']);
     });
 });
+
 // start-game-mode
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
