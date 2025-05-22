@@ -10,18 +10,16 @@ class SuggestionController extends Controller
 {
     public function getSuggestedPlays($league, Request $request)
     {
-        return Play::where('zone_selection', $request->zone)
-            ->where('preferred_down', $request->down)
-            ->where('possession', $request->possession)
+        $validated = $request->validate([
+            'zone' => 'required|integer',
+            'down' => 'required|integer|in:1,2,3,4',
+            'possession' => 'required|string|in:offensive,defensive',
+        ]);
+    
+        return Play::where('zone_selection', $validated['zone'])
+            ->where('preferred_down', $validated['down'])
+            ->where('possession', $validated['possession'])
             ->take(3)
             ->get();
-    }
-
-    function getZoneFromYardLine($yardLine) {
-        if ($yardLine >= 1 && $yardLine <= 20) return 'Zone 1';
-        if ($yardLine >= 21 && $yardLine <= 50) return 'Zone 2';
-        if ($yardLine >= 51 && $yardLine <= 80) return 'Zone 3';
-        if ($yardLine >= 81 && $yardLine <= 100) return 'Zone 4';
-        return null;
     }
 }
