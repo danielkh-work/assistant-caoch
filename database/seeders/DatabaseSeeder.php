@@ -20,7 +20,8 @@ class DatabaseSeeder extends Seeder
             OffensivePositionsTableSeeder::class,
             DefensivePositionsTableSeeder::class,
             SubscriptionPlanSeeder::class,
-            PlaysSeeder::class
+            PlaysSeeder::class,
+            RolesAndPermissionsSeeder::class
         ]);
         
         // \App\Models\User::factory(10)->create();
