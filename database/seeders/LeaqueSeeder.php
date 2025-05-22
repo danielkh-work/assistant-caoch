@@ -6,6 +6,7 @@ use App\Models\Leaque;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class LeaqueSeeder extends Seeder
 {
@@ -14,6 +15,27 @@ class LeaqueSeeder extends Seeder
      */
     public function run(): void
     {
+        DB::table('leagues')->insert([
+            'id' => 1,
+            'sport_id' => 1,
+            'league_rule_id' => 1,
+            'title' => 'Default League',
+            'number_of_team' => 8,
+            'number_of_downs' => '4',
+            'length_of_field' => '100 yards',
+            'number_of_timeouts' => 3,
+            'clock_time' => 'NFL',
+            'number_of_quarters' => 4,
+            'length_of_quarters' => 15,
+            'stop_time_reason' => 'Timeout, Incomplete Pass, Out of Bounds',
+            'overtime_rules' => 1,
+            'number_of_players' => 11,
+            'flag_tbd' => 'no',
+            'created_at' => Carbon::now(),
+            'updated_at' => Carbon::now(),
+            'user_id' => 1, // or null if not applicable
+        ]);
+
         DB::table('league_rules')->insert([
             // CFL Entry
             // [
