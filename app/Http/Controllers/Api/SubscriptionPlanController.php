@@ -94,7 +94,8 @@ class SubscriptionPlanController extends Controller
                     'end_date' => now()->addMonth(),
                     'is_expire' => 0
                 ]);
-                $user->syncRoles([$packages->title]);
+
+                $user->syncRoles([$packages->title. ' ' . $packages->type]);
 
                 $user->is_subscribe = 1;
                 $user->subscription_id = $id;
@@ -160,7 +161,8 @@ class SubscriptionPlanController extends Controller
                     'end_date' => now()->addMonth(),
                     'is_expire' => 0
                 ]);
-                $user->syncRoles([$packages->title]);
+                
+                $user->syncRoles([$packages->title. ' ' . $packages->type]);
 
                 $user->is_subscribe = 1;
                 $user->subscription_id = $id;

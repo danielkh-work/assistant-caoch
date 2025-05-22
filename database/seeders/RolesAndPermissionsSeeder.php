@@ -14,53 +14,54 @@ class RolesAndPermissionsSeeder extends Seeder
      */
     public function run(): void
     {
-        // Define all permissions
         $permissions = [
             'add_upload_play',
             'view_upload_play',
             'edit_upload_play',
             'list_upload_play'
         ];
-    
+   
         // Create permissions
         foreach ($permissions as $permission) {
             Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
         }
-    
+   
         // Define roles (including sub-levels)
         $roles = [
-            'Classic Basic' => [
+           
+            'Classic basic' => [
                 'view_upload_play',
                 'list_upload_play'
             ],
-            'Classic Advanced' => [
+            'Classic advance' => [
                 'add_upload_play',
                 'view_upload_play',
                 'edit_upload_play',
                 'list_upload_play'
             ],
-            'Pro Basic' => [
+            'HD HUMAN DASHBOARD basic' => [
                 'view_upload_play',
                 'list_upload_play'
             ],
-            'Pro Advanced' => [
+            'Pro basic' => [
                 'add_upload_play',
                 'view_upload_play',
                 'edit_upload_play',
                 'list_upload_play'
             ],
-            'HD HUMAN DASHBOARD' => [
+            'Pro advance' => [
                 'add_upload_play',
                 'view_upload_play',
                 'edit_upload_play',
                 'list_upload_play'
             ]
         ];
-    
+   
         // Create roles and assign permissions
         foreach ($roles as $roleName => $rolePermissions) {
             $role = Role::firstOrCreate(['name' => $roleName, 'guard_name' => 'web']);
             $role->syncPermissions($rolePermissions);
         }
+    
     }
 }
