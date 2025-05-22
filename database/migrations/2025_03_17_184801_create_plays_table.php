@@ -21,7 +21,7 @@ return new class extends Migration
             $table->string('max_expected_yard');
             $table->integer('pre_snap_motion');
             $table->integer('play_action_fake');
-            $table->json('preferred_downs')->nullable(); // e.g. ["1st", "2nd"]
+            $table->json('preferred_downs')->nullable();
             $table->string('video_path');
             $table->timestamps();
         });
