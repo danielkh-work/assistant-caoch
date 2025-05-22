@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class ConfigurePlay extends Model
 {
     use HasFactory;
+    
     public function league()
     {
         return $this->belongsTo(League::class,'league_id');

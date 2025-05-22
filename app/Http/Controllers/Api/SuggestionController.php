@@ -10,12 +10,9 @@ class SuggestionController extends Controller
 {
     public function getSuggestedPlays($league, Request $request)
     {
-        $zone = $this->getZoneFromYardLine($yardLine);
-
-        return Play::where('zone_selection', $zone)
-            ->whereJsonContains('preferred_downs', $down)
-            ->where('side', $possession) // offense or defense
-            ->orderByRaw('RAND()') // randomize or sort by priority later
+        return Play::where('zone_selection', $request->zone)
+            ->where('preferred_down', $request->down)
+            ->where('possession', $request->possession)
             ->take(3)
             ->get();
     }
