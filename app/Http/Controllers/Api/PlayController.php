@@ -18,12 +18,14 @@ class PlayController extends Controller
        $play =  Play::where('league_id',$request->league_id)->get();
        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play Uploaded List ", $play);
     }
+
     public function store(Request $request)
     {
-        $play =  new Play();
         $request->validate([
-            'image' => 'required',
+            'image' => 'required|image|mimes:jpeg,png,jpg,gif,svg,webp',
+            'video' => 'nullable|file|mimes:mp4,mov,avi,wmv',
             'play_name' => 'required|string',
+            'league_id' => 'required|exists:leagues,id',
             'play_type' => 'required|integer',
             'zone_selection' => 'required|integer',
             'min_expected_yard' => 'required|string',
@@ -32,7 +34,10 @@ class PlayController extends Controller
             'opposing_defensive' => 'required|integer',
             'pre_snap_motion' => 'required|integer',
             'play_action_fake' => 'required|integer',
+            'preferred_down' => 'required|integer|in:1,2,3,4',
+            'possession' => 'required|string|in:offensive,defensive',
         ]);
+
         $play = new Play();
         $play->play_name = $request->play_name;
         $play->league_id = $request->league_id;
@@ -41,24 +46,29 @@ class PlayController extends Controller
         $play->min_expected_yard = $request->min_expected_yard;
         $play->max_expected_yard = $request->max_expected_yard;
         $play->target_offensive = $request->target_offensive;
+        $play->opposing_defensive = $request->opposing_defensive;
+        $play->pre_snap_motion = $request->pre_snap_motion;
+        $play->play_action_fake = $request->play_action_fake;
+        $play->preferred_down = $request->preferred_down;
+        $play->possession = $request->possession;
 
-                if($request->hasFile('image'))
-                {
-                    $path =   uploadImage($request->image,'public');
-                    $play->video_path = $path;
-                }
+        // Upload image
+        if ($request->hasFile('image')) {
+            $imagePath = uploadImage($request->file('image'), 'public/uploads/public');
+            $play->image = $imagePath;
+        }
 
-                $play->opposing_defensive = $request->opposing_defensive;
-                $play->pre_snap_motion = $request->pre_snap_motion;
-                $play->play_action_fake = $request->play_action_fake;
-                $play->type = $request->type;
+        // Upload video (optional)
+        if ($request->hasFile('video')) {
+            $videoPath = uploadImage($request->file('video'), 'public/uploads/videos');
+            $play->video_path = $videoPath;
+        }
 
-                $play->perfer_down_selection =  $request->perfer_down_selection;
-                $play->save();
+        $play->save();
 
-        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play Uploaded Successfully ", $play);
-
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play Uploaded Successfully", $play);
     }
+
     public function delete(Request $request)
     {
        $play = Play::find($request->id);
