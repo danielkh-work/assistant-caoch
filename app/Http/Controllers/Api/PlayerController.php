@@ -10,6 +10,32 @@ use Illuminate\Support\Facades\DB;
 
 class PlayerController extends Controller
 {
+    //  comment By noor
+    // public  function store(Request $request)
+    // {
+    //     DB::beginTransaction();
+    //     try {
+    //         $player = new Player();
+    //         $player->name = $request->name;
+    //         $player->user_id = auth()->user()->id;
+    //         $player->number=  $request->number;
+    //         $player->position = $request->position;
+    //         $player->size= $request->size;
+    //         $player->speed= $request->speed;
+    //         $player->strength =  $request->strength;
+    //         if($request->hasFile('image'))
+    //         {
+    //             $path =  uploadImage($request->image,'player');
+    //             $player->image =$path;
+    //         }
+    //         $player->save();
+    //         DB::commit();
+    //         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Player Added SuccessFully ", $player);
+    //     } catch (\Throwable $th) {
+    //         DB::rollBack();
+    //         return new BaseResponse(STATUS_CODE_BADREQUEST, STATUS_CODE_BADREQUEST, $th->getMessage());
+    //     }
+    // }
     public  function store(Request $request)
     {
         DB::beginTransaction();
@@ -22,6 +48,7 @@ class PlayerController extends Controller
             $player->size= $request->size;
             $player->speed= $request->speed;
             $player->strength =  $request->strength;
+            $player->position_value =  $request->positionValue;
             if($request->hasFile('image'))
             {
                 $path =  uploadImage($request->image,'player');
@@ -35,7 +62,6 @@ class PlayerController extends Controller
             return new BaseResponse(STATUS_CODE_BADREQUEST, STATUS_CODE_BADREQUEST, $th->getMessage());
         }
     }
-
     public function list(Request $request)
     {
         $players = Player::where('user_id',auth()->user()->id)->get();
