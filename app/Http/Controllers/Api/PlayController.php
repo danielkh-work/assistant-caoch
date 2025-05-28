@@ -102,6 +102,7 @@ class PlayController extends Controller
         $play->play_action_fake = $request->play_action_fake;
         $play->preferred_down = $request->preferred_down;
         $play->possession = $request->possession;
+        $play->description = $request->description;
         $play->video_path = 'video path';
  
         // Upload image
