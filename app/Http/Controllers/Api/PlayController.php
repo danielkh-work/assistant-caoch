@@ -19,7 +19,7 @@ class PlayController extends Controller
        $play =  Play::whereIn('league_id',$id)->get();
        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play Uploaded List ", $play);
     }
-    // comment By Noor 
+    // comment By Noor
     // public function store(Request $request)
     // {
     //     $request->validate([
@@ -88,7 +88,7 @@ class PlayController extends Controller
             'preferred_down' => 'required|integer|in:1,2,3,4',
             'possession' => 'required|string|in:offensive,defensive',
         ]);
- 
+
         $play = new Play();
         $play->play_name = $request->play_name;
         $play->league_id = $request->league_id;
@@ -104,21 +104,21 @@ class PlayController extends Controller
         $play->possession = $request->possession;
         $play->description = $request->description;
         $play->video_path = 'video path';
- 
+
         // Upload image
         if ($request->hasFile('image')) {
             $imagePath = uploadImage($request->file('image'), 'public/uploads/public');
             $play->image = $imagePath;
         }
- 
+
         // Upload video (optional)
         if ($request->hasFile('video')) {
             $videoPath = uploadImage($request->file('video'), 'public/uploads/videos');
             $play->video_path = $videoPath;
         }
- 
+
         $play->save();
- 
+
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play Uploaded Successfully", $play);
     }
 
@@ -128,5 +128,17 @@ class PlayController extends Controller
        if($play)
        $play->delete();
        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play Delete Successfully ");
+    }
+
+     public function getOffensivePositions()
+    {
+        $positions = OffensivePosition::all(['id', 'name']);
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Offensive positions retrieved successfully.", $positions);
+    }
+
+    public function getDefensivePositions()
+    {
+        $positions = DefensivePosition::all(['id', 'name']);
+         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Defensive positions retrieved successfully.", $positions);
     }
 }

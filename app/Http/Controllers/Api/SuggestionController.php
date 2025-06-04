@@ -8,7 +8,7 @@ use Illuminate\Http\Request;
 
 class SuggestionController extends Controller
 {
-    // comment By noor 
+    // comment By noor
     // public function getSuggestedPlays($league, Request $request)
     // {
     //     $validated = $request->validate([
@@ -84,23 +84,29 @@ class SuggestionController extends Controller
     // }
 
     public function getSuggestedPlays($league, Request $request)
-    {  
- 
-       
+    {
+
+
+        $leagueId=$request->league_id;
+        $query = Play::whereHas('configuredLeagues', function ($q) use ($leagueId) {
+              $q->where('configure_plays.league_id', $leagueId);
+                    // ->orWhereIn('configure_plays.play_id', [1, 2, 3, 4]);
+        });
+
+
          $id =  ['1',$request->league_id];
-   
-        $query = Play::query()->whereIn('league_id',$id);
+
         $possession = $request->input('possession');
         $zone = $request->input('zone');
         $down = $request->input('down');
-       
-       
+
+
         $filters = [
             'zone_selection' => $request->input('zone'),
             'preferred_down' => $request->input('down'),
             'possession'     => $request->input('possession'),
         ];
- 
+
         foreach ($filters as $field => $value) {
             if (!in_array($value, [null, '', 'null'], true)) {
                 $query->where($field, $value);
@@ -108,6 +114,6 @@ class SuggestionController extends Controller
         }
         $plays = $query->inRandomOrder()->limit(3)->get();
         return response()->json($plays);
- 
+
     }
 }
