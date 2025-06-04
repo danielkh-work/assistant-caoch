@@ -88,7 +88,9 @@ class PlayController extends Controller
             'preferred_down' => 'required|integer|in:1,2,3,4',
             'possession' => 'required|string|in:offensive,defensive',
         ]);
+    DB::beginTransaction();
 
+    try {
         $play = new Play();
         $play->play_name = $request->play_name;
         $play->league_id = $request->league_id;
@@ -103,6 +105,8 @@ class PlayController extends Controller
         $play->preferred_down = $request->preferred_down;
         $play->possession = $request->possession;
         $play->description = $request->description;
+        $play->position_status = 2;
+
         $play->video_path = 'video path';
 
         // Upload image
@@ -118,6 +122,43 @@ class PlayController extends Controller
         }
 
         $play->save();
+
+         if ($request->possession === 'offensive' && is_array($request->offensive)) {
+            $offensivePositions = OffensivePosition::pluck('id', 'name')->toArray();
+
+            foreach ($request->offensive as $position => $value) {
+                  \Log::info(['data'=>$position]);
+                // if (!isset($offensivePositions[$position])) continue;
+
+                PlayTargetOffensivePlayer::create([
+                    'play_id' => $play->id,
+                    'offensive_position_id' => $position,
+                    'strength' => $value, // or other columns if needed
+                ]);
+            }
+        }
+
+        // Handle Defensive Position Data
+        if ($request->possession === 'defensive' && is_array($request->defensive)) {
+            $defensivePositions = DefensivePosition::pluck('id', 'name')->toArray();
+           \Log::info(['data'=> $defensivePositions]);
+            foreach ($request->defensive as $position => $value) {
+                // if (!isset($defensivePositions[$position])) continue;
+
+                PlayTargetDefensivePlayer::create([
+                    'play_id' => $play->id,
+                    'defensive_position_id' => $position,
+                    'strength' => $value,
+                ]);
+            }
+        }
+
+        DB::commit();
+        } catch (\Throwable $e) {
+        DB::rollBack();
+        return new BaseResponse(STATUS_CODE_UNPROCESSABLE, STATUS_CODE_UNPROCESSABLE, $e->getMessage());
+    }
+
 
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play Uploaded Successfully", $play);
     }
