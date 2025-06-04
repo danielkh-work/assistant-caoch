@@ -71,6 +71,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/uplaod-play',[PlayController::class,'store'])->name('uplaod-play');
     Route::get('/upload-play-list',[PlayController::class,'index'])->name('upload-play-list');
     Route::get('/delete-play/{id}',[PlayController::class,'delete'])->name('delete-play');
+    Route::get('/offensive-positions', [PlayController::class, 'getOffensivePositions'])->name('offensive-positions');
+    Route::get('/defensive-positions', [PlayController::class, 'getDefensivePositions'])->name('defensive-positions');
+
 
     // Team
     Route::post('create-team',[TeamController::class,'store']);
