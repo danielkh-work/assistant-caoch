@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Play;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class SuggestionController extends Controller
 {
@@ -83,18 +84,22 @@ class SuggestionController extends Controller
     //     return $bestMatch;
     // }
 
-    public function getSuggestedPlays($league, Request $request)
+     public function getSuggestedPlays($league, Request $request)
     {  
+
+        $leagueId=$request->league_id;
+        $query = Play::whereHas('configuredLeagues', function ($q) use ($leagueId) {
+              $q->where('configure_plays.league_id', $leagueId);
+                    // ->orWhereIn('configure_plays.play_id', [1, 2, 3, 4]);
+        });
  
-       
+       Log::info(['play'=> $query->get()]);
          $id =  ['1',$request->league_id];
-   
-        $query = Play::query()->whereIn('league_id',$id);
+ 
         $possession = $request->input('possession');
         $zone = $request->input('zone');
         $down = $request->input('down');
-       
-       
+
         $filters = [
             'zone_selection' => $request->input('zone'),
             'preferred_down' => $request->input('down'),
@@ -103,11 +108,22 @@ class SuggestionController extends Controller
  
         foreach ($filters as $field => $value) {
             if (!in_array($value, [null, '', 'null'], true)) {
-                $query->where($field, $value);
+                if ($field == 'preferred_down') {
+                    // Use FIND_IN_SET for comma-separated values
+                    $query->whereRaw("FIND_IN_SET(?, preferred_down)", [$value]);
+                } else {
+                    $query->where($field, $value);
+                }
             }
         }
+ 
+
+        // foreach ($filters as $field => $value) {
+        //     if (!in_array($value, [null, '', 'null'], true)) {
+        //         $query->where($field, $value);
+        //     }
+        // }
         $plays = $query->inRandomOrder()->limit(3)->get();
         return response()->json($plays);
- 
     }
 }

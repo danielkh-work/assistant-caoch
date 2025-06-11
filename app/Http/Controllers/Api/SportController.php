@@ -39,7 +39,7 @@ class SportController extends Controller
     {
         DB::beginTransaction();
         try {
-
+ 
            $League =  new League;
            $League->user_id=  auth('api')->user()->id;
            $League->sport_id=$request->sport_id;
@@ -57,11 +57,12 @@ class SportController extends Controller
            $League->number_of_players=$request->number_of_players;
            $League->flag_tbd =$request->flag_tbd;
            $League->save();
-           foreach($request->team_name as $value)
+           foreach($request->team_name as $index => $value)
            {
              $team =  new LeagueTeam;
              $team->league_id =  $League->id;
              $team->team_name = $value;
+             $team->type = $index === 0 ? 1 : null;
              $team->save();
            }
            DB::commit();
@@ -75,15 +76,16 @@ class SportController extends Controller
     public function leagueView(Request $request)
     {
       $leauqe = League::with('teams','league_rule','sport')->find($request->id);
-
+ 
       $teams = LeagueTeam::where('league_id', $leauqe->id)->get();
       $matches = PlayGameMode::where('league_id', $leauqe->id)->where('status', 4)->get();
-
+ 
       $pointsTable = [];
-
+ 
       foreach ($teams as $team) {
           $pointsTable[$team->id] = [
               'team_name' => $team->team_name,
+              'type' => $team->type,
               'played' => 0,
               'won' => 0,
               'lost' => 0,
@@ -91,17 +93,17 @@ class SportController extends Controller
               'points' => 0,
           ];
       }
-
+ 
       foreach ($matches as $match) {
           $teamA = $match->my_team_id;
           $teamB = $match->oponent_team_id;
           $scoreA = $match->my_team_score;
           $scoreB = $match->oponent_team_score;
-
+ 
           // Increment played
           $pointsTable[$teamA]['played']++;
           $pointsTable[$teamB]['played']++;
-
+ 
           if ($scoreA > $scoreB) {
               $pointsTable[$teamA]['won']++;
               $pointsTable[$teamA]['points'] += 2;
@@ -117,7 +119,7 @@ class SportController extends Controller
               $pointsTable[$teamB]['points'] += 1;
           }
       }
-
+ 
       return response()->json([
           'status' => STATUS_CODE_OK,
           'league' => $leauqe,
