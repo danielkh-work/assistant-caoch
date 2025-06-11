@@ -24,7 +24,7 @@ class PlayController extends Controller
         $play =  Play::whereIn('league_id', $id)->get();
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play Uploaded List ", $play);
     }
-    // comment By Noor 
+    // comment By Noor
     // public function store(Request $request)
     // {
     //     $request->validate([
@@ -175,5 +175,17 @@ class PlayController extends Controller
         if ($play)
             $play->delete();
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play Delete Successfully ");
+    }
+
+     public function getOffensivePositions()
+    {
+        $positions = OffensivePosition::all(['id', 'name']);
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Offensive positions retrieved successfully.", $positions);
+    }
+
+    public function getDefensivePositions()
+    {
+        $positions = DefensivePosition::all(['id', 'name']);
+         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Defensive positions retrieved successfully.", $positions);
     }
 }

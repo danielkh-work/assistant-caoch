@@ -13,24 +13,26 @@ class OffensivePositionsTableSeeder extends Seeder
      */
     public function run(): void
     {
-        $positions = [
-            'QB',  // Quarterback
-            'RB',  // Running Back
-            'FB',  // Fullback
-            'WR',  // Wide Receiver
-            'Slot WR', // Slot Receiver
-            'TE',  // Tight End
-            'LT',  // Left Tackle
-            'LG',  // Left Guard
-            'C',   // Center
-            'RG',  // Right Guard
-            'RT',  // Right Tackle
-            'HB',  // Halfback
+          DB::table('offensive_positions')->delete();
+          $positions = [
+                ['code' => 'QB',     'name' => 'Quarterback'],
+                ['code' => 'RB',     'name' => 'Running Back'],
+                ['code' => 'FB',     'name' => 'Fullback'],
+                ['code' => 'WR',     'name' => 'Wide Receiver'],
+                ['code' => 'Slot WR','name' => 'Slot Receiver'],
+                ['code' => 'TE',     'name' => 'Tight End'],
+                ['code' => 'LT',     'name' => 'Left Tackle'],
+                ['code' => 'LG',     'name' => 'Left Guard'],
+                ['code' => 'C',      'name' => 'Center'],
+                ['code' => 'RG',     'name' => 'Right Guard'],
+                ['code' => 'RT',     'name' => 'Right Tackle'],
+                ['code' => 'HB',     'name' => 'Halfback'],
         ];
 
         foreach ($positions as $position) {
             DB::table('offensive_positions')->insert([
-                'name' => $position,
+                'code' => $position['code'],
+                'name' => $position['name'],
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);

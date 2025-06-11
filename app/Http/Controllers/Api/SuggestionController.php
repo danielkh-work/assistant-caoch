@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Log;
 
 class SuggestionController extends Controller
 {
-    // comment By noor 
+    // comment By noor
     // public function getSuggestedPlays($league, Request $request)
     // {
     //     $validated = $request->validate([
@@ -105,7 +105,7 @@ class SuggestionController extends Controller
             'preferred_down' => $request->input('down'),
             'possession'     => $request->input('possession'),
         ];
- 
+
         foreach ($filters as $field => $value) {
             if (!in_array($value, [null, '', 'null'], true)) {
                 if ($field == 'preferred_down') {
