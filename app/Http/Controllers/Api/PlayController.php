@@ -13,6 +13,7 @@ use App\Models\PlayTargetOffensivePlayer;
 use App\Models\PlayTargetDefensivePlayer;
 use App\Models\OffensivePosition;
 use App\Models\DefensivePosition;
+use Illuminate\Support\Facades\DB;
 
 
 class PlayController extends Controller
