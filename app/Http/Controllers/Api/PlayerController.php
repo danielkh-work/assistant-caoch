@@ -42,11 +42,14 @@ class PlayerController extends Controller
         try {
             $player = new Player();
             $player->name = $request->name;
-            $player->user_id = auth()->user()->id;
+           
             $player->number=  $request->number;
             $player->position = $request->position;
             $player->size= $request->size;
             $player->speed= $request->speed;
+            $player->weight= $request->weight;
+            $player->height= $request->height;
+            $player->dob= $request->dob;
             $player->strength =  $request->strength;
             $player->position_value =  $request->positionValue;
             if($request->hasFile('image'))
@@ -64,11 +67,13 @@ class PlayerController extends Controller
     }
     public function list(Request $request)
     {
-        $players = Player::where('user_id',auth()->user()->id)->get();
+        $players = Player::all();
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Player List  ", $players);
     }
     public function update(Request $request,$id)
-    {
+    { 
+
+    \Log::info(['dob'=>$request->dob]);
         DB::beginTransaction();
         try {
             $player =  Player::find($id);
@@ -78,6 +83,10 @@ class PlayerController extends Controller
             $player->size= $request->size;
             $player->speed= $request->speed;
             $player->strength =  $request->strength;
+             $player->weight= $request->weight;
+            $player->height= $request->height;
+            $player->dob= $request->dob;
+             $player->position_value =  $request->positionValue;
             if($request->hasFile('image'))
             {
 

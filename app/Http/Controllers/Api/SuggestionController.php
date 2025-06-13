@@ -86,7 +86,8 @@ class SuggestionController extends Controller
 
      public function getSuggestedPlays($league, Request $request)
     {  
-
+       
+        \Log::info(['data'=>$request->all()]);
         $leagueId=$request->league_id;
         $query = Play::whereHas('configuredLeagues', function ($q) use ($leagueId) {
               $q->where('configure_plays.league_id', $leagueId);
@@ -104,13 +105,16 @@ class SuggestionController extends Controller
             'zone_selection' => $request->input('zone'),
             'preferred_down' => $request->input('down'),
             'possession'     => $request->input('possession'),
+            'strategies'     => $request->input('strategy'),
+            'min_expected_yard'     => $request->input('expectedyard'),
         ];
 
         foreach ($filters as $field => $value) {
             if (!in_array($value, [null, '', 'null'], true)) {
                 if ($field == 'preferred_down') {
-                    // Use FIND_IN_SET for comma-separated values
                     $query->whereRaw("FIND_IN_SET(?, preferred_down)", [$value]);
+                }else if($field == 'strategies'){
+                    $query->whereRaw("FIND_IN_SET(?, strategies)", [$value]);
                 } else {
                     $query->where($field, $value);
                 }

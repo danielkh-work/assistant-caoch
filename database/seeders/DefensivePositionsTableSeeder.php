@@ -18,15 +18,19 @@ class DefensivePositionsTableSeeder extends Seeder
                 ['code' => 'DT',   'name' => 'Defensive Tackle'],
                 ['code' => 'NT',   'name' => 'Nose Tackle'],
                 ['code' => 'DE',   'name' => 'Defensive End'],
-                ['code' => 'EDGE', 'name' => 'Edge Rusher'],
-                ['code' => 'MLB',  'name' => 'Middle Linebacker'],
+                ['code' => 'EDGE', 'name' => 'Edge Rusher Quick'],
+                ['code' => 'EDGE', 'name' => 'Edge Rusher Rush'],
+                ['code' => 'MLB',  'name' => 'Middle Linebacker (Sam)'],
+                ['code' => 'MLB',  'name' => 'Weak Side Linebacker (Will)'],
                 ['code' => 'OLB',  'name' => 'Outside Linebacker'],
                 ['code' => 'ILB',  'name' => 'Inside Linebacker'],
-                ['code' => 'CB',   'name' => 'Cornerback'],
+                ['code' => 'CB',   'name' => 'Corner Weak Side'],
+                ['code' => 'CB',   'name' => 'Corner Strong Side'],
                 ['code' => 'NB',   'name' => 'Nickelback'],
                 ['code' => 'SS',   'name' => 'Strong Safety'],
                 ['code' => 'FS',   'name' => 'Free Safety'],
-                ['code' => 'DB',   'name' => 'Defensive Back'],
+                ['code' => 'DB',   'name' => 'Halfback Weak side'],
+                ['code' => 'DB',   'name' => 'Halfback Strong Side'],
             ];
 
             foreach ($positions as $position) {

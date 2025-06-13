@@ -49,6 +49,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/leaque-rule',[SportController::class,'leagueRule'])->name('leaque-rule');
 
     Route::post('/add-player',[PlayerController::class,'store'])->name('add.player');
+    Route::put('/update-player/{id}',[PlayerController::class,'update'])->name('update.player');
     Route::get('/player-list',[PlayerController::class,'list'])->name('player.list');
     Route::post('/update-player/{id}',[PlayerController::class,'update'])->name('player.update');
     Route::get('/delete-player/{id}',[PlayerController::class,'delete'])->name('player.delete');

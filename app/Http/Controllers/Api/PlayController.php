@@ -115,6 +115,14 @@ class PlayController extends Controller
                 // If it's a single value or null, just save it directly
                 $play->preferred_down = $request->preferred_down;
             }
+             if (is_array($request->strategies)) {
+                $play->strategies = implode(',', $request->strategies);
+            } else {
+                // If it's a single value or null, just save it directly
+                $play->strategies = $request->strategies;
+            }
+
+            
 
             $play->possession = $request->possession;
             $play->description = $request->description;

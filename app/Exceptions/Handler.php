@@ -7,6 +7,7 @@ use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Throwable;
+use Illuminate\Auth\Access\AuthorizationException;
 
 
 class Handler extends ExceptionHandler
@@ -58,13 +59,30 @@ class Handler extends ExceptionHandler
 
     }
 
+    // public function render($request, Throwable $exception)
+    // {
+    //     if ($request->is('api/*')) {
+    //         if (
+    //             $exception instanceof ValidationException
+    //         ) {
+    //             return $this->customException($exception, $request);
+    //         }
+    //     }
+
+    //     return parent::render($request, $exception);
+    // }
+
     public function render($request, Throwable $exception)
     {
         if ($request->is('api/*')) {
-            if (
-                $exception instanceof ValidationException
-            ) {
+            if ($exception instanceof ValidationException) {
                 return $this->customException($exception, $request);
+            }
+
+            if ($exception instanceof AuthorizationException) {
+                return response()->json([
+                    'message' => 'You do not have permission to view this league.'
+                ], 403);
             }
         }
 

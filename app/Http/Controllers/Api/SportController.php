@@ -62,7 +62,7 @@ class SportController extends Controller
              $team =  new LeagueTeam;
              $team->league_id =  $League->id;
              $team->team_name = $value;
-             $team->type = $index === 0 ? 1 : null;
+             $team->type = $index == 0 ? 1 : null;
              $team->save();
            }
            DB::commit();
@@ -76,6 +76,7 @@ class SportController extends Controller
     public function leagueView(Request $request)
     {
       $leauqe = League::with('teams','league_rule','sport')->find($request->id);
+        $this->authorize('view', $leauqe);
  
       $teams = LeagueTeam::where('league_id', $leauqe->id)->get();
       $matches = PlayGameMode::where('league_id', $leauqe->id)->where('status', 4)->get();
@@ -149,10 +150,11 @@ class SportController extends Controller
            $League->flag_tbd =$request->flag_tbd;
            $League->save();
            LeagueTeam::where('league_id',$League->id)->delete();
-           foreach($request->team_name as $value)
+            foreach($request->team_name as $index => $value)
            {
              $team =  new LeagueTeam;
              $team->league_id =  $League->id;
+             $team->type = $index == 0 ? 1 : null;
              $team->team_name = $value;
              $team->save();
            }
