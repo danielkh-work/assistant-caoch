@@ -7,6 +7,7 @@ use App\Http\Responses\BaseResponse;
 use App\Models\Player;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class PlayerController extends Controller
 {
@@ -50,6 +51,8 @@ class PlayerController extends Controller
             $player->weight= $request->weight;
             $player->height= $request->height;
             $player->dob= $request->dob;
+            $player->ofp= $request->ofp;
+            $player->ofp= $request->ofp;
             $player->strength =  $request->strength;
             $player->position_value =  $request->positionValue;
             if($request->hasFile('image'))
@@ -67,13 +70,13 @@ class PlayerController extends Controller
     }
     public function list(Request $request)
     {
-        $players = Player::all();
+        $players = Player::orderBy('name')->get();
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Player List  ", $players);
     }
     public function update(Request $request,$id)
     { 
 
-    \Log::info(['dob'=>$request->dob]);
+  
         DB::beginTransaction();
         try {
             $player =  Player::find($id);
@@ -85,7 +88,13 @@ class PlayerController extends Controller
             $player->strength =  $request->strength;
              $player->weight= $request->weight;
             $player->height= $request->height;
-            $player->dob= $request->dob;
+            try {
+            $dob = Carbon::parse($request->dob);
+            } catch (\Exception $e) {
+            $dob = null;
+            }
+             $player->dob=  $dob;
+             $player->ofp= $request->ofp;
              $player->position_value =  $request->positionValue;
             if($request->hasFile('image'))
             {
@@ -103,11 +112,19 @@ class PlayerController extends Controller
         }
     }
 
-    public function delete($id)
+    public function delete($id,$team_id)
     {
         $player =  Player::find($id);
+        $player->teams()->detach($team_id);
+        // $player->delete();
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Player is  Deleted from the team SuccessFully ");
+    }
+     public function deletePlayer($id,$team_id)
+    {   
+        $player =  Player::find($id);
+        $player->teams()->detach($team_id);
         $player->delete();
-        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Player Deleted SuccessFully ");
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Player is  Deleted from the SuccessFully ");
     }
     public function view($id)
     {

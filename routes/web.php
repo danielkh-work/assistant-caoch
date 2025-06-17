@@ -1,6 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Http\Request;
 
 /*
 |--------------------------------------------------------------------------
@@ -16,4 +18,17 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', function () {
     return view('welcome');
     
+});
+
+Route::get('/test-ethereal', function () {
+    try {
+        Mail::raw('This is a plain text test email from Laravel via Ethereal.', function ($message) {
+            $message->to('test@example.com')
+                    ->subject('Test Email from Laravel');
+        });
+
+        return 'Email sent!';
+    } catch (\Exception $e) {
+        return 'Error: ' . $e->getMessage();
+    }
 });

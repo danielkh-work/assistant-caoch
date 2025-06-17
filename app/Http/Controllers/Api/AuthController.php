@@ -100,6 +100,8 @@ class AuthController extends Controller
             return new BaseResponse(STATUS_CODE_UNPROCESSABLE, STATUS_CODE_UNPROCESSABLE, "Old password is incorrect");
         }
     }
+
+    
     public function forgotPassword(Request $request)
     {
         // Validate email
@@ -113,6 +115,7 @@ class AuthController extends Controller
 
         // Send reset password link
         $status = Password::sendResetLink($request->only('email'));
+        \Log::info(['resend link'=> $status]);
 
         return $status === Password::RESET_LINK_SENT
             ? response()->json(['message' => 'Reset link sent to your email.','success'=>true], 200)
@@ -140,7 +143,8 @@ class AuthController extends Controller
                 $user->save();
             }
         );
-
+        
+      
         return $status === Password::PASSWORD_RESET
             ? response()->json(['message' => 'Password reset successfully.'], 200)
             : response()->json(['error' => 'Invalid token or email.'], 500);

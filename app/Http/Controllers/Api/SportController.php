@@ -76,7 +76,7 @@ class SportController extends Controller
     public function leagueView(Request $request)
     {
       $leauqe = League::with('teams','league_rule','sport')->find($request->id);
-        $this->authorize('view', $leauqe);
+      
  
       $teams = LeagueTeam::where('league_id', $leauqe->id)->get();
       $matches = PlayGameMode::where('league_id', $leauqe->id)->where('status', 4)->get();

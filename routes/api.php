@@ -52,7 +52,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/update-player/{id}',[PlayerController::class,'update'])->name('update.player');
     Route::get('/player-list',[PlayerController::class,'list'])->name('player.list');
     Route::post('/update-player/{id}',[PlayerController::class,'update'])->name('player.update');
-    Route::get('/delete-player/{id}',[PlayerController::class,'delete'])->name('player.delete');
+    Route::get('/delete-player/{id}/{team_id}',[PlayerController::class,'delete'])->name('player.delete');
+    Route::get('/delete-player-only/{id}/{team_id}',[PlayerController::class,'deletePlayer'])->name('player.delete.only');
+    
     Route::get('/view-player/{id}',[PlayerController::class,'view'])->name('player.view');
 
     Route::get('/dashboard',[SportController::class,'dashboard'])->name('dashboard');
@@ -67,7 +69,8 @@ Route::middleware('auth:sanctum')->group(function () {
     //profile
     Route::get('view-profile',[AuthController::class,'viewProfile'])->name('view-profile');
     Route::post('profile-update',[AuthController::class,'profileUpdate'])->name('profile-update');
-
+    Route::post('change-password',[AuthController::class,'changePassword'])->name('profile-update');
+  
     // upload Play
     Route::post('/uplaod-play',[PlayController::class,'store'])->name('uplaod-play');
     Route::get('/upload-play-list',[PlayController::class,'index'])->name('upload-play-list');

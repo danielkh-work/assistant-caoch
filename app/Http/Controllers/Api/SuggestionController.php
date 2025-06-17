@@ -87,7 +87,7 @@ class SuggestionController extends Controller
      public function getSuggestedPlays($league, Request $request)
     {  
        
-        \Log::info(['data'=>$request->all()]);
+      
         $leagueId=$request->league_id;
         $query = Play::whereHas('configuredLeagues', function ($q) use ($leagueId) {
               $q->where('configure_plays.league_id', $leagueId);
