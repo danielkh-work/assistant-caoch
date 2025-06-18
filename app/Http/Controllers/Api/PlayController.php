@@ -101,6 +101,7 @@ class PlayController extends Controller
             $play->play_name = $request->play_name;
             $play->league_id = $request->league_id;
             $play->play_type = $request->play_type;
+            $play->quarter = $request->quarter;
             $play->zone_selection = $request->zone_selection;
             $play->min_expected_yard = $request->min_expected_yard;
             $play->max_expected_yard = $request->max_expected_yard;
@@ -108,7 +109,7 @@ class PlayController extends Controller
             // $play->opposing_defensive = $request->opposing_defensive;
             $play->pre_snap_motion = $request->pre_snap_motion;
             $play->play_action_fake = $request->play_action_fake;
-            \Log::info(['preferred_down' => $request->preferred_down]);
+            
             if (is_array($request->preferred_down)) {
                 $play->preferred_down = implode(',', $request->preferred_down);
             } else {

@@ -43,7 +43,6 @@ class PlayerController extends Controller
         try {
             $player = new Player();
             $player->name = $request->name;
-           
             $player->number=  $request->number;
             $player->position = $request->position;
             $player->size= $request->size;
