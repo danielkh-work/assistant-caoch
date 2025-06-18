@@ -87,14 +87,14 @@ class SuggestionController extends Controller
      public function getSuggestedPlays($league, Request $request)
     {  
        
-      
+        
         $leagueId=$request->league_id;
         $query = Play::whereHas('configuredLeagues', function ($q) use ($leagueId) {
               $q->where('configure_plays.league_id', $leagueId);
                     // ->orWhereIn('configure_plays.play_id', [1, 2, 3, 4]);
         });
  
-       Log::info(['play'=> $query->get()]);
+      
          $id =  ['1',$request->league_id];
  
         $possession = $request->input('possession');
@@ -102,11 +102,12 @@ class SuggestionController extends Controller
         $down = $request->input('down');
 
         $filters = [
-            'zone_selection' => $request->input('zone'),
+            
             'preferred_down' => $request->input('down'),
             'possession'     => $request->input('possession'),
             'strategies'     => $request->input('strategy'),
             'min_expected_yard'     => $request->input('expectedyard'),
+            'quarter'     => $request->input('quarter'),
         ];
 
         foreach ($filters as $field => $value) {
