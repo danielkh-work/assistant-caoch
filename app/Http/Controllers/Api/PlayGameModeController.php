@@ -36,16 +36,16 @@ class PlayGameModeController extends Controller
     public function addPoints(Request $request)
     {
        
-             $data = $request->all();
+     $data = $request->all();
 
-    // Initialize an array to hold the logs for batch insertion
+   
     $logs = [];
 
-    // Start a database transaction
+   
     DB::beginTransaction();
 
     try {
-        // Loop through the incoming data
+      
         foreach ($data as $value) {
             // Update the game record
             $game = PlayGameMode::find($value['game_id']);

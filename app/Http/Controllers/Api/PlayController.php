@@ -14,6 +14,7 @@ use App\Models\PlayTargetDefensivePlayer;
 use App\Models\OffensivePosition;
 use App\Models\DefensivePosition;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 
 class PlayController extends Controller
@@ -140,12 +141,16 @@ class PlayController extends Controller
                 $play->video_path = $videoPath;
             }
             $play->save();
+            
+            Log::info(["offensive",$request->offensive]);
 
-            if ($request->possession === 'offensive' && is_array($request->offensive)) {
+
+            Log::info(["defensive",$request->defensive]);
+             
+            if (is_array($request->offensive)) {
                 $offensivePositions = OffensivePosition::pluck('id', 'name')->toArray();
                 foreach ($request->offensive as $position => $value) {
-                    \Log::info(['data' => $position]);
-                    // if (!isset($offensivePositions[$position])) continue;
+                   
                     PlayTargetOffensivePlayer::create([
                         'play_id' => $play->id,
                         'offensive_position_id' => $position,
@@ -154,12 +159,12 @@ class PlayController extends Controller
                 }
             }
 
-            // Handle Defensive Position Data
-            if ($request->possession === 'defensive' && is_array($request->defensive)) {
+           
+            if (is_array($request->defensive)) {
                 $defensivePositions = DefensivePosition::pluck('id', 'name')->toArray();
-                \Log::info(['data' => $defensivePositions]);
+             
                 foreach ($request->defensive as $position => $value) {
-                    // if (!isset($defensivePositions[$position])) continue;
+                  
 
                     PlayTargetDefensivePlayer::create([
                         'play_id' => $play->id,
@@ -177,6 +182,105 @@ class PlayController extends Controller
 
 
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play Uploaded Successfully", $play);
+    }
+
+
+    public function update(Request $request, $id)
+    {
+        $request->validate([
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp',
+            'video' => 'nullable|file|mimes:mp4,mov,avi,wmv',
+            'play_name' => 'required|string',
+            'league_id' => 'required|exists:leagues,id',
+            'play_type' => 'required|integer',
+            'zone_selection' => 'required|integer',
+            'min_expected_yard' => 'required|string',
+            'max_expected_yard' => 'required|string',
+            'target_offensive' => 'required|integer',
+            'opposing_defensive' => 'required|integer',
+            'pre_snap_motion' => 'required|integer',
+            'play_action_fake' => 'required|integer',
+            'possession' => 'required|string|in:offensive,defensive',
+        ]);
+
+        DB::beginTransaction();
+
+        try {
+            $play = Play::findOrFail($id);
+
+            $play->play_name = $request->play_name;
+            $play->league_id = $request->league_id;
+            $play->play_type = $request->play_type;
+            $play->quarter = $request->quarter;
+            $play->zone_selection = $request->zone_selection;
+            $play->min_expected_yard = $request->min_expected_yard;
+            $play->max_expected_yard = $request->max_expected_yard;
+            $play->pre_snap_motion = $request->pre_snap_motion;
+            $play->play_action_fake = $request->play_action_fake;
+
+            $play->preferred_down = is_array($request->preferred_down)
+                ? implode(',', $request->preferred_down)
+                : $request->preferred_down;
+
+            $play->strategies = is_array($request->strategies)
+                ? implode(',', $request->strategies)
+                : $request->strategies;
+
+            $play->possession = $request->possession;
+            $play->description = $request->description;
+
+            // Replace image if uploaded
+            if ($request->hasFile('image')) {
+                $imagePath = uploadImage($request->file('image'), 'public/uploads/public');
+                $play->image = $imagePath;
+            }
+
+            // Replace video if uploaded
+            if ($request->hasFile('video')) {
+                $videoPath = uploadImage($request->file('video'), 'public/uploads/videos');
+                $play->video_path = $videoPath;
+            }
+
+            $play->save();
+
+            // Delete old offensive links and recreate
+            PlayTargetOffensivePlayer::where('play_id', $play->id)->delete();
+            if (is_array($request->offensive)) {
+                foreach ($request->offensive as $position => $value) {
+                    PlayTargetOffensivePlayer::create([
+                        'play_id' => $play->id,
+                        'offensive_position_id' => $position,
+                        'strength' => $value,
+                    ]);
+                }
+            }
+
+            // Delete old defensive links and recreate
+            PlayTargetDefensivePlayer::where('play_id', $play->id)->delete();
+            if (is_array($request->defensive)) {
+                foreach ($request->defensive as $position => $value) {
+                    PlayTargetDefensivePlayer::create([
+                        'play_id' => $play->id,
+                        'defensive_position_id' => $position,
+                        'strength' => $value,
+                    ]);
+                }
+            }
+
+            DB::commit();
+            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play updated successfully", $play);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return new BaseResponse(STATUS_CODE_UNPROCESSABLE, STATUS_CODE_UNPROCESSABLE, $e->getMessage());
+        }
+    }
+    public function editPlay($id)
+    {
+        $play = Play::with(['offensivePositions','deffensivePositions'])->find($id);
+        Log::info($play);
+        if ($play)
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play List", $play);
+       
     }
 
     public function delete(Request $request)
