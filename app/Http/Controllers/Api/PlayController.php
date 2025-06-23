@@ -188,8 +188,7 @@ class PlayController extends Controller
     public function update(Request $request, $id)
     {
         $request->validate([
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp',
-            'video' => 'nullable|file|mimes:mp4,mov,avi,wmv',
+           
             'play_name' => 'required|string',
             'league_id' => 'required|exists:leagues,id',
             'play_type' => 'required|integer',
@@ -202,7 +201,8 @@ class PlayController extends Controller
             'play_action_fake' => 'required|integer',
             'possession' => 'required|string|in:offensive,defensive',
         ]);
-
+     
+      
         DB::beginTransaction();
 
         try {
@@ -242,11 +242,17 @@ class PlayController extends Controller
             }
 
             $play->save();
+            \Log::info(['offensive'=>$request->offensive]);
+
+            \Log::info(['defensive'=>$request->defensive]);
 
             // Delete old offensive links and recreate
             PlayTargetOffensivePlayer::where('play_id', $play->id)->delete();
             if (is_array($request->offensive)) {
                 foreach ($request->offensive as $position => $value) {
+                    if ($value === null) {
+                        continue; // Skip this entry if the value is null
+                    }
                     PlayTargetOffensivePlayer::create([
                         'play_id' => $play->id,
                         'offensive_position_id' => $position,
@@ -259,6 +265,9 @@ class PlayController extends Controller
             PlayTargetDefensivePlayer::where('play_id', $play->id)->delete();
             if (is_array($request->defensive)) {
                 foreach ($request->defensive as $position => $value) {
+                     if ($value === null) {
+                        continue; // Skip this entry if the value is null
+                    }
                     PlayTargetDefensivePlayer::create([
                         'play_id' => $play->id,
                         'defensive_position_id' => $position,
