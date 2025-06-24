@@ -150,7 +150,9 @@ class PlayController extends Controller
             if (is_array($request->offensive)) {
                 $offensivePositions = OffensivePosition::pluck('id', 'name')->toArray();
                 foreach ($request->offensive as $position => $value) {
-                   
+                  if ($value === null) {
+                        continue; // Skip this entry if the value is null
+                    }
                     PlayTargetOffensivePlayer::create([
                         'play_id' => $play->id,
                         'offensive_position_id' => $position,
@@ -165,7 +167,9 @@ class PlayController extends Controller
              
                 foreach ($request->defensive as $position => $value) {
                   
-
+                    if ($value === null) {
+                            continue; // Skip this entry if the value is null
+                        }
                     PlayTargetDefensivePlayer::create([
                         'play_id' => $play->id,
                         'defensive_position_id' => $position,
@@ -242,9 +246,7 @@ class PlayController extends Controller
             }
 
             $play->save();
-            \Log::info(['offensive'=>$request->offensive]);
-
-            \Log::info(['defensive'=>$request->defensive]);
+            
 
             // Delete old offensive links and recreate
             PlayTargetOffensivePlayer::where('play_id', $play->id)->delete();
