@@ -31,17 +31,6 @@
                 </li>
                 <li class="nav-item">
                     <a 
-                    {{-- href="{{ route('customers.index') }}"--}}
-                        class="{{ Request::is('admin/customers') || Request::is('admin/customers/*') ? 'nav-link active' : 'nav-link' }}" 
-                        >
-                        <i class="nav-icon fas fa-video"></i>
-                        <p>
-                            Plays
-                        </p>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a 
                     href="{{ route('players.index') }}"
                         class="{{ Request::is('players') || Request::is('players/*') ? 'nav-link active' : 'nav-link' }}"
                       
@@ -52,6 +41,18 @@
                         </p>
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a 
+                    {{-- href="{{ route('customers.index') }}"--}}
+                        class="{{ Request::is('admin/customers') || Request::is('admin/customers/*') ? 'nav-link active' : 'nav-link' }}" 
+                        >
+                        <i class="nav-icon fas fa-video"></i>
+                        <p>
+                            Plays
+                        </p>
+                    </a>
+                </li>
+                
                 <li class="nav-item">
                     <a 
                     {{-- href="{{ route('guard.booking.index') }}"--}}
