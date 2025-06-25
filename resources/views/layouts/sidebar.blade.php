@@ -20,8 +20,8 @@
                 data-accordion="false">
                 <li class="nav-item">
                     <a 
-                    {{-- href="{{ route('dashboard') }}" --}}
-                        class="{{ Request::is('admin/dashboard') ? 'nav-link active' : 'nav-link' }}"
+                    href="{{ route('home') }}"
+                        class="{{ Request::is('home') ? 'nav-link active' : 'nav-link' }}"
                         >
                         <i class="nav-icon fas fa-chart-pie"></i>
                         <p>
