@@ -1,8 +1,10 @@
 <?php
 
+use App\Http\Controllers\PlayerController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 /*
 |--------------------------------------------------------------------------
@@ -31,4 +33,17 @@ Route::get('/test-ethereal', function () {
     } catch (\Exception $e) {
         return 'Error: ' . $e->getMessage();
     }
+});
+
+Auth::routes();
+
+Route::middleware(['auth'])->group(function () {
+    Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
+  
+  Route::controller(PlayerController::class)->group(function () {
+    Route::get('players', 'index')->name('players.index');
+    Route::get('players/create', 'create')->name('players.create'); // <- Move this above
+    Route::get('players/{id}', 'show')->name('players.show');
+   Route::post('players', 'store')->name('players.store');
+});
 });
