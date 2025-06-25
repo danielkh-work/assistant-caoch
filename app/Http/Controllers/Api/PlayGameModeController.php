@@ -38,7 +38,9 @@ class PlayGameModeController extends Controller
        
      $data = $request->all();
 
-   
+   if (empty($data) || !is_array($data)) {
+                return response()->json(true); // or return true;
+    }
     $logs = [];
 
    

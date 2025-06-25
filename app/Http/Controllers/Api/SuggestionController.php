@@ -107,9 +107,9 @@ class SuggestionController extends Controller
             'possession'     => $request->input('possession'),
             'strategies'     => $request->input('strategy'),
             'min_expected_yard'     => $request->input('expectedyard'),
-            'quarter'     => $request->input('quarter'),
+            // 'quarter'     => $request->input('quarter'),
         ];
-
+      
         foreach ($filters as $field => $value) {
             if (!in_array($value, [null, '', 'null'], true)) {
                 if ($field == 'preferred_down') {
