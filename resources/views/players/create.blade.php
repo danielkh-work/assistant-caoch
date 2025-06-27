@@ -27,11 +27,20 @@
                     <form method="POST" enctype="multipart/form-data" action="{{ route('players.store') }}">
                       @csrf
                     <div class="row">
-                            <div class="col-md-6">
+                           <div class="col-md-4">
+                                        <label for="">Package</label>
+                                        <select name="role_id[]" class="form-control select2" multiple id="" required>
+                                            <option value="">Select Package</option>
+                                            @foreach ($roles as $role)
+                                                <option value="{{ $role->id }}">{{ $role->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                            <div class="col-md-4">
                                 <label for="">Name</label>
                                 <input type="name" name="title" class="form-control">
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <label for="">Image</label>
                                 <input type="file" name="image" class="form-control">
                             </div>

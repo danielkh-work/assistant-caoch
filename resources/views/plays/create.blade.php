@@ -27,6 +27,15 @@
                     <form method="POST" enctype="multipart/form-data" action="{{ route('play.store') }}">
                       @csrf
                     <div class="row">
+                         <div class="col-md-3">
+                                        <label for="">Package</label>
+                                        <select name="role_id[]" class="form-control select2" multiple id="" required>
+                                            <option value="">Select Package</option>
+                                            @foreach ($roles as $role)
+                                                <option value="{{ $role->id }}">{{ $role->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
                             <div class="col-md-3">
                                 <label for="">league</label>
                                <select required name="league_id" id="" class="form-control">

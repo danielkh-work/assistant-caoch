@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-
+use Spatie\Permission\Models\Role;
 class League extends Model
 {
     use HasFactory;
@@ -36,5 +36,9 @@ class League extends Model
     public function matches()
     {
         return $this->hasMany(PlayGameMode::class,'league_id');
+    }
+    public function roles()
+    {
+        return $this->morphToMany(Role::class, 'roleable');
     }
 }

@@ -30,5 +30,6 @@
 </body>
 @include('layouts.foot')
 @yield('script')
+
 </html>
 

@@ -11,6 +11,7 @@ use App\Models\PlayTargetOffensivePlayer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Spatie\Permission\Models\Role;
 use Yajra\DataTables\DataTables;
 
 class PlayController extends Controller
@@ -52,7 +53,8 @@ class PlayController extends Controller
        $league = League::all();
        $offensive_position = OffensivePosition::all(['id', 'name']);
        $defensive_positions = DefensivePosition::all(['id', 'name']);
-       return view('plays.create',compact('league','offensive_position','defensive_positions'));
+        $roles =  Role::all();
+       return view('plays.create',compact('league','offensive_position','defensive_positions','roles'));
     }
     public function edit($id)
     {
@@ -121,7 +123,8 @@ class PlayController extends Controller
             }
 
             DB::commit();
-           
+            $play->roles()->sync($request->role_id); // assign to multiple roles
+             DB::commit();
             return redirect()->route('play.index');
         // } catch (\Throwable $e) {
         //     DB::rollBack();

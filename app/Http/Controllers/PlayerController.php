@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Player;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Spatie\Permission\Models\Role;
 use Yajra\DataTables\DataTables;
 
 class PlayerController extends Controller
@@ -33,7 +34,8 @@ class PlayerController extends Controller
     }
     public function create(){
 
-        return view('players.create');
+            $roles =  Role::all();
+        return view('players.create',compact('roles'));
     }
     public function store(Request $request)
     {
@@ -59,6 +61,8 @@ class PlayerController extends Controller
                 $player->image =$path;
             }
             $player->save();
+            DB::commit();
+            $player->roles()->sync($request->role_id); // assign to multiple roles
             DB::commit();
 
             return view('players.create')->with('success', 'Player added successfully!');     

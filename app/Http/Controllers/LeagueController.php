@@ -9,6 +9,7 @@ use App\Models\Sport;
 use App\Models\Team;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Spatie\Permission\Models\Role;
 use Yajra\DataTables\DataTables;
 class LeagueController extends Controller
 {
@@ -39,11 +40,13 @@ class LeagueController extends Controller
         $league_rule =  LeagueRule::all();
         $sports =  Sport::all();
         // $teams =  Team::all();
-        return view('league.create',compact('league_rule','sports'));
+        $roles =  Role::all();
+        return view('league.create',compact('league_rule','sports','roles'));
     }
 
     public function store(Request $request)
     {
+      
         DB::beginTransaction();
         try {
  
@@ -72,6 +75,10 @@ class LeagueController extends Controller
              $team->type = $index == 0 ? 1 : null;
              $team->save();
            }
+           
+           DB::commit();
+        
+           $League->roles()->sync($request->role_id); // assign to multiple roles
            DB::commit();
              return  redirect()->route('league.index');
         } catch (\Throwable $th) {
