@@ -26,7 +26,7 @@
                             <div class="inner">
                                 <h3>{{ $customers ?? 0 }}</h3>
 
-                                <p>Customers</p>
+                                <p>Players</p>
                             </div>
                             <div class="icon">
                                 <i class="ion ion-bag"></i>
@@ -42,7 +42,7 @@
                             <div class="inner">
                                 <h3>{{ $guards ?? 0 }}</h3>
 
-                                <p>Guards</p>
+                                <p>Plays</p>
                             </div>
                             <div class="icon">
                                 <i class="ion ion-stats-bars"></i>
@@ -58,7 +58,7 @@
                             <div class="inner">
                                 <h3>{{ $rides ?? 0 }}</h3>
 
-                                <p>Booking</p>
+                                <p>League</p>
                             </div>
                             <div class="icon">
                                 <i class="ion ion-person-add"></i>

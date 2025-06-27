@@ -43,8 +43,8 @@
                 </li>
                 <li class="nav-item">
                     <a 
-                    {{-- href="{{ route('customers.index') }}"--}}
-                        class="{{ Request::is('admin/customers') || Request::is('admin/customers/*') ? 'nav-link active' : 'nav-link' }}" 
+                    href="{{ route('play.index') }}"
+                        class="{{ Request::is('play') || Request::is('play/*') ? 'nav-link active' : 'nav-link' }}" 
                         >
                         <i class="nav-icon fas fa-video"></i>
                         <p>
