@@ -29,6 +29,18 @@
                         </p>
                     </a>
                 </li>
+                   <li class="nav-item">
+                    <a 
+                    href="{{ route('league.index') }}"
+                        class="{{ Request::is('league') || Request::is('league/*') ? 'nav-link active' : 'nav-link' }}"
+                        
+                        >
+                        <i class="nav-icon fas fa-map"></i>
+                        <p>
+                          League
+                        </p>
+                    </a>
+                </li>
                 <li class="nav-item">
                     <a 
                     href="{{ route('players.index') }}"
@@ -53,21 +65,10 @@
                     </a>
                 </li>
                 
-                <li class="nav-item">
-                    <a 
-                    {{-- href="{{ route('guard.booking.index') }}"--}}
-                        class="{{ Request::is('admin/guard/booking') || Request::is('admin/guard/*') ? 'nav-link active' : 'nav-link' }}"
-                        
-                        >
-                        <i class="nav-icon fas fa-map"></i>
-                        <p>
-                          League
-                        </p>
-                    </a>
-                </li>
-                <li class="nav-item">
+             
+                {{-- <li class="nav-item">
                     <a
-                    {{-- href="{{ route('withdraw.index') }}"--}}
+                    href="{{ route('withdraw.index') }}"
                         class="{{ Request::is('admin/withdraw/*') || Request::is('admin/withdraw') ? 'nav-link active' : 'nav-link' }}"
                          
                         >
@@ -76,7 +77,7 @@
                            Team
                         </p>
                     </a>
-                </li>
+                </li> --}}
                
 
             </ul>

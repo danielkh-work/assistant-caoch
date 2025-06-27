@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\LeagueController;
 use App\Http\Controllers\PlayController;
 use App\Http\Controllers\PlayerController;
 use Illuminate\Support\Facades\Route;
@@ -52,4 +53,11 @@ Route::middleware(['auth'])->group(function () {
         Route::get('play/{id}', 'show')->name('play.show');
         Route::post('play', 'store')->name('play.store');
     });
+    Route::controller(LeagueController::class)->group(function () {
+        Route::get('league', 'index')->name('league.index');
+        Route::get('league/create', 'create')->name('league.create'); // <- Move this above
+        Route::get('league/{id}', 'show')->name('league.show');
+        Route::post('league', 'store')->name('league.store');
+    });
+
 });
