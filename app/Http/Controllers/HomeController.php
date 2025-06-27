@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\League;
+use App\Models\Play;
+use App\Models\Player;
 use App\Models\User;
 use Illuminate\Http\Request;
 
@@ -24,10 +27,13 @@ class HomeController extends Controller
      */
     public function index()
     {
+      $leage =  League::count();
+      $play =  Play::count();
+      $player =  Player::count();
         $data = [
-            'customers' => 1,
-            'guards' =>1,
-            'rides' =>12
+            'customers' => $player,
+            'guards' => $play,
+            'rides' =>$leage
         ];
         return view('layouts.dashboard',$data);
     }
