@@ -29,9 +29,19 @@ class PlayController extends Controller
                 // ->addColumn('position',function ($row){
                 //     return $row->is_verify==1 ? 'offence' : 'deffence';
                 // })
-                ->addColumn('action', function($row){
-                    return '<a href="' . route('play.show', ['id' => $row->id]) . '" class="edit btn btn-primary btn-sm">View</a>';
-                })
+                    ->addColumn('action', function($row){
+                    $editUrl = route('play.edit', ['id' => $row->id]);
+                    $deleteUrl = route('play.destroy', ['id' => $row->id]);
+
+                    return '
+                        <a href="' . $editUrl . '" class="btn btn-warning btn-sm me-1">Edit</a>
+                        <form action="' . $deleteUrl . '" method="POST" style="display:inline;">
+                            ' . csrf_field() . '
+                            ' . method_field('DELETE') . '
+                            <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm(\'Are you sure?\')">Delete</button>
+                        </form>
+                    ';
+                    })
                 ->rawColumns(['action'])
                 ->make(true);
         }
@@ -40,26 +50,106 @@ class PlayController extends Controller
     public function create(){
 
        $league = League::all();
-        return view('plays.create',compact('league'));
+       $offensive_position = OffensivePosition::all(['id', 'name']);
+       $defensive_positions = DefensivePosition::all(['id', 'name']);
+       return view('plays.create',compact('league','offensive_position','defensive_positions'));
+    }
+    public function edit($id)
+    {
+        $play = Play::with(['offensivePositions','deffensivePositions'])->findOrFail($id);
+        $league = League::all();
+        $offensive_position = OffensivePosition::all(['id', 'name']);
+        $defensive_positions = DefensivePosition::all(['id', 'name']);
+
+        return view('plays.edit', compact('play', 'league', 'offensive_position', 'defensive_positions'));
     }
 
+     public function update(Request $request, $id)
+    {
+       
+ 
+        DB::beginTransaction();
+      
+            $play = Play::findOrFail($id);
+            $play->play_name = $request->play_name;
+            $play->league_id = $request->league_id;
+            $play->min_expected_yard = $request->min_expected_yard;
+            $play->preferred_down = is_array($request->preferred_down)
+                ? implode(',', $request->preferred_down)
+                : $request->preferred_down;
+            $play->strategies = is_array($request->strategies)
+                ? implode(',', $request->strategies)
+                : $request->strategies;
+            $play->possession = $request->possession;
+            $play->description = $request->description;
+            if ($request->hasFile('image')) {
+                $imagePath = uploadImage($request->file('image'), 'public/uploads/public');
+                $play->image = $imagePath;
+            }
+            if ($request->hasFile('video')) {
+                $videoPath = uploadImage($request->file('video'), 'public/uploads/videos');
+                $play->video_path = $videoPath;
+            }
+
+            $play->save();
+            PlayTargetOffensivePlayer::where('play_id', $play->id)->delete();
+            if (is_array($request->offensive)) {
+                foreach ($request->offensive as $position => $value) {
+                    if ($value === null) {
+                        continue; // Skip this entry if the value is null
+                    }
+                    PlayTargetOffensivePlayer::create([
+                        'play_id' => $play->id,
+                        'offensive_position_id' => $position,
+                        'strength' => $value,
+                    ]);
+                }
+            }
+
+            PlayTargetDefensivePlayer::where('play_id', $play->id)->delete();
+            if (is_array($request->defensive)) {
+                foreach ($request->defensive as $position => $value) {
+                     if ($value === null) {
+                        continue; // Skip this entry if the value is null
+                    }
+                    PlayTargetDefensivePlayer::create([
+                        'play_id' => $play->id,
+                        'defensive_position_id' => $position,
+                        'strength' => $value,
+                    ]);
+                }
+            }
+
+            DB::commit();
+           
+            return redirect()->route('play.index');
+        // } catch (\Throwable $e) {
+        //     DB::rollBack();
+        //    dd($e->getMessage());
+        // }
+    }
+
+    public function destroy($id)
+    {
+        $play = Play::findOrFail($id);
+        $play->delete();
+        return redirect()->route('play.index')->with('success', 'Play deleted successfully');
+    }
     public function store(Request $request)
     {
-         DB::beginTransaction();
-
+        DB::beginTransaction();
         try {
             $play = new Play();
             $play->play_name = $request->play_name;
             $play->league_id = $request->league_id;
-            $play->play_type = $request->play_type;
-            $play->quarter = $request->quarter;
-            $play->zone_selection = $request->zone_selection;
+            $play->play_type = 1;
+            $play->quarter = 1;
+            $play->zone_selection = 1;
             $play->min_expected_yard = $request->min_expected_yard;
-            $play->max_expected_yard = $request->max_expected_yard;
-            // $play->target_offensive = $request->target_offensive;
-            // $play->opposing_defensive = $request->opposing_defensive;
-            $play->pre_snap_motion = $request->pre_snap_motion;
-            $play->play_action_fake = $request->play_action_fake;
+            $play->max_expected_yard = 1;
+          
+            $play->pre_snap_motion = 1;
+            $play->play_action_fake = 1;
             
             if (is_array($request->preferred_down)) {
                 $play->preferred_down = implode(',', $request->preferred_down);
@@ -73,8 +163,6 @@ class PlayController extends Controller
                 // If it's a single value or null, just save it directly
                 $play->strategies = $request->strategies;
             }
-
-            
 
             $play->possession = $request->possession;
             $play->description = $request->description;
@@ -92,8 +180,7 @@ class PlayController extends Controller
             }
             $play->save();
             
-            Log::info(["offensive",$request->offensive]);
-            Log::info(["defensive",$request->defensive]);
+          
              
             if (is_array($request->offensive)) {
                 $offensivePositions = OffensivePosition::pluck('id', 'name')->toArray();
@@ -125,7 +212,7 @@ class PlayController extends Controller
             }
 
             DB::commit();
-            return view('plays.create');
+           return redirect()->route('play.index');
         } catch (\Throwable $e) {
             DB::rollBack();
             dd($e->getMessage());

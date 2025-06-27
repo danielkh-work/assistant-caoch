@@ -51,5 +51,9 @@ Route::middleware(['auth'])->group(function () {
         Route::get('play/create', 'create')->name('play.create'); // <- Move this above
         Route::get('play/{id}', 'show')->name('play.show');
         Route::post('play', 'store')->name('play.store');
+
+        Route::get('play/{id}/edit', 'edit')->name('play.edit');
+        Route::put('play/{id}', 'update')->name('play.update');
+        Route::delete('play/{id}', 'destroy')->name('play.destroy');
     });
 });

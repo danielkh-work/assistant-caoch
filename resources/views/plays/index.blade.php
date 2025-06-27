@@ -34,20 +34,11 @@
                     <tr>
                         <th>No</th>
                         <th>Play Name</th>
-                        <th>Play Type</th>
-                        <th>Zone Selection</th>
                         <th>Min Expected Yard</th>
-                        <th>Max Expected Yard</th>
-                        <th>pre_snap_motion</th>
-                        <th>play_action_fake</th>
-                        <th>video_path</th>
-                        <th>type</th>
                         <th>preferred_down</th>
                         <th>possession</th>
                         <th>description</th>
-                        <th>position_status</th>
                         <th>strategies</th>
-                        <th>quarter</th>
                         <th width="100px">Action</th>
                     </tr>
                     </thead>
@@ -75,20 +66,12 @@
                 columns: [
                     {data: 'id', name: 'id'},
                     {data: 'play_name', name: 'play_name'},
-                    {data: 'play_type', name: 'play_type'},
-                    {data: 'zone_selection', name: 'zone_selection'},
                     {data: 'min_expected_yard', name: 'min_expected_yard'},
-                    {data: 'max_expected_yard', name: 'max_expected_yard'},
-                    {data: 'pre_snap_motion', name: 'pre_snap_motion'},
-                    {data: 'play_action_fake', name: 'play_action_fake'},
-                    {data: 'video_path', name: 'video_path'},
-                    {data: 'type', name: 'image'},
                     {data: 'preferred_down', name: 'preferred_down'},
                     {data: 'possession', name: 'possession'},
                     {data: 'description', name: 'description'},
-                    {data: 'position_status', name: 'position_status'},
                     {data: 'strategies', name: 'strategies'},
-                    {data: 'quarter', name: 'quarter'},
+                
                     {data: 'action', name: 'action', orderable: false, searchable: false},
                 ],
                 order: [0, 'desc']

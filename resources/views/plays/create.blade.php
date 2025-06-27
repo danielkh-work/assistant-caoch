@@ -29,7 +29,7 @@
                     <div class="row">
                             <div class="col-md-3">
                                 <label for="">league</label>
-                               <select name="" id="" class="form-control">
+                               <select required name="league_id" id="" class="form-control">
                                     @foreach ($league as $leagu)
                                         <option value="{{ $leagu->id }}">{{ $leagu->title }}</option>
                                     @endforeach
@@ -37,124 +37,171 @@
                             </div>
                             <div class="col-md-3">
                                 <label for="">Name</label>
-                                <input type="name" name="title" class="form-control">
+                                <input required type="text" name="play_name" class="form-control">
                             </div>
                             <div class="col-md-3">
                                 <label for="">Image</label>
-                                <input type="file" name="image" class="form-control">
+                                <input required type="file" name="image" class="form-control">
                             </div>
-                            <div class="col-md-3">
-                                <label for="">Video</label>
-                                <input type="file" name="image" class="form-control">
-                            </div>
+                          
                         </div>
+                      
                         <div class="row">
-                            <div class="col-md-4">
-                                <label for="">play_name</label>
-                              <input name="play_name" class="form-control">
-                            </div>
-                            <div class="col-md-4">
-                                <label for="">type</label>
-                                <select name="type" id="" class="form-control">
-                                    <option value="1">offence</option>
-                                    <option value="2">deffence</option>
-                                </select>
-                            </div>
-                            <div class="col-md-4">
-                                <label for="">preferred_down</label>
-                              <input type="text" name="preferred_down" class="form-control">
-                            </div>
-
-                        </div>
-                        <div class="row">
-                            <div class="col-md-4">
-                                <label for="">description</label>
-                              <input name="description" class="form-control">
+                             <div class="col-md-4">
+                                <label for="">Expected Yardage Gain</label>
+                              <input type="text" required name="min_expected_yard" class="form-control">
                             </div>
                             <div class="col-md-4">
                                 <label for="">possession</label>
                                 <select name="possession" id="" class="form-control">
-                                    <option value="1">offence</option>
-                                    <option value="2">deffence</option>
+                                    <option value="offensive">offence</option>
+                                    <option value="defensive">deffence</option>
                                 </select>
                             </div>
-                            <div class="col-md-4">
-                                <label for="">strategies</label>
-                              <input type="text" name="strategies" class="form-control">
-                            </div>
+                            
+                            
 
                         </div>
                         <div class="row">
-                            <div class="col-md-4">
-                                <label for="">play_type</label>
-                              <input name="play_type" class="form-control">
+                           <div class="col-md-4">
+                                <label for="">description</label>
+                                 <textarea id="description" name="description" class="form-control" rows="3" placeholder="Enter description"></textarea>
+                              
+                            </div>
+
+                             <div class="col-md-4">
+                                <label class="form-label fw-bold d-block text-start">
+                                Preferred Down Selection
+                                </label>
+
+                                <div class="mb-2 form-check">
+                                <input class="form-check-input" checked type="checkbox" name="preferred_down" value="1" id="down1">
+                                <label class="form-check-label" for="down1">
+                                    1st Down
+                                </label>
+                                </div>
+
+                                <div class="mb-2 form-check">
+                                <input class="form-check-input" type="checkbox" name="preferred_down" value="2" id="down2">
+                                <label class="form-check-label" for="down2">
+                                    2nd Down
+                                </label>
+                                </div>
+
+                                <div class="mb-2 form-check">
+                                <input class="form-check-input" type="checkbox" name="preferred_down" value="3" id="down3">
+                                <label class="form-check-label" for="down3">
+                                    3rd Down
+                                </label>
+                                </div>
+
+                                <div class="mb-2 form-check">
+                                <input class="form-check-input" type="checkbox" name="preferred_down" value="4" id="down4">
+                                <label class="form-check-label" for="down4">
+                                    4th Down
+                                </label>
+                                </div>
+
                             </div>
                             <div class="col-md-4">
-                                <label for="">zone_selection</label>
-                                 <input name="zone_selection" class="form-control">
-                                {{-- <select name="zone_selection" id="" class="form-control">
-                                    <option value="1">offence</option>
-                                    <option value="2">deffence</option>
-                                </select> --}}
-                            </div>
-                            <div class="col-md-4">
-                                <label for="">min_expected_yard</label>
-                              <input type="text" name="min_expected_yard" class="form-control">
+                                <label class="form-label fw-bold d-block text-start">Strategies</label>
+                                <div class="mb-2 form-check">
+                                <input class="form-check-input" checked type="checkbox" name="strategies" value="regular" id="strategyRegular">
+                                <label class="form-check-label" for="strategyRegular">
+                                    Regular
+                                </label>
+                                </div>
+
+                                <div class="mb-2 form-check">
+                                <input class="form-check-input" type="checkbox" name="strategies" value="red zone" id="strategyRedZone">
+                                <label class="form-check-label" for="strategyRedZone">
+                                    Red Zone
+                                </label>
+                                </div>
+
+                                <div class="mb-2 form-check">
+                                <input class="form-check-input" type="checkbox" name="strategies" value="hurry up" id="strategyHurryUp">
+                                <label class="form-check-label" for="strategyHurryUp">
+                                    Hurry Up
+                                </label>
+                                </div>
+
+                                <div class="mb-2 form-check">
+                                <input class="form-check-input" type="checkbox" name="strategies" value="aggressive" id="strategyAggressive">
+                                <label class="form-check-label" for="strategyAggressive">
+                                    Aggressive
+                                </label>
+                                </div>
+
+                                <div class="mb-2 form-check">
+                                <input class="form-check-input" type="checkbox" name="strategies" value="chew clock" id="strategyChewClock">
+                                <label class="form-check-label" for="strategyChewClock">
+                                    Chew Clock
+                                </label>
+                                </div>
+                                {{--  <label for="">strategies</label>
+                              <input type="text" name="strategies" class="form-control">  --}}
                             </div>
 
                         </div>
-                        <div class="row">
-                            <div class="col-md-4">
-                                <label for="">max_expected_yard</label>
-                              <input type="text" name="max_expected_yard" class="form-control">
-                            </div>
-                            <div class="col-md-4">
-                                <label for=""> Target (Offensive)</label>
-                                <select name="target_offensive" id="" class="form-control">
-                                    <option value="offensive">offence</option>
-                                    <option value="deffence">deffence</option>
-                                </select>
-                            </div>
-                            <div class="col-md-4">
-                                <label for="">Opposing (Defensive)</label>
-                                 <select name="opposing_defensive" id="" class="form-control">
-                                    <option value="offensive">offence</option>
-                                    <option value="deffence">deffence</option>
-                                 </select>
-                            </div>
 
-                        </div>
                         <div class="row">
-                            <div class="col-md-4">
-                                <label for="">pre_snap_motion</label>
-                              <input type="text" name="pre_snap_motion" class="form-control">
-                            </div>
-                            <div class="col-md-4">
-                                <label for="">play_action_fake</label>
-                                <input type="text"  name="play_action_fake" class="form-control">
+                             <div class="col-md-4">
                                 
-                            </div>
-                            <div class="col-md-4">
-                                <label for="">perfer_down_selection</label>
-                                 <select name="perfer_down_selection" id="" class="form-control">
-                                    <option value="1">1</option>
-                                    <option value="2">2</option>
-                                    <option value="3">3</option>
-                                    <option value="4">4</option>
-                                </select>
-                             
-                            </div>
-                            <div class="col-md-4">
-                                <label for="">quarter</label>
-                              <input type="text" name="quarter" class="form-control">
-                            </div>
+                                <h5 class="mb-3">Target Offensive Player</h5>
 
-                        </div>
-                        <br>
-                        <div class="row">
-                             <div class="col-md-12">
-                            <input class="btn btn-success" type="submit" value="submit">
+                                @foreach ($offensive_position as $position)
+                                    <div class="row align-items-center mb-2">
+                                    <div class="col-6">
+                                        <strong>{{ $position['name'] }}</strong>
+                                    </div>
+                                    <div class="col-6">
+                                        <input
+                                        type="number"
+                                        name="offensive[{{ $position['id'] }}]"
+                                        min="0"
+                                        max="5"
+                                        class="form-control"
+                                        placeholder="Enter play details for {{ $position['name'] }}"
+                                         value="{{ old('offensive.' . $position['id'], 0) }}"
+                                        >
+                                    </div>
+                                    </div>
+                                @endforeach
+                                </div>
+                                <div class="col-md-4">
+                                    <h5 class="mb-3">Opposing Defensive Player Targeted</h5>
+
+                                    @foreach ($defensive_positions as $position)
+                                        <div class="row align-items-center mb-2">
+                                        <div class="col-6">
+                                            <strong>{{ $position['name'] }}</strong>
+                                        </div>
+                                        <div class="col-6">
+                                            <input
+                                            type="number"
+                                            name="defensive[{{ $position['id'] }}]"
+                                            min="0"
+                                            max="5"
+                                            class="form-control"
+                                            placeholder="Enter play details for {{ $position['name'] }}"
+                                            value="{{ old('defensive.' . $position['id'], 0) }}"
+                                            >
+                                        </div>
+                                        </div>
+                                    @endforeach
+                                    </div>
+
                              </div>
+                        </div>
+                    
+                        <br>
+                       
+                        <div class="row">
+                            <div class="col-12 d-flex justify-content-end p-4">
+                            <input class="btn btn-success" type="submit" value="Submit">
+                            </div>
+                       
                         </div>
                     </form>
 
