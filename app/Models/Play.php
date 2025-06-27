@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Models;
+use Spatie\Permission\Models\Role;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -20,6 +21,10 @@ class Play extends Model
      public function deffensivePositions()
     {
         return $this->belongsToMany(DefensivePosition::class, 'play_target_defensive_players', 'play_id', 'defensive_position_id')->withPivot('strength');
+    }
+    public function roles()
+    {
+        return $this->morphToMany(Role::class, 'roleable');
     }
 }
  

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Spatie\Permission\Models\Role;
 
 class Team extends Model
 {
@@ -22,5 +23,9 @@ class Team extends Model
     public function logsAsOpponent()
     {
         return $this->hasMany(PlayGameLog::class, 'oponent_team_id');
+    }
+    public function roles()
+    {
+        return $this->morphToMany(Role::class, 'roleable');
     }
 }

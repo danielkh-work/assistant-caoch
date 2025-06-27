@@ -142,10 +142,7 @@ class PlayController extends Controller
             }
             $play->save();
             
-            Log::info(["offensive",$request->offensive]);
-
-
-            Log::info(["defensive",$request->defensive]);
+           
              
             if (is_array($request->offensive)) {
                 $offensivePositions = OffensivePosition::pluck('id', 'name')->toArray();
