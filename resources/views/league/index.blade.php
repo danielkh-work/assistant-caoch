@@ -29,6 +29,7 @@
             <br>
             <!-- Small boxes (Stat box) -->
             <div class="row">
+                <div class="table-responsive">
                 <table class="table table-bordered data-table">
                     <thead>
                     <tr>
@@ -51,6 +52,7 @@
                     <tbody>
                     </tbody>
                 </table>
+                </div>
             </div>
             <!-- /.row -->
             <!-- Main row -->

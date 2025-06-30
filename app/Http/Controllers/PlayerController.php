@@ -24,18 +24,34 @@ class PlayerController extends Controller
                 ->addColumn('position',function ($row){
                     return $row->is_verify==1 ? 'offence' : 'deffence';
                 })
-                ->addColumn('action', function($row){
-                    return '<a href="' . route('players.show', ['id' => $row->id]) . '" class="edit btn btn-primary btn-sm">View</a>';
-                })
+                  ->addColumn('action', function($row){
+                    $editUrl = route('players.edit', ['id' => $row->id]);
+                    $deleteUrl = route('players.destroy', ['id' => $row->id]);
+
+                    return '
+                        <a href="' . $editUrl . '" class="btn btn-warning btn-sm me-1">Edit</a>
+                        <form action="' . $deleteUrl . '" method="POST" style="display:inline;">
+                            ' . csrf_field() . '
+                            ' . method_field('DELETE') . '
+                            <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm(\'Are you sure?\')">Delete</button>
+                        </form>
+                    ';
+                    })
                 ->rawColumns(['action'])
                 ->make(true);
         }
         return view('players.index',$data);
     }
     public function create(){
-
-            $roles =  Role::all();
+        $roles =  Role::all();
         return view('players.create',compact('roles'));
+    }
+    public function edit($id)
+    {
+        $player = Player::with('roles')->findOrFail($id); // Load player and its roles
+        $roles = Role::all(); // All available roles
+
+        return view('players.edit', compact('player', 'roles'));
     }
     public function store(Request $request)
     {
@@ -72,6 +88,69 @@ class PlayerController extends Controller
             dd($th);
         }
     }
+    public function update(Request $request, $id)
+{
+    DB::beginTransaction();
+    try {
+        $player = Player::findOrFail($id);
+
+        $player->name = $request->title;
+        $player->number = $request->number;
+        $player->position = $request->position;
+        $player->size = $request->size;
+        $player->speed = $request->speed;
+        $player->weight = $request->weight;
+        $player->height = $request->height;
+        $player->dob = $request->dob;
+        $player->ofp = $request->ofp;
+        $player->strength = $request->strength;
+        $player->position_value = $request->positionValue;
+
+        if ($request->hasFile('image')) {
+            $path = uploadImage($request->image, 'player');
+            $player->image = $path;
+        }
+
+        $player->save();
+
+        // Sync roles (many-to-many polymorphic)
+        $player->roles()->sync($request->role_id);
+
+        DB::commit();
+
+        return redirect()->route('players.index')->with('success', 'Player updated successfully.');
+    } catch (\Exception $th) {
+        DB::rollBack();
+        return redirect()->back()->with('error', $th->getMessage());
+    }
+}
+public function destroy($id)
+{
+    DB::beginTransaction();
+
+    try {
+        $player = Player::findOrFail($id);
+
+        // Optionally: delete image file from storage
+        if ($player->image && file_exists(public_path('uploads/' . $player->image))) {
+            unlink(public_path('uploads/' . $player->image));
+        }
+
+        // Detach roles (if it's a polymorphic many-to-many)
+        $player->roles()->detach();
+
+        // Delete the player
+        $player->delete();
+
+        DB::commit();
+
+        return redirect()->route('players.index')->with('success', 'Player deleted successfully.');
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return redirect()->back()->with('error', 'Failed to delete player: ' . $e->getMessage());
+    }
+}
+
     public function show($id)
     {
         $customer = Player::find($id);

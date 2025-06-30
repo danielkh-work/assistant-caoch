@@ -20,16 +20,27 @@ class LeagueController extends Controller
      */
     public function index(Request $request)
     {
-        $data = League::orderBy('id', 'desc')->get();
+        $data = League::with('teams')->orderBy('id', 'desc')->get();
+       
         if ($request->ajax()) {
             return DataTables::of($data)
                 ->addIndexColumn()
                 // ->addColumn('position',function ($row){
                 //     return $row->is_verify==1 ? 'offence' : 'deffence';
                 // })
-                ->addColumn('action', function($row){
-                    return '<a href="' . route('league.show', ['id' => $row->id]) . '" class="edit btn btn-primary btn-sm">View</a>';
-                })
+                  ->addColumn('action', function($row){
+                    $editUrl = route('league.edit', ['id' => $row->id]);
+                    $deleteUrl = route('play.destroy', ['id' => $row->id]);
+
+                    return '
+                        <a href="' . $editUrl . '" class="btn btn-warning btn-sm me-1">Edit</a>
+                        <form action="' . $deleteUrl . '" method="POST" style="display:inline;">
+                            ' . csrf_field() . '
+                            ' . method_field('DELETE') . '
+                            <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm(\'Are you sure?\')">Delete</button>
+                        </form>
+                    ';
+                    })
                 ->rawColumns(['action'])
                 ->make(true);
         }
@@ -42,6 +53,21 @@ class LeagueController extends Controller
         // $teams =  Team::all();
         $roles =  Role::all();
         return view('league.create',compact('league_rule','sports','roles'));
+    }
+     public function destroy($id)
+    {
+        $play = League::findOrFail($id);
+        $play->delete();
+        return redirect()->route('league.index')->with('success', 'Play deleted successfully');
+    }
+    public function edit($id)
+    {
+        $league = League::with('roles')->findOrFail($id);
+        $roles = Role::all();
+        $league_rule = LeagueRule::all();
+        $sports = Sport::all();
+       
+        return view('league.edit', compact('league', 'roles', 'league_rule', 'sports'));
     }
 
     public function store(Request $request)
@@ -86,6 +112,55 @@ class LeagueController extends Controller
           dd($th);
         }
     }
+
+        public function update(Request $request,$id)
+    {
+        DB::beginTransaction();
+        try {
+            $League = League::findOrFail($id);
+            $League->sport_id = $request->sport_id;
+            $League->league_rule_id = $request->league_rule_id;
+            $League->number_of_team = $request->number_of_team;
+            $League->title = $request->title;
+            $League->number_of_downs = $request->number_of_downs;
+            $League->length_of_field = $request->length_of_field;
+            $League->number_of_timeouts = $request->number_of_timeouts;
+            $League->clock_time = $request->clock_time;
+            $League->number_of_quarters = $request->number_of_quarters;
+            $League->length_of_quarters = $request->length_of_quarters;
+            $League->stop_time_reason = $request->stop_time_reason;
+            $League->overtime_rules = $request->overtime_rules;
+            $League->number_of_players = $request->number_of_players;
+            $League->flag_tbd = $request->flag_tbd;
+            $League->save();
+            
+            $League->roles()->sync($request->role_id);
+            // Delete existing teams and recreate
+            LeagueTeam::where('league_id', $League->id)->delete();
+
+            foreach ($request->team_name as $index => $value) {
+                $team = new LeagueTeam;
+                $team->league_id = $League->id;
+                $team->type = $index == 0 ? 1 : null;
+                $team->team_name = $value;
+                $team->save();
+            }
+
+            DB::commit();
+         
+            // Redirect to league index with success message
+            return redirect()->route('league.index')
+                ->with('success', 'League updated successfully!');
+        } catch (\Throwable $th) {
+            DB::rollBack();
+
+            // Redirect back with error message
+            return redirect()->back()
+                ->with('error', 'Failed to update league: ' . $th->getMessage())
+                ->withInput();
+        }
+    }
+
 
     public function show($id)
     {

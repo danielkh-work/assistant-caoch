@@ -46,6 +46,10 @@ Route::middleware(['auth'])->group(function () {
         Route::get('players/create', 'create')->name('players.create'); // <- Move this above
         Route::get('players/{id}', 'show')->name('players.show');
         Route::post('players', 'store')->name('players.store');
+
+         Route::get('players/{id}/edit', 'edit')->name('players.edit');
+         Route::put('players/{id}', 'update')->name('players.update');
+         Route::delete('players/{id}', 'destroy')->name('players.destroy');
     });
     Route::controller(PlayController::class)->group(function () {
         Route::get('play', 'index')->name('play.index');
@@ -60,6 +64,8 @@ Route::middleware(['auth'])->group(function () {
     Route::controller(LeagueController::class)->group(function () {
         Route::get('league', 'index')->name('league.index');
         Route::get('league/create', 'create')->name('league.create'); // <- Move this above
+        Route::get('league/{id}/edit', 'edit')->name('league.edit'); 
+        Route::put('league/{id}', 'update')->name('league.update');
         Route::get('league/{id}', 'show')->name('league.show');
         Route::post('league', 'store')->name('league.store');
     });

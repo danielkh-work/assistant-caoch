@@ -69,7 +69,10 @@ class PlayerController extends Controller
     }
     public function list(Request $request)
     {
-        $players = Player::orderBy('name')->get();
+        $userRoleIds = auth()->user()->roles->pluck('id');
+        $players = Player::with(['roles' => function ($query) use ($userRoleIds) {
+             $query->whereIn('roleables.role_id', $userRoleIds);
+        }])->orderBy('name')->get();
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Player List  ", $players);
     }
     public function update(Request $request,$id)
