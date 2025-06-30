@@ -182,6 +182,10 @@ class PlayController extends Controller
                 $play->video_path = $videoPath;
             }
             $play->save();
+
+             if ($request->has('role_id') && is_array($request->role_id)) {
+                 $play->roles()->sync($request->role_id);
+              }
             
           
              

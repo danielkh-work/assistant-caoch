@@ -202,7 +202,7 @@
                                         <label for="">Team Name</label>
                     <div class="input-group">
                                          <div class="input-group-text" onclick="remove(${counter})"><i>D</i></div>
-      <input type="text" class="form-control" id="autoSizingInputGroup" placeholder="Username">
+      <input type="text" name="team_name[]" class="form-control" id="autoSizingInputGroup" placeholder="Team">
       </div>
                                        </div>
              

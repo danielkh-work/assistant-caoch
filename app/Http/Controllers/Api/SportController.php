@@ -23,11 +23,24 @@ class SportController extends Controller
     public function league(Request $request)
     {
         $id =  auth()->user()->id;
+        $userRoleIds = auth()->user()->roles->pluck('id');
         $league = League::with([
             'teams',  // Selecting only 'id' and 'name' from teams
             'league_rule:id,title', // Selecting only 'id' and 'title' from leaque_rule
-            'sport:id,title' // Selecting only 'id' and 'title' from sport
-        ])->where('user_id',auth('api')->user()->id)->where('sport_id',$request->sport_id)->get();
+            'sport:id,title',
+            'roles' 
+        ])
+        ->orWhere('user_id',auth('api')->user()->id)->where('sport_id',$request->sport_id)
+        ->orWhereHas('roles', function ($query) use ($userRoleIds) {
+        $query->where(function ($q) use ($userRoleIds) {
+              $q->whereIn('roleables.role_id', $userRoleIds);
+        });
+       })
+       ->get();
+        
+        
+       
+        \Log::info(['league'=>$league]);
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "leauqe List  ", $league);
     }
     public function leagueRule(Request $request)

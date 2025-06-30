@@ -64,8 +64,9 @@ class PlayerController extends Controller
             DB::commit();
             $player->roles()->sync($request->role_id); // assign to multiple roles
             DB::commit();
-
-            return view('players.create')->with('success', 'Player added successfully!');     
+            
+            return redirect()->route('players.index');
+          
         } catch (\Exception $th) {
             DB::rollBack();
             dd($th);

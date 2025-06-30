@@ -21,9 +21,20 @@ class PlayController extends Controller
 {
 
     public function index(Request $request)
-    {
-        $id =  ['1', $request->league_id];
-        $play =  Play::whereIn('league_id', $id)->get();
+    {  
+        $userRoleIds = auth()->user()->roles->pluck('id');
+         $id =  ['1', $request->league_id];
+        // $play =  Play::whereIn('league_id', $id)->get();
+        $play = Play::with('roles')
+            ->where(function ($query) use ($id, $userRoleIds) {
+                $query->orWhereIn('league_id', $id)
+                    ->orWhereHas('roles', function ($q) use ($userRoleIds) {
+                        $q->whereIn('roleables.role_id', $userRoleIds);
+                    });
+            })
+            ->get();
+
+      
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play Uploaded List ", $play);
     }
     // comment By Noor
