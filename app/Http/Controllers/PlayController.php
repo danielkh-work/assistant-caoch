@@ -147,6 +147,7 @@ class PlayController extends Controller
             $play->league_id = $request->league_id;
             $play->play_type = 1;
             $play->quarter = 1;
+            $play->created_by = 'admin';
             $play->zone_selection = 1;
             $play->min_expected_yard = $request->min_expected_yard;
             $play->max_expected_yard = 1;
