@@ -11,7 +11,7 @@ use Illuminate\Http\Request;
 class MatchController extends Controller
 {
     public function index(League $league) {
-        $matches = $league->matches()->with(['myTeam', 'opponentTeam'])->get();
+        $matches = $league->matches()->where('user_id', auth()->id())->with(['myTeam', 'opponentTeam'])->get();
  
         $matches = $matches->map(function ($match) {
             $myTeamName = $match->myTeam->team_name ?? 'My Team';

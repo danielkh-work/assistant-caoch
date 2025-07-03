@@ -66,6 +66,22 @@
                         </div>
                     </a>
                 </div>
+                 <div class="col-lg-3 col-6">
+                    <a 
+                    {{-- href="{{ route('guard.booking.index') }}" --}}
+                    >
+                        <div class="small-box bg-dark">
+                            <div class="inner">
+                                <h3>{{ $teams ?? 0 }}</h3>
+
+                                <p>Teams</p>
+                            </div>
+                            <div class="icon">
+                                <i class="ion ion-person-add"></i>
+                            </div>
+                        </div>
+                    </a>
+                </div>
             </div>
         </div>
     </section>

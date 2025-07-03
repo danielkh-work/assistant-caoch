@@ -34,6 +34,7 @@
                     <tr>
                         <th>No</th>
                         <th>Name</th>
+                        <th>Roles</th>
                         <th>Number</th>
                         <th>Position</th>
                         <th width="100px">Action</th>
@@ -59,15 +60,41 @@
                 processing: true,
                 serverSide: true,
                 autoWidth: false,
-                ajax: "{{ route('players.index') }}",
+                ajax: {
+                    url: "{{ route('players.index') }}",
+                    data: function (d) {
+                        d.role = $('#roleFilter').val();
+                    }
+                },
                 columns: [
                     {data: 'id', name: 'id'},
                     {data: 'name', name: 'name'},
+                    {data: 'roles', name: 'roles'},
                     {data: 'number', name: 'number'},
                     {data: 'position', name: 'position'},
                     {data: 'action', name: 'action', orderable: false, searchable: false},
                 ],
-                order: [0, 'desc']
+                order: [0, 'desc'],
+              dom: '<"row mb-2 align-items-center"<"col-md-4"l><"col-md-4 text-center"<"#custom-filter-wrapper">><"col-md-4 text-right"f>>rt<"row mt-2"<"col-md-6"i><"col-md-6"p>>',
+
+
+            });
+
+           $('#custom-filter-wrapper').html(`
+                <label class="mb-0">Roles:
+                    <select id="roleFilter" class="form-control form-control-sm d-inline-block ml-2" style="width: auto;">
+                        <option value="">All</option>
+                        <option value="1">Classic basic</option>
+                        <option value="2">Classic advance</option>
+                        <option value="3">HD HUMAN DASHBOARD</option>
+                        <option value="4">Pro basic</option>
+                        <option value="5">Pro advance</option>
+                    </select>
+                </label>
+            `);
+            $('#roleFilter').on('change', function () {
+               
+                table.draw();
             });
 
         });

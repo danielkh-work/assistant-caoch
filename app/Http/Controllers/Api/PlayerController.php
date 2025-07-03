@@ -42,6 +42,8 @@ class PlayerController extends Controller
         DB::beginTransaction();
         try {
             $player = new Player();
+            $player->user_id = auth()->id();
+           
             $player->name = $request->name;
             $player->number=  $request->number;
             $player->position = $request->position;
@@ -60,6 +62,25 @@ class PlayerController extends Controller
                 $player->image =$path;
             }
             $player->save();
+
+            DB::table('team_players')->insert([
+                'player_id' => $player->id,
+                'team_id' => $request->team_id,
+                'name' => $player->name,
+                'number' => $player->number,
+                'position' => $player->position,
+                'size' => $player->size,
+                'speed' => $player->speed,
+                'strength' => $player->strength,
+                'weight' => $player->weight,
+                'height' => $player->height,
+                'dob' => $player->dob,
+                'image' => $player->image,
+                'position_value' => $player->position_value,
+                'ofp' => $player->ofp,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
             DB::commit();
             return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Player Added SuccessFully ", $player);
         } catch (\Throwable $th) {
@@ -77,10 +98,53 @@ class PlayerController extends Controller
     }
     public function update(Request $request,$id)
     { 
-
-  
         DB::beginTransaction();
         try {
+
+          
+           $type = $request->type;
+           if ($type == 'team_player') {
+            $player = DB::table('team_players')->where('player_id', $id)->where('team_id', $request->team_id)->first();
+
+            if (!$player) {
+                return new BaseResponse(404, 404, "Team Player not found.");
+            }
+
+            // Build update data array
+            $updateData = [
+                'name' => $request->name,
+                'number' => $request->number,
+                'position' => $request->position,
+                'size' => $request->size,
+                'speed' => $request->speed,
+                'strength' => $request->strength,
+                'weight' => $request->weight,
+                'height' => $request->height,
+                'ofp' => $request->ofp,
+                'position_value' => $request->positionValue,
+                'updated_at' => now()
+            ];
+
+            try {
+                $dob = Carbon::parse($request->dob);
+                $updateData['dob'] = $dob;
+            } catch (\Exception $e) {
+                $updateData['dob'] = null;
+            }
+
+            if ($request->hasFile('image')) {
+                $path = uploadImage($request->image, 'player');
+                $updateData['image'] = $path;
+            }
+
+         DB::table('team_players')->where('player_id', $id)->where('team_id', $request->team_id)->update($updateData);
+        $player = DB::table('team_players')
+            ->where('player_id', $id)
+            ->where('team_id', $request->team_id)
+            ->first();
+
+        } else {
+
             $player =  Player::find($id);
             $player->name = $request->name;
             $player->number=  $request->number;
@@ -106,6 +170,8 @@ class PlayerController extends Controller
             }
             $player->save();
 
+
+          }
             DB::commit();
             return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Player Updated SuccessFully ", $player);
         } catch (\Throwable $th) {

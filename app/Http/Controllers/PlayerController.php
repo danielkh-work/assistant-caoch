@@ -17,13 +17,26 @@ class PlayerController extends Controller
      */
     public function index(Request $request)
     {
-        $data = Player::orderBy('id', 'desc')->get();
+
+       
+        $query = Player::with('roles')->orderBy('id', 'desc');
+       
+        if ($request->filled('role')) {
+              
+            $query->whereHas('roles', function ($q) use ($request) {
+                $q->where('roles.id', $request->role);
+            });
+        }
+        $data = $query->get();
         if ($request->ajax()) {
             return DataTables::of($data)
                 ->addIndexColumn()
                 ->addColumn('position',function ($row){
                     return $row->is_verify==1 ? 'offence' : 'deffence';
                 })
+                  ->addColumn('roles', function($row) {
+                            return $row->roles->pluck('name')->implode(', ');
+                    })
                   ->addColumn('action', function($row){
                     $editUrl = route('players.edit', ['id' => $row->id]);
                     $deleteUrl = route('players.destroy', ['id' => $row->id]);

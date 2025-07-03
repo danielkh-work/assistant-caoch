@@ -44,14 +44,14 @@
                                             @endforeach
                                         </select>
                                     </div>
-                                    <div class="col-md-4">
+                                    {{--  <div class="col-md-4">
                                         <label for="">Sport</label>
                                         <select name="sport_id" class="form-control" id="">
                                             @foreach ($sports as $sport)
                                                 <option value="{{ $sport->id }}">{{ $sport->title }}</option>
                                             @endforeach
                                         </select>
-                                    </div>
+                                    </div>  --}}
                                     <div class="col-md-4">
                                         <label for="">Title</label>
                                         <input type="name" name="title" class="form-control">

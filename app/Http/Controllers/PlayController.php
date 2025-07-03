@@ -23,16 +23,28 @@ class PlayController extends Controller
      */
     public function index(Request $request)
     {
-         $data = Play::orderBy('id', 'desc')->get();
+        
+        $query = Play::with('roles')->orderBy('id', 'desc');   
+        if ($request->filled('role')) {
+            $query->whereHas('roles', function ($q) use ($request) {
+                $q->where('roles.id', $request->role);
+            });
+        }
+        $data = $query->get();
         if ($request->ajax()) {
             return DataTables::of($data)
                 ->addIndexColumn()
                 // ->addColumn('position',function ($row){
                 //     return $row->is_verify==1 ? 'offence' : 'deffence';
                 // })
+                  ->addColumn('roles', function($row) {
+                            return $row->roles->pluck('name')->implode(', ');
+                    })
                     ->addColumn('action', function($row){
                     $editUrl = route('play.edit', ['id' => $row->id]);
                     $deleteUrl = route('play.destroy', ['id' => $row->id]);
+
+                   
 
                     return '
                         <a href="' . $editUrl . '" class="btn btn-warning btn-sm me-1">Edit</a>

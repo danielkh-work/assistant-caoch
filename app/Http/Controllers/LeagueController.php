@@ -20,14 +20,23 @@ class LeagueController extends Controller
      */
     public function index(Request $request)
     {
-        $data = League::with('teams')->orderBy('id', 'desc')->get();
-       
+        
+        $query = League::with('teams','roles')->orderBy('id', 'desc');   
+        if ($request->filled('role')) {
+            $query->whereHas('roles', function ($q) use ($request) {
+                $q->where('roles.id', $request->role);
+            });
+        }
+        $data = $query->get();
         if ($request->ajax()) {
             return DataTables::of($data)
                 ->addIndexColumn()
                 // ->addColumn('position',function ($row){
                 //     return $row->is_verify==1 ? 'offence' : 'deffence';
                 // })
+                 ->addColumn('roles', function($row) {
+                            return $row->roles->pluck('name')->implode(', ');
+                    })
                   ->addColumn('action', function($row){
                     $editUrl = route('league.edit', ['id' => $row->id]);
                     $deleteUrl = route('play.destroy', ['id' => $row->id]);
@@ -78,7 +87,7 @@ class LeagueController extends Controller
  
            $League =  new League;
            $League->user_id=  auth('api')->user()->id;
-           $League->sport_id=$request->sport_id;
+           $League->sport_id = 1;
            $League->league_rule_id=$request->league_rule_id;
            $League->number_of_team=$request->number_of_team;
            $League->title=$request->title;
@@ -118,7 +127,7 @@ class LeagueController extends Controller
         DB::beginTransaction();
         try {
             $League = League::findOrFail($id);
-            $League->sport_id = $request->sport_id;
+            $League->sport_id = 1;
             $League->league_rule_id = $request->league_rule_id;
             $League->number_of_team = $request->number_of_team;
             $League->title = $request->title;

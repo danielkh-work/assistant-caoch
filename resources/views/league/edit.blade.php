@@ -28,7 +28,7 @@
                             </select>
                         </div>
 
-                        <div class="col-md-4">
+                        {{--  <div class="col-md-4">
                             <label>League Rule</label>
                             <select name="league_rule_id" class="form-control">
                                 @foreach ($league_rule as $leagu)
@@ -38,7 +38,7 @@
                                     </option>
                                 @endforeach
                             </select>
-                        </div>
+                        </div>  --}}
 
                         <div class="col-md-4">
                             <label>Sport</label>

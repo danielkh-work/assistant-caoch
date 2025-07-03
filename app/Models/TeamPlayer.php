@@ -10,7 +10,7 @@ class TeamPlayer extends Model
     use HasFactory;
 
     protected $appends = ['player_name'];
-
+    protected $guarded = [];
     public function getPlayerNameAttribute()
     {
         return optional(Player::find($this->player_id))->name;

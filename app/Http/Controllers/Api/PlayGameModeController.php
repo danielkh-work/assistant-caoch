@@ -20,6 +20,7 @@ class PlayGameModeController extends Controller
             $game->league_id = $request->league_id;
             $game->my_team_id =$request->my_team_id;
             $game->oponent_team_id =$request->oponent_team_id;
+            $game->user_id = auth()->id();
             $game->quater = '';
             $game->downs ='';
             $game->status = 0;
