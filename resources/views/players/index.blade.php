@@ -29,12 +29,14 @@
             <br>
             <!-- Small boxes (Stat box) -->
             <div class="row">
+                 <div class="table-responsive">
                 <table class="table table-bordered data-table">
                     <thead>
                     <tr>
                         <th>No</th>
                         <th>Name</th>
                         <th>Roles</th>
+                        <th>Created By</th>
                         <th>Number</th>
                         <th>Position</th>
                         <th width="100px">Action</th>
@@ -43,6 +45,7 @@
                     <tbody>
                     </tbody>
                 </table>
+                 </div>
             </div>
             <!-- /.row -->
             <!-- Main row -->
@@ -70,6 +73,8 @@
                     {data: 'id', name: 'id'},
                     {data: 'name', name: 'name'},
                     {data: 'roles', name: 'roles'},
+                    {data: 'created_by', name: 'created_by'},
+                    
                     {data: 'number', name: 'number'},
                     {data: 'position', name: 'position'},
                     {data: 'action', name: 'action', orderable: false, searchable: false},

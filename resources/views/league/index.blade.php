@@ -29,29 +29,31 @@
             <br>
             <!-- Small boxes (Stat box) -->
             <div class="row">
-                <table class="table table-bordered data-table">
-                    <thead>
-                    <tr>
-                        <th>No</th>
-                        <th>Name</th>
-                        <th>Roles</th>
-                        <th>number_of_team</th>
-                        <th>number_of_downs</th>
-                        <th>length_of_field</th>
-                        <th>number_of_timeouts</th>
-                        <th>clock_time</th>
-                        <th>number_of_quarters</th>
-                        <th>length_of_quarters</th>
-                        <th>stop_time_reason</th>
-                        <th>overtime_rules</th>
-                        <th>number_of_players</th>
-                        <th>flag_tbd</th>
-                        <th width="100px">Action</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    </tbody>
-                </table>
+                <div class="table-responsive">
+                    <table class="table table-bordered data-table">
+                        <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>Name</th>
+                            <th>Roles</th>
+                            <th>number_of_team</th>
+                            <th>number_of_downs</th>
+                            <th>length_of_field</th>
+                            <th>number_of_timeouts</th>
+                            <th>clock_time</th>
+                            <th>number_of_quarters</th>
+                            <th>length_of_quarters</th>
+                            <th>stop_time_reason</th>
+                            <th>overtime_rules</th>
+                            <th>number_of_players</th>
+                            <th>flag_tbd</th>
+                            <th width="100px">Action</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                    </table>
+                </div>
             </div>
             <!-- /.row -->
             <!-- Main row -->

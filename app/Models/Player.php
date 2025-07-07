@@ -17,4 +17,8 @@ class Player extends Model
     {
         return $this->morphToMany(Role::class, 'roleable');
     }
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 }

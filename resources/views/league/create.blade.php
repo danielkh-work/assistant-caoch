@@ -60,7 +60,7 @@
                                 <div class="row">
                                     <div class="col-md-4">
                                         <label for="">number_of_team</label>
-                                        <input type="text" name="number_of_team" class="form-control">
+                                        <input type="text" id="number_of_team" name="number_of_team" class="form-control">
                                     </div>
                                     <div class="col-md-4">
                                         <label for="">number_of_downs</label>
@@ -167,11 +167,11 @@
 
                                 </div>
                                 <br>
-                                <div class="row">
+                                {{--  <div class="row">
                                     <div class="col-md-4">
                                         <button type="button" onclick="addteam()" class="btn btn-info">Add Team</button>
                                     </div>
-                                </div>
+                                </div>  --}}
                                 <div class="row" id="teams">
                                     <div class="col-md-3">
                                         <label for="">Team Name</label>
@@ -196,7 +196,7 @@
     <script>
         var counter = 1;
 
-        function addteam() {
+        {{--  function addteam() {
             var html = `
               <div class="col-md-3" id="added_team${counter}">
                                         <label for="">Team Name</label>
@@ -215,7 +215,41 @@
 
         function remove(count) {
             $('#added_team' + count).remove();
-        }
+        }  --}}
+
+
+        
+document.getElementById('number_of_team').addEventListener('input', function () {
+    const teamContainer = document.getElementById('teams');
+    teamContainer.innerHTML = ''; // Clear previous inputs
+
+    const numberOfTeams = parseInt(this.value);
+
+    if (isNaN(numberOfTeams) || numberOfTeams <= 0) {
+        return; // Do nothing for invalid input
+    }
+
+    for (let i = 0; i < numberOfTeams; i++) {
+        const teamId = counter++;
+        const html = `
+            <div class="col-md-3 mb-3" id="added_team${teamId}">
+                <label>Team Name ${teamId}</label>
+                <div class="input-group">
+                    <div class="input-group-text" onclick="removeTeam(${teamId})" style="cursor:pointer;">
+                        <i>X</i>
+                    </div>
+                    <input type="text" name="team_name[]" class="form-control" placeholder="Team">
+                </div>
+            </div>
+        `;
+        teamContainer.insertAdjacentHTML('beforeend', html);
+    }
+});
+
+function removeTeam(id) {
+    const element = document.getElementById(`added_team${id}`);
+    if (element) element.remove();
+}
         @if (session('success'))
             toastr.success("{{ session('success') }}");
         @endif

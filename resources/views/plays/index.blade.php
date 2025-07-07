@@ -29,23 +29,25 @@
             <br>
             <!-- Small boxes (Stat box) -->
             <div class="row">
-                <table class="table table-bordered data-table">
-                    <thead>
-                    <tr>
-                        <th>No</th>
-                        <th>Play Name</th>
-                        <th>Roles</th>
-                        <th>Min Expected Yard</th>
-                        <th>preferred_down</th>
-                        <th>possession</th>
-                        <th>description</th>
-                        <th>strategies</th>
-                        <th width="100px">Action</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    </tbody>
-                </table>
+                 <div class="table-responsive">
+                    <table class="table table-bordered data-table">
+                        <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>Play Name</th>
+                            <th>Roles</th>
+                            <th>Min Expected Yard</th>
+                            <th>preferred_down</th>
+                            <th>possession</th>
+                            <th>description</th>
+                            <th>strategies</th>
+                            <th width="100px">Action</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                    </table>
+                 </div>
             </div>
             <!-- /.row -->
             <!-- Main row -->

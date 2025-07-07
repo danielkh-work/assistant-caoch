@@ -83,6 +83,28 @@
                     </a>
                 </div>
             </div>
+            <div class="row">
+                <table class="table">
+  <thead>
+    <tr>
+      <th>Role</th>
+      <th>Total Players</th>
+      <th>Total Plays</th>
+      <th>Total Leagues</th>
+    </tr>
+  </thead>
+  <tbody>
+    @foreach($stats as $stat)
+      <tr>
+        <td>{{ $stat->role_name }}</td>
+        <td>{{ $stat->total_players }}</td>
+        <td>{{ $stat->total_plays }}</td>
+        <td>{{ $stat->total_leagues }}</td>
+      </tr>
+    @endforeach
+  </tbody>
+</table>
+            </div>
         </div>
     </section>
 @endsection

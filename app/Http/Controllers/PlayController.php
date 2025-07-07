@@ -48,13 +48,14 @@ class PlayController extends Controller
 
                     return '
                         <a href="' . $editUrl . '" class="btn btn-warning btn-sm me-1">Edit</a>
-                        <form action="' . $deleteUrl . '" method="POST" style="display:inline;">
-                            ' . csrf_field() . '
-                            ' . method_field('DELETE') . '
-                            <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm(\'Are you sure?\')">Delete</button>
-                        </form>
+                       
                     ';
                     })
+                    //  <form action="' . $deleteUrl . '" method="POST" style="display:inline;">
+                    //         ' . csrf_field() . '
+                    //         ' . method_field('DELETE') . '
+                    //         <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm(\'Are you sure?\')">Delete</button>
+                    //     </form>
                 ->rawColumns(['action'])
                 ->make(true);
         }

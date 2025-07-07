@@ -19,7 +19,7 @@ class PlayerController extends Controller
     {
 
        
-        $query = Player::with('roles')->orderBy('id', 'desc');
+        $query = Player::with('roles','user')->orderBy('id', 'desc');
        
         if ($request->filled('role')) {
               
@@ -37,19 +37,23 @@ class PlayerController extends Controller
                   ->addColumn('roles', function($row) {
                             return $row->roles->pluck('name')->implode(', ');
                     })
+                   ->addColumn('created_by', function($row) {
+                            return $row->user->name ?? 'admin';
+                    })
                   ->addColumn('action', function($row){
                     $editUrl = route('players.edit', ['id' => $row->id]);
                     $deleteUrl = route('players.destroy', ['id' => $row->id]);
 
                     return '
                         <a href="' . $editUrl . '" class="btn btn-warning btn-sm me-1">Edit</a>
-                        <form action="' . $deleteUrl . '" method="POST" style="display:inline;">
-                            ' . csrf_field() . '
-                            ' . method_field('DELETE') . '
-                            <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm(\'Are you sure?\')">Delete</button>
-                        </form>
+                       
                     ';
                     })
+                    //  <form action="' . $deleteUrl . '" method="POST" style="display:inline;">
+                    //         ' . csrf_field() . '
+                    //         ' . method_field('DELETE') . '
+                    //         <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm(\'Are you sure?\')">Delete</button>
+                    //     </form>
                 ->rawColumns(['action'])
                 ->make(true);
         }

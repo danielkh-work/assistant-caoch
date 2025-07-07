@@ -43,12 +43,13 @@ class LeagueController extends Controller
 
                     return '
                         <a href="' . $editUrl . '" class="btn btn-warning btn-sm me-1">Edit</a>
-                        <form action="' . $deleteUrl . '" method="POST" style="display:inline;">
-                            ' . csrf_field() . '
-                            ' . method_field('DELETE') . '
-                            <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm(\'Are you sure?\')">Delete</button>
-                        </form>
+                       
                     ';
+                    //  <form action="' . $deleteUrl . '" method="POST" style="display:inline;">
+                    //         ' . csrf_field() . '
+                    //         ' . method_field('DELETE') . '
+                    //         <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm(\'Are you sure?\')">Delete</button>
+                    //     </form>
                     })
                 ->rawColumns(['action'])
                 ->make(true);
@@ -124,6 +125,7 @@ class LeagueController extends Controller
 
         public function update(Request $request,$id)
     {
+        
         DB::beginTransaction();
         try {
             $League = League::findOrFail($id);
@@ -145,15 +147,15 @@ class LeagueController extends Controller
             
             $League->roles()->sync($request->role_id);
             // Delete existing teams and recreate
-            LeagueTeam::where('league_id', $League->id)->delete();
+            // LeagueTeam::where('league_id', $League->id)->delete();
 
-            foreach ($request->team_name as $index => $value) {
-                $team = new LeagueTeam;
-                $team->league_id = $League->id;
-                $team->type = $index == 0 ? 1 : null;
-                $team->team_name = $value;
-                $team->save();
-            }
+            // foreach ($request->team_name as $index => $value) {
+            //     $team = new LeagueTeam;
+            //     $team->league_id = $League->id;
+            //     $team->type = $index == 0 ? 1 : null;
+            //     $team->team_name = $value;
+            //     $team->save();
+            // }
 
             DB::commit();
          

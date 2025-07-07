@@ -60,7 +60,7 @@
                         </div>
                         <div class="col-md-4">
                             <label>Number of Teams</label>
-                            <input type="text" name="number_of_team" class="form-control" value="{{ $league->number_of_team }}">
+                            <input type="text" id="number_of_new_teams" name="number_of_team" class="form-control" value="{{ $league->number_of_team }}">
                         </div>
                         <div class="col-md-4">
                             <label>Number of Downs</label>
@@ -133,11 +133,11 @@
                     </div>
                     <br>
 
-                    <div class="row">
+                    {{--  <div class="row">
                         <div class="col-md-4">
                             <button type="button" onclick="addteam()" class="btn btn-info">Add Team</button>
                         </div>
-                    </div>
+                    </div>  --}}
 
                     <div class="row" id="teams">
                         @foreach ($league->teams as $index => $team)
@@ -169,7 +169,7 @@
 </section>
 <script>
         var counter = 1;
-
+{{--  
         function addteam() {
             var html = `
               <div class="col-md-3" id="added_team${counter}">
@@ -189,7 +189,39 @@
 
         function remove(count) {
             $('#added_team' + count).remove();
-        }
+        }  --}}
+
+
+       
+
+document.getElementById('number_of_new_teams').addEventListener('input', function () {
+    const count = parseInt(this.value);
+    const container = document.getElementById('teams');
+
+    // Remove all previously added dynamic fields
+    document.querySelectorAll('[id^="added_team"]').forEach(el => el.remove());
+
+    if (isNaN(count) || count <= 0) return;
+
+    for (let i = 0; i < count; i++) {
+        const teamId = counter++;
+        const html = `
+            <div class="col-md-3" id="added_team${teamId}">
+                <label for="">Team Name</label>
+                <div class="input-group">
+                    <div class="input-group-text" onclick="remove(${teamId})" style="cursor:pointer;color:red;">&times;</div>
+                    <input type="text" name="team_name[]" class="form-control" placeholder="Team">
+                </div>
+            </div>
+        `;
+        container.insertAdjacentHTML('beforeend', html);
+    }
+});
+
+function remove(count) {
+    const el = document.getElementById('added_team' + count);
+    if (el) el.remove();
+}
         @if (session('success'))
             toastr.success("{{ session('success') }}");
         @endif
