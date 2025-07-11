@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\SportController;
 use App\Http\Controllers\Api\SubscriptionPlanController;
 use App\Http\Controllers\Api\SuggestionController;
 use App\Http\Controllers\Api\TeamController;
+use App\Http\Controllers\Api\GameController;
 use App\Http\Responses\BaseResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -98,6 +99,14 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/configure-play',[ConfigureController::class,'configurePlay']);
     Route::get('/configure-play-view',[ConfigureController::class,'configurePlayView']);
+
+
+    Route::controller(GameController::class)->group(function () {
+            Route::get('/games/id', 'index');                  
+            Route::post('/games', 'store');
+            Route::get('/game/{id}', 'show');               
+            Route::get('/games/league/{leagueId}', 'getByLeague');                
+    });
 
     Route::controller(SubscriptionPlanController::class)->group(function () {
         Route::get('/subscription-plan', 'subscriptionPlan');

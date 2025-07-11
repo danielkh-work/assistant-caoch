@@ -89,8 +89,11 @@ class SuggestionController extends Controller
        
         
         $leagueId=$request->league_id;
-        $query = Play::whereHas('configuredLeagues', function ($q) use ($leagueId) {
-              $q->where('configure_plays.league_id', $leagueId);
+        $matchId=$request->match_id;
+              
+
+        $query = Play::whereHas('configuredLeagues', function ($q) use ($leagueId,$matchId) {
+              $q->where('configure_plays.league_id', $leagueId)->where('configure_plays.match_id', $matchId);
                     // ->orWhereIn('configure_plays.play_id', [1, 2, 3, 4]);
         });
  

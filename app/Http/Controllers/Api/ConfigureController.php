@@ -14,6 +14,7 @@ class ConfigureController extends Controller
 {
     public function store(Request $request)
     {
+       
         DB::beginTransaction();
         try {
 
@@ -22,6 +23,7 @@ class ConfigureController extends Controller
           
             ConfiguredPlayingTeamPlayer::where('team_id', $request->team_id)
                 ->whereIn('type', $types)
+                ->where('match_id', $request->match_id)
                 ->delete();
     
          
@@ -29,6 +31,7 @@ class ConfigureController extends Controller
                 ConfiguredPlayingTeamPlayer::updateOrCreate(
                     [
                         'team_id' => $request->team_id,
+                        'match_id' => $request->match_id,
                         'player_id' => $playerId,
                         'type' => $request->type[$index],
                         'team_type'=>1
@@ -50,12 +53,13 @@ class ConfigureController extends Controller
         try {
             $types = collect($request->type)->unique();
             ConfiguredPlayingTeamPlayer::where('team_id', $request->team_id)
-                ->whereIn('type', $types)
+                ->whereIn('type', $types) ->where('match_id', $request->match_id)
                 ->delete();
             foreach ($request->player_id as $index => $playerId) {
                 ConfiguredPlayingTeamPlayer::updateOrCreate(
                     [
                         'team_id' => $request->team_id,
+                        'match_id' => $request->match_id,
                         'player_id' => $playerId,
                         'type' => $request->type[$index],
                         'team_type'=>2
@@ -104,13 +108,14 @@ class ConfigureController extends Controller
     {
         DB::beginTransaction();
         try {
-            ConfigurePlay::where(['user_id'=> auth()->user()->id,'league_id'=>$request->league_id])->delete();
+            ConfigurePlay::where(['user_id'=> auth()->user()->id,'league_id'=>$request->league_id,'match_id'=>$request->matchId])->delete();
             foreach($request->play_id as $value)
             {
 
                 $configureFormation =  new ConfigurePlay();
                 $configureFormation->user_id = auth()->user()->id;
                 $configureFormation->play_id = $value;
+                $configureFormation->match_id = $request->matchId;
                 $configureFormation->league_id =  $request->league_id;
                 $configureFormation->save();
             }
@@ -124,7 +129,7 @@ class ConfigureController extends Controller
     }
     public function configurePlayView(Request $request)
     {
-        $configure =  ConfigurePlay::with('league','play')->where('league_id',$request->league_id)->get();
+        $configure =  ConfigurePlay::with('league','play')->where('league_id',$request->league_id)->where('match_id',$request->matchId)->get();
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "configure Play List",$configure);
   
     }
