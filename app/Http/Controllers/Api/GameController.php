@@ -27,7 +27,7 @@ class GameController extends Controller
     }
     public function show($id)
     {
-        $game = Game::with(['myTeam', 'opponentTeam'])->findOrFail($id);
+        $game = Game::with(['myTeam.teamplayer.player', 'opponentTeam.teamplayer.player'])->findOrFail($id);
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "games", $game);
     }
      public function getByLeague($leagueId)

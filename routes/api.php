@@ -16,6 +16,8 @@ use App\Http\Controllers\Api\GameController;
 use App\Http\Responses\BaseResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\DefensivePlayController;
+
 
 
 /*
@@ -98,8 +100,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/configure-formation-view',[ConfigureController::class,'configureFormationView']);
 
     Route::post('/configure-play',[ConfigureController::class,'configurePlay']);
+    Route::post('/configure-defensive-play',[ConfigureController::class,'configureDefensivePlay']);
     Route::get('/configure-play-view',[ConfigureController::class,'configurePlayView']);
-
+    Route::get('/configure-defensive-play-view',[ConfigureController::class,'configurePlayDefensiveView']);
+    Route::post('/defensive-plays', [DefensivePlayController::class, 'store']);
+    Route::get('/upload-defensive-play-list',[DefensivePlayController::class,'index'])->name('upload-play-list');
 
     Route::controller(GameController::class)->group(function () {
             Route::get('/games/id', 'index');                  

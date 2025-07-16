@@ -90,9 +90,10 @@ class PlayController extends Controller
 
     public function store(Request $request)
     {
+           \Log::info(['data'=>$request->all()]);
         $request->validate([
             'image' => 'required|image|mimes:jpeg,png,jpg,gif,svg,webp',
-            'video' => 'nullable|file|mimes:mp4,mov,avi,wmv',
+           
             'play_name' => 'required|string',
             'league_id' => 'required|exists:leagues,id',
             'play_type' => 'required|integer',

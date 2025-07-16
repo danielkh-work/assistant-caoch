@@ -8,6 +8,7 @@ use App\Http\Responses\BaseResponse;
 use App\Models\ConfiguredPlayingTeamPlayer;
 use App\Models\ConfigureFormation;
 use App\Models\ConfigurePlay;
+use App\Models\ConfigureDefensivePlay;
 use Illuminate\Support\Facades\DB;
 
 class ConfigureController extends Controller
@@ -127,10 +128,41 @@ class ConfigureController extends Controller
             return new BaseResponse(STATUS_CODE_UNPROCESSABLE, STATUS_CODE_UNPROCESSABLE, $th->getMessage());
         }
     }
+
+     public function configureDefensivePlay(Request $request)
+    {
+        DB::beginTransaction();
+        try {
+            ConfigureDefensivePlay::where(['user_id'=> auth()->user()->id,'league_id'=>$request->league_id,'game_id'=>$request->matchId])->delete();
+            foreach($request->play_id as $value)
+            {
+
+                $configureFormation =  new ConfigureDefensivePlay();
+                $configureFormation->user_id = auth()->user()->id;
+                $configureFormation->play_id = $value;
+                $configureFormation->game_id = $request->matchId;
+                $configureFormation->league_id =  $request->league_id;
+                $configureFormation->save();
+            }
+
+            DB::commit();
+            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "configure Play successFully");
+        } catch (\Throwable $th) {
+            DB::rollBack();
+            return new BaseResponse(STATUS_CODE_UNPROCESSABLE, STATUS_CODE_UNPROCESSABLE, $th->getMessage());
+        }
+    }
     public function configurePlayView(Request $request)
     {
         $configure =  ConfigurePlay::with('league','play')->where('league_id',$request->league_id)->where('match_id',$request->matchId)->get();
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "configure Play List",$configure);
   
     }
+     public function configurePlayDefensiveView(Request $request)
+    {
+        $configure =  ConfigureDefensivePlay::with('league','play')->where('league_id',$request->league_id)->where('game_id',$request->matchId)->get();
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "configure Play List",$configure);
+  
+    }
+    
 }
