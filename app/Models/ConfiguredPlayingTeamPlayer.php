@@ -11,7 +11,7 @@ class ConfiguredPlayingTeamPlayer extends Model
     protected $fillable= ['team_id','match_id','player_id','type','team_type'];
     public function player()
     {
-        return $this->belongsTo(Player::class,'player_id');
+        return $this->belongsTo(TeamPlayer::class,'player_id');
     }
 
 }

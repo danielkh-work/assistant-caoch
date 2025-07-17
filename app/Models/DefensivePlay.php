@@ -9,6 +9,6 @@ class DefensivePlay extends Model
 
     public function personals()
     {
-        return $this->hasMany(DefensivePlayPersonal::class);
+    return $this->hasMany(DefensivePlayPersonal::class,'defensive_play_id');
     }
 }

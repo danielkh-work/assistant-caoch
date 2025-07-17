@@ -51,5 +51,87 @@ class DefensivePlayController extends Controller
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play Uploaded List ", $plays);
     }
 
+     public function editDefensivePlay($id)
+    {
+        $play = DefensivePlay::with('personals')->find($id);
+        
+        if ($play)
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play List", $play);
+       
+    }
+
+    public function update(Request $request, $id)
+    {
+       
+        $defensivePlay = DefensivePlay::findOrFail($id);
+
+       
+        if ($request->has('name')) {
+            $defensivePlay->name = $request->name;
+        }
+
+        if ($request->has('formation')) {
+            $defensivePlay->formation = $request->formation;
+        }
+
+        if ($request->has('strategy_blitz')) {
+            $defensivePlay->strategy_blitz = $request->strategy_blitz;
+        }
+
+        if ($request->has('coverage_type')) {
+            $defensivePlay->coverage_type = $request->coverage_type;
+        }
+
+        if ($request->has('description')) {
+            $defensivePlay->description = $request->description;
+        }
+
+        if ($request->hasFile('image')) {
+            $imagePath = uploadImage($request->file('image'), 'public/uploads/public');
+            $defensivePlay->image = $imagePath;
+        }
+
+        $defensivePlay->save();
+
+     
+        if (is_array($request->all())) {
+        $personals = $request->all(); 
+        $existingPlayerIds = [];
+
+        foreach ($personals as $player) {
+            if (!isset($player['player_id'])) {
+                continue;
+            }
+
+            $existingPlayerIds[] = $player['player_id'];
+
+            $existingPersonal = $defensivePlay->personals()
+                ->where('teamplayer_id', $player['player_id'])
+                ->first();
+
+            if ($existingPersonal) {
+                $existingPersonal->update([
+                    'teamplayer_id' => $player['player_id'],
+                    'position' => $player['position'] ?? null,
+                   
+                ]);
+            } else {
+                $defensivePlay->personals()->create([
+                    'teamplayer_id' => $player['player_id'],
+                    'name' => $player['customInput'] ?? null,
+                   
+                ]);
+            }
+               $defensivePlay->personals()
+            ->whereNotIn('teamplayer_id', $existingPlayerIds)
+            ->delete();
+        }
+
+
+    }
+
+
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Defensive Play Updated Successfully", $defensivePlay);
+    }
     
 }

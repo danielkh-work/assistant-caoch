@@ -98,18 +98,20 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/configure-formation',[ConfigureController::class,'configureFormation']);
     Route::get('/configure-formation-view',[ConfigureController::class,'configureFormationView']);
-
+   
     Route::post('/configure-play',[ConfigureController::class,'configurePlay']);
     Route::post('/configure-defensive-play',[ConfigureController::class,'configureDefensivePlay']);
     Route::get('/configure-play-view',[ConfigureController::class,'configurePlayView']);
     Route::get('/configure-defensive-play-view',[ConfigureController::class,'configurePlayDefensiveView']);
     Route::post('/defensive-plays', [DefensivePlayController::class, 'store']);
     Route::get('/upload-defensive-play-list',[DefensivePlayController::class,'index'])->name('upload-play-list');
-
+    Route::get('/edit-defensive-play/{id}',[DefensivePlayController::class,'editDefensivePlay'])->name('edit-defensive-play');
+    Route::put('/update-defensive-play/{id}',[DefensivePlayController::class,'update'])->name('update.defensive-player');
     Route::controller(GameController::class)->group(function () {
             Route::get('/games/id', 'index');                  
             Route::post('/games', 'store');
-            Route::get('/game/{id}', 'show');               
+            Route::get('/game/{id}', 'show');     
+               Route::get('/game/{id}/opponents_my', 'getOpponentMyTeamPlayers');          
             Route::get('/games/league/{leagueId}', 'getByLeague');                
     });
 

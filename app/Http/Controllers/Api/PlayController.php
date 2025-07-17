@@ -90,7 +90,7 @@ class PlayController extends Controller
 
     public function store(Request $request)
     {
-           \Log::info(['data'=>$request->all()]);
+           
         $request->validate([
             'image' => 'required|image|mimes:jpeg,png,jpg,gif,svg,webp',
            

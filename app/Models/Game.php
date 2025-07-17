@@ -21,6 +21,7 @@ class Game extends Model
         return $this->belongsTo(LeagueTeam::class, 'oponent_team_id');
     }
 
+  
     public function configuredPlays()
     {
         return $this->hasMany(ConfigurePlay::class, 'match_id');

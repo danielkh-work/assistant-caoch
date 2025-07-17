@@ -30,7 +30,12 @@ class GameController extends Controller
         $game = Game::with(['myTeam.teamplayer.player', 'opponentTeam.teamplayer.player'])->findOrFail($id);
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "games", $game);
     }
-     public function getByLeague($leagueId)
+    public function getOpponentMyTeamPlayers($id)
+    {
+        $game = Game::with(['configureMyTeams.player.player', 'configureVisitingTeams.player.player'])->findOrFail($id);
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "games", $game);
+    }
+        public function getByLeague($leagueId)
     {
         $games = Game::with(['myTeam', 'opponentTeam','configuredPlays','configureMyTeams','configureVisitingTeams'])->where('league_id',$leagueId)->get();
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "games list", $games);
