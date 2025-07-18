@@ -106,15 +106,16 @@ class SportController extends Controller
            $League->number_of_players=$request->number_of_players;
            $League->flag_tbd =$request->flag_tbd;
            $League->save();
-           LeagueTeam::where('league_id',$League->id)->delete();
-           foreach($request->team_name as $index => $value)
-           {
-             $team =  new LeagueTeam;
-             $team->league_id =  $League->id;
-             $team->team_name = $value;
-              $team->type = $index == 0 ? 1 : null;
-             $team->save();
-           }
+        //    LeagueTeam::where('league_id',$League->id)->delete();
+        //    foreach($request->team_name as $index => $value)
+        //    {
+        //      $team =  new LeagueTeam;
+        //      $team->league_id =  $League->id;
+        //      $team->team_name = $value;
+        //       $team->type = $index == 0 ? 1 : null;
+        //      $team->save();
+        //    }
+           
            DB::commit();
            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "League Updated  SuccessFully ", $League);
         } catch (\Throwable $th) {
