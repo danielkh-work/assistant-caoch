@@ -29,6 +29,8 @@ class DefensivePlayController extends Controller
         $defensivePlay = DefensivePlay::create([
             'name' => $validated['name'],
             'image' => $imagePath,
+            'league_id' =>  $request->league_id,
+            
             'formation' => $validated['formation'],
             'coverage_type' => $validated['coverage_type'],
             'strategy_blitz' => $validated['strategy_blitz'],
@@ -45,9 +47,9 @@ class DefensivePlayController extends Controller
 
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play Uploaded Successfully", $defensivePlay);
     }
-    public function index()
+    public function index(Request $request)
     {
-        $plays = DefensivePlay::with('personals')->get();
+        $plays = DefensivePlay::with('personals')->where('league_id',$request->league_id)->get();
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play Uploaded List ", $plays);
     }
 
