@@ -107,11 +107,12 @@ class SportController extends Controller
            $League->flag_tbd =$request->flag_tbd;
            $League->save();
            LeagueTeam::where('league_id',$League->id)->delete();
-           foreach($request->team_name as $value)
+           foreach($request->team_name as $index => $value)
            {
              $team =  new LeagueTeam;
              $team->league_id =  $League->id;
              $team->team_name = $value;
+              $team->type = $index == 0 ? 1 : null;
              $team->save();
            }
            DB::commit();
