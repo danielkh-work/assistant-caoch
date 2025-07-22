@@ -10,15 +10,17 @@ use App\Http\Controllers\Controller;
 
 class DefensivePlayParameterController extends Controller
 {
-        public function index()
-    {
-        $play = DefensivePlayParameter::all();
+        public function index($id)
+    {  
+      
+        $play = DefensivePlayParameter::where('league_id', $id)->get();
+       
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play Uploaded List ", $play);
     }
 
     public function store(Request $request)
     { 
-        \Log::info(['data'=>$request->all()]);
+        
         $validated = $request->validate([
           
             'formation' => 'required',

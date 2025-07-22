@@ -108,7 +108,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Route::post('/defensive-plays', [DefensivePlayController::class, 'store']);
     Route::post('/defensive-plays', [DefensivePlayController::class, 'store']);
     Route::post('/defensive-plays-parameters', [DefensivePlayParameterController::class, 'store']);
-    Route::get('/defensive-plays-parameters', [DefensivePlayParameterController::class, 'index']);
+    Route::get('/defensive-plays-parameters/{id}', [DefensivePlayParameterController::class, 'index']);
     
     Route::get('/upload-defensive-play-list',[DefensivePlayController::class,'index'])->name('upload-play-list');
     Route::get('/edit-defensive-play/{id}',[DefensivePlayController::class,'editDefensivePlay'])->name('edit-defensive-play');
