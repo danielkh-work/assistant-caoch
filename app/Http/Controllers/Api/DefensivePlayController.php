@@ -17,8 +17,8 @@ class DefensivePlayController extends Controller
             'formation' => 'required|string',
             'formation' => 'required|string',
             'strategy_blitz' => 'required|string',
-            'coverage_type' => 'required|string',
-            'players' => 'required|json',
+           
+          
         
            
         ]);
@@ -32,17 +32,17 @@ class DefensivePlayController extends Controller
             'league_id' =>  $request->league_id,
             
             'formation' => $validated['formation'],
-            'coverage_type' => $validated['coverage_type'],
+          
             'strategy_blitz' => $validated['strategy_blitz'],
             'description' => $request->description,
             
            
         ]);
 
-          $personals = json_decode($validated['players'], true);
-            foreach ($personals as $player) {
-                $defensivePlay->personals()->create($player); // if using hasMany
-            }
+        //   $personals = json_decode($validated['players'], true);
+        //     foreach ($personals as $player) {
+        //         $defensivePlay->personals()->create($player); // if using hasMany
+        //     }
            
 
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play Uploaded Successfully", $defensivePlay);

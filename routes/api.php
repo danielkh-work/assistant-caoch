@@ -17,6 +17,8 @@ use App\Http\Responses\BaseResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\DefensivePlayController;
+use App\Http\Controllers\Api\DefensivePlayParameterController;
+
 
 
 
@@ -103,7 +105,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/configure-defensive-play',[ConfigureController::class,'configureDefensivePlay']);
     Route::get('/configure-play-view',[ConfigureController::class,'configurePlayView']);
     Route::get('/configure-defensive-play-view',[ConfigureController::class,'configurePlayDefensiveView']);
+    // Route::post('/defensive-plays', [DefensivePlayController::class, 'store']);
     Route::post('/defensive-plays', [DefensivePlayController::class, 'store']);
+    Route::post('/defensive-plays-parameters', [DefensivePlayParameterController::class, 'store']);
+    Route::get('/defensive-plays-parameters', [DefensivePlayParameterController::class, 'index']);
+    
     Route::get('/upload-defensive-play-list',[DefensivePlayController::class,'index'])->name('upload-play-list');
     Route::get('/edit-defensive-play/{id}',[DefensivePlayController::class,'editDefensivePlay'])->name('edit-defensive-play');
     Route::put('/update-defensive-play/{id}',[DefensivePlayController::class,'update'])->name('update.defensive-player');
