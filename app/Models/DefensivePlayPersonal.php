@@ -12,4 +12,13 @@ class DefensivePlayPersonal extends Model
     {
         return $this->belongsTo(DefensivePlay::class);
     }
+    public function player()
+    {
+        return $this->belongsTo(DefensivePlay::class);
+    }
+
+     public function teamPlayer()
+    {
+      return $this->belongsTo(TeamPlayer::class,'teamplayer_id');
+    }
 }

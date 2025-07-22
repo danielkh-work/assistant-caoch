@@ -11,4 +11,8 @@ class DefensivePlay extends Model
     {
     return $this->hasMany(DefensivePlayPersonal::class,'defensive_play_id');
     }
+
+   
+
+    
 }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\DefensivePlay;
+use App\Models\DefensivePlayPersonal;
 use App\Http\Responses\BaseResponse;
 class DefensivePlayController extends Controller
 {
@@ -38,6 +39,19 @@ class DefensivePlayController extends Controller
             
            
         ]);
+         
+         if ($request->has('opponentPlayers') && is_array($request->opponentPlayers)) {
+            foreach ($request->opponentPlayers as $player) {
+                if (!empty($player['id'])) {
+                    DefensivePlayPersonal::create([
+                        'defensive_play_id' => $defensivePlay->id,
+                        'teamplayer_id' => $player['id'],
+                     
+                        'name' =>'name',
+                    ]);
+                }
+            }
+        }
 
         //   $personals = json_decode($validated['players'], true);
         //     foreach ($personals as $player) {
@@ -49,7 +63,7 @@ class DefensivePlayController extends Controller
     }
     public function index(Request $request)
     {
-        $plays = DefensivePlay::with('personals')->where('league_id',$request->league_id)->get();
+        $plays = DefensivePlay::with('personals.teamPlayer.player')->where('league_id',$request->league_id)->get();
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play Uploaded List ", $plays);
     }
 
