@@ -31,6 +31,7 @@ class DefensivePlayController extends Controller
             'name' => $validated['name'],
             'image' => $imagePath,
             'league_id' =>  $request->league_id,
+            'opponent_personnel_grouping' =>  $request->opponent_personnel_grouping,
             
             'formation' => $validated['formation'],
           
@@ -63,7 +64,8 @@ class DefensivePlayController extends Controller
     }
     public function index(Request $request)
     {
-        $plays = DefensivePlay::with('personals.teamPlayer.player')->where('league_id',$request->league_id)->get();
+        
+        $plays = DefensivePlay::with('strategyBlitz','formation','personals.teamPlayer.player')->where('league_id',$request->league_id)->get();
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play Uploaded List ", $plays);
     }
 
