@@ -18,6 +18,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\DefensivePlayController;
 use App\Http\Controllers\Api\DefensivePlayParameterController;
+use App\Http\Controllers\Api\BenchPlayerController;
+
 
 
 
@@ -54,6 +56,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/leaque-rule',[SportController::class,'leagueRule'])->name('leaque-rule');
 
     Route::post('/add-player',[PlayerController::class,'store'])->name('add.player');
+    Route::post('/bench-players', [BenchPlayerController::class, 'store']);
+    Route::get('/bench-players/{gameId}/{teamId}', [BenchPlayerController::class, 'index']);
     Route::put('/update-player/{id}',[PlayerController::class,'update'])->name('update.player');
     Route::get('/player-list',[PlayerController::class,'list'])->name('player.list');
     Route::post('/update-player/{id}',[PlayerController::class,'update'])->name('player.update');

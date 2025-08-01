@@ -5,7 +5,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class DefensivePlayPersonal extends Model
 {
-  
+    protected $table = 'defensive_play_personals'; 
     protected $fillable = ['defensive_play_id', 'name','teamplayer_id'];
 
     public function defensivePlay()

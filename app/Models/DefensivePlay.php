@@ -6,10 +6,14 @@ use Illuminate\Database\Eloquent\Model;
 class DefensivePlay extends Model
 {
     protected $guarded = [];
+    public function configuredLeagues()
+    {
+        return $this->belongsToMany(League::class, 'configure_defensive_plays', 'play_id', 'league_id');
+    }
 
     public function personals()
     {
-    return $this->hasMany(DefensivePlayPersonal::class,'defensive_play_id');
+       return $this->hasMany(DefensivePlayPersonal::class,'defensive_play_id');
     }
     public function strategyBlitz()
     {
@@ -20,7 +24,7 @@ class DefensivePlay extends Model
        return $this->belongsTo(DefensivePlayParameter::class,'formation');
     }
 
-   
+   // 
 
     
 }
