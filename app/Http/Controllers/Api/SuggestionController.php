@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Play;
+use App\Models\OpponentTeamPackage;
 use App\Models\DefensivePlay;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -86,6 +87,7 @@ class SuggestionController extends Controller
 
      public function getSuggestedPlays($league, Request $request)
     {  
+
         $possession = $request->input('possession');
 
         if ($possession === 'defensive') {
@@ -147,27 +149,18 @@ class SuggestionController extends Controller
       public function getDefensivePlays(Request $request)
         {
             $leagueId = $request->league_id;
-            $matchId = $request->match_id;
-            $inputGrouping = $request->opponent_personnel_grouping;
-           
-          
-                $players = $request->input('player');
+            $playerIds = \DB::table('opponent_package_player')
+            ->where('opponent_team_package_id', $request->pkg)
+             ->pluck('player_id')->toArray();
 
-                if (is_array($players)) {
-                    foreach ($players as $player) {
-                        \Log::info('Player value: ' . ($player['value'] ?? 'N/A') . ', text: ' . ($player['text'] ?? 'N/A'));
-                    }
-                }
-            // Step 1: Query the relevant records
-            $plays = DefensivePlay::with('personals')->whereHas('configuredLeagues', function ($q) use ($leagueId, $matchId) {
-                $q->where('configure_defensive_plays.league_id', $leagueId)
-                ->where('configure_defensive_plays.game_id', $matchId);
-            })->get();
-            return response()->json($plays);
+        
+      
+            $defensivePlays = DefensivePlay::whereHas('personals', function ($query) use ($playerIds) {
+                    $query->whereIn('teamplayer_id',  $playerIds);
+            })->with('strategyBlitz','formation','personals.teamPlayer.player','personals')->where('league_id', $leagueId)->get();
+            \Log::info(['defensive play'=>$defensivePlays]);
+            return response()->json($defensivePlays);
            
-          
-
-            return response()->json($filtered->values()); // return matched plays
         }
 
 //     protected function getDefensivePlays(Request $request)

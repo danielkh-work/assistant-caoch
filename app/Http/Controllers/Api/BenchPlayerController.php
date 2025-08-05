@@ -260,6 +260,11 @@ class BenchPlayerController extends Controller
     public function addOpponentPackage(Request $request)
     {
          $package = OpponentTeamPackage::createPackage($request->all());
+        if (isset($package['grouping_count'])) {
+            $package['count'] = $package['grouping_count'];
+            unset($package['grouping_count']);
+        }
+
          return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Bench Player Add Successfully",  $package );
     }
 

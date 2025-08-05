@@ -29,16 +29,32 @@ class OpponentTeamPackage extends Model
     }
 
   
+    // public function players()
+    // {
+    //     return $this->belongsToMany(Player::class, 'opponent_package_player')
+    //                 ->withTimestamps();
+    // }
+    
     public function players()
     {
-        return $this->belongsToMany(Player::class, 'opponent_package_player')
-                    ->withTimestamps();
+            return $this->belongsToMany(
+                TeamPlayer::class,                 // Related model
+                'opponent_package_player',        // Pivot table
+                'opponent_team_package_id',       // Foreign key on pivot table (for this model)
+                'player_id'                  // Foreign key on pivot table (for TeamPlayer)
+            )->withTimestamps();
     }
-
    
-    public static function createPackage(array $data)
+       public static function createPackage(array $data)
     {
-        return self::create($data);
+        
+        $playerIds = $data['player_ids'] ?? [];
+        unset($data['player_ids']);
+        $package = self::create($data);
+        if (!empty($playerIds)) {
+            $package->players()->attach($playerIds);
+        }
+        return $package->load('players.player');
     }
 
     /**
@@ -46,9 +62,8 @@ class OpponentTeamPackage extends Model
      */
     public static function getPackagesForOpponent($gameId,$teamId)
     {
-        \Log::info(['game_id'=>$gameId]);
-        \Log::info(['teamId'=>$teamId]);
-        return self::where('game_id',$teamId )
+      
+        return self::with('players.player')->where('game_id',$teamId )
                    ->where('opponent_team_id', $gameId)
                    ->get();
                    
