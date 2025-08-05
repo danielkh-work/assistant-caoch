@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('bench_players', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('league_id');
-             $table->unsignedBigInteger('team_id');
+            $table->unsignedBigInteger('team_id');
             $table->unsignedBigInteger('game_id');
             $table->unsignedBigInteger('player_id');
             $table->string('type')->nullable();
@@ -27,7 +27,7 @@ return new class extends Migration
             $table->foreign('player_id')->references('id')->on('team_players')->onDelete('cascade');
 
             // Optional: prevent duplicates
-            $table->unique(['team_id','league_id','game_id', 'player_id']);
+          
         });
     }
 
