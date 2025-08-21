@@ -29,6 +29,7 @@ class BenchPlayerController extends Controller
                 'name' => optional($benchPlayer->player)->player->name ?? null,
                 'number' => optional($benchPlayer->player)->number ?? null,
                 'size' => optional($benchPlayer->player)->size ?? null,
+                'position_value' => optional($benchPlayer->player)->position_value ?? null,
                 'squad' => 3,
                 'position' => optional($benchPlayer->player)->position ?? null,
                 'speed' => optional($benchPlayer->player)->speed ?? null,
