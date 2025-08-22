@@ -39,7 +39,8 @@ class BroadCastScoreController extends Controller
         }
        
        
-        broadcast(new ScoreUpdated(self::$scores));
+        broadcast(new ScoreUpdated(self::$scores, auth()->id()));
+
       
 
 

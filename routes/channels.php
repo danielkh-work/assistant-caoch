@@ -12,11 +12,13 @@ use Illuminate\Support\Facades\Broadcast;
 | used to check if an authenticated user can listen to the channel.
 |
 */
-
-Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
+Broadcast::routes(['middleware' => ['auth:sanctum']]);
+Broadcast::channel('user.{id}', function ($user, $id) {
+       \Log::info('Broadcast channel auth check', [
+        'auth_user_id' => $user->id ?? null,
+        'channel_id' => $id,
+    ]);
     return (int) $user->id === (int) $id;
+
 });
 
-Broadcast::channel('chat', function ($user) {
-    return $user;
-});

@@ -31,6 +31,7 @@ class MessageSent  implements ShouldBroadcast
     public function broadcastOn()
     //: array
     {
+        
         return new \Illuminate\Broadcasting\Channel('chat');
         //  return new PrivateChannel('chat');
         // return [

@@ -39,7 +39,8 @@ Route::get('/test-ethereal', function () {
 
 Auth::routes();
 Route::get('/send-message', function () {
-    broadcast(new MessageSent(['msg'=>'broadcast is working']));
+    
+    broadcast(new MessageSent(['msg' => 'broadcast is working']));
     return response()->json(['status' => 'Message broadcasted']);
 });
 Route::middleware(['auth'])->group(function () {

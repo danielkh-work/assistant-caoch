@@ -15,14 +15,20 @@ class ScoreUpdated implements ShouldBroadcast
    use Dispatchable, InteractsWithSockets, SerializesModels;
 
    public $scores;
+   protected $userId;
 
-   public function __construct($scores)
+   public function __construct($scores,$userId)
    {
      $this->scores = $scores;
+     $this->userId = $userId;
+    //   $this->leagueId = $leagueId;
    }
     public function broadcastOn()
     {
-        return new Channel('scoreboard');
+        // return new PrivateChannel("user.{$this->userId}.league.{$this->leagueId}");
+        \Log::info(['data'=>$this->userId]);
+        return new PrivateChannel('user.' . $this->userId);
+       
     }
 
     public function broadcastAs()
