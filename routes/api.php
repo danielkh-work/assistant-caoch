@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\DefensivePlayController;
 use App\Http\Controllers\Api\DefensivePlayParameterController;
 use App\Http\Controllers\Api\BenchPlayerController;
+use App\Http\Controllers\Api\BroadCastScoreController;
 
 
 
@@ -98,6 +99,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/defensive-positions', [PlayController::class, 'getDefensivePositions'])->name('defensive-positions');
 
 
+
+   
+
     // Team
     Route::post('create-team',[TeamController::class,'store']);
     Route::get('team-list',[TeamController::class,'index']);
@@ -143,9 +147,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::controller(PlayGameModeController::class)->group(function () {
        Route::post('/start-game-mode', 'startGameGode');
        Route::post('/add-points-update-state', 'addPoints');
-    });
+      
 
-    Route::prefix('leagues')->group(function () {
+    });
+   Route::post('/scoreboard/broadcast', [BroadCastScoreController::class, 'scoreBoardBroadCast']);
+   Route::get('/scoreboard/{game_id}', [BroadCastScoreController::class, 'getWebSocketScoreBoard']); 
+   Route::get('/delete/scoreboard/{game_id}',[BroadCastScoreController::class,'delete'])->name('deleteScoreBoard');
+   Route::prefix('leagues')->group(function () {
         Route::prefix('/{league}/matches')->group(function () {
             Route::get('/', [MatchController::class, 'index']);
             Route::put('/{match}/', [MatchController::class, 'update']);

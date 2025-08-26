@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Events\MessageSent;
 
 /*
 |--------------------------------------------------------------------------
@@ -37,7 +38,11 @@ Route::get('/test-ethereal', function () {
 });
 
 Auth::routes();
-
+Route::get('/send-message', function () {
+    
+    broadcast(new MessageSent(['msg' => 'broadcast is working']));
+    return response()->json(['status' => 'Message broadcasted']);
+});
 Route::middleware(['auth'])->group(function () {
     Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
 

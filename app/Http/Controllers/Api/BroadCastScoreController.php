@@ -1,0 +1,111 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+use App\Events\ScoreUpdated;
+use App\Models\WebsocketScoreboard;
+use App\Http\Responses\BaseResponse;
+
+class BroadCastScoreController extends Controller
+{
+      public static $scores = [
+        'left' => [
+            'total' => 0
+        ],
+        'right' => [
+            'total' => 0 
+        ]
+    ];
+
+    public function scoreBoardBroadCast(Request $request)
+    {
+ 
+         \Log::info(['team' => $request->all()]);
+        
+        $validated = $request->validate([
+            'team' => 'required|in:left,right,both',
+            'points' => 'required|integer',
+            'action' => 'required|string'
+        ]);
+       
+        $team = $validated['team'];
+        $points = $validated['points'];
+        $action = $validated['action'];
+        if($team=='left'){
+          self::$scores[$team]['total'] = $request->teamLeftScore+$points;
+        }
+        else if($team=='right'){
+         self::$scores[$team]['total'] = $request->teamRightScore+$points;
+        }else{
+
+            self::$scores['left']['total'] = $request->teamLeftScore;
+            self::$scores['right']['total'] = $request->teamRightScore;
+        }
+       
+        // WebsocketScoreboard::updateOrCreate(
+        //     [
+        //     'user_id' => auth()->id(),
+        //     'game_id' => $request->game_id
+        //     ],
+        //     [
+        //         'left_score' => self::$scores['left']['total'],
+        //         'right_score' => self::$scores['right']['total'],
+        //         'action' => $action,
+        //         'quarter' => $request->quarter,
+        //         'time' => $request->time,
+        //         'is_start' => $request->isStartTime,
+        //         'down' => $request->down,
+        //         'team_position' => $request->teamPosition,
+        //         'expected_yard_gain' => $request->expectedyardgain,
+        //         'position_number' => $request->positionNumber,
+        //         'pkg' => $request->pkg,
+        //         'strategies' => $request->strategies,
+        //         'possession' => $request->possession,
+                
+        //     ]
+        // );
+
+   
+        $payload = [
+            'scores' => self::$scores,
+            'team' => $team,
+            'points' => $points,
+            'action' => $action,
+            'isStart'=>$request->isStartTime,
+            'time'=>$request->time,
+            'quarter' => $request->quarter,
+            'down' => $request->down,
+            'strategies' => $request->strategies,
+            'teamPosition' => $request->teamPosition,
+            'expectedyardgain' => $request->expectedyardgain,
+            'positionNumber' => $request->positionNumber,
+            'pkg' => $request->pkg,
+            'possession' => $request->possession,
+        ];
+        broadcast(new ScoreUpdated($payload, auth()->id(),$request->game_id));
+
+      
+    }
+   
+    public function getWebSocketScoreBoard($gameId){
+        $webSocketScorboard= WebsocketScoreboard::where('game_id', $gameId)
+        ->where('user_id',auth()->id())
+        ->firstOrFail();
+         if (!$webSocketScorboard) {
+             return response()->noContent();
+          }
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "scoreboardList",$webSocketScorboard);
+        // return WebsocketScoreboard::where('game_id', $game_id)->firstOrFail();
+    }
+
+     public function delete($gameId){
+         WebsocketScoreboard::where('game_id', $gameId)
+        ->where('user_id',auth()->id())
+        ->delete();
+        return response()->noContent();
+        
+    }
+  
+}
