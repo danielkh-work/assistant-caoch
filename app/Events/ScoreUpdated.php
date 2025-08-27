@@ -29,7 +29,7 @@ class ScoreUpdated implements ShouldBroadcast
     public function broadcastOn()
     {
         // return new PrivateChannel("user.{$this->userId}.league.{$this->leagueId}");
-        \Log::info(['data'=>$this->userId]);
+       
          return new PrivateChannel("user.{$this->userId}.game.{$this->gameId}");
        
     }
