@@ -102,7 +102,6 @@ class BroadCastScoreController extends Controller
 
      public function delete($gameId){
          WebsocketScoreboard::where('game_id', $gameId)
-        ->where('user_id',auth()->id())
         ->delete();
         return response()->noContent();
         
