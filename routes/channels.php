@@ -13,12 +13,24 @@ use Illuminate\Support\Facades\Broadcast;
 |
 */
 Broadcast::routes(['middleware' => ['auth:sanctum']]);
+
+
+
+
 Broadcast::channel('user.{userId}.game.{gameId}', function ($user, $id,$gameId) {
-       \Log::info('Broadcast channel auth check', [
-        'auth_user_id' => $user->id ?? null,
-        'channel_id' => $id,
-    ]);
-    return (int) $user->id === (int) $id;
+    if ($user->role === 'head_coach' && $user->id == $id) {
+        return true;
+    }
+    if ($user->role === 'assistant_coach' && $user->head_coach_id == $id) {
+        return true;
+    }
+
+    return false;
+    //    \Log::info('Broadcast channel auth check', [
+    //     'auth_user_id' => $user->id ?? null,
+    //     'channel_id' => $id,
+    // ]);
+    // return (int) $user->id === (int) $id;
 
 });
 

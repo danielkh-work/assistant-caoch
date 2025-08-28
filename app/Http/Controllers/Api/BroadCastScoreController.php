@@ -84,7 +84,12 @@ class BroadCastScoreController extends Controller
             'pkg' => $request->pkg,
             'possession' => $request->possession,
         ];
-        broadcast(new ScoreUpdated($payload, auth()->id(),$request->game_id))->toOthers();
+
+        $user = auth()->user();
+        $coachGroupId = $user->role === 'head_coach'
+            ? $user->id
+            : $user->head_coach_id;
+        broadcast(new ScoreUpdated($payload, $coachGroupId,$request->game_id))->toOthers();
 
       
     }

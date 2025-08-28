@@ -22,7 +22,10 @@ class SportController extends Controller
 
     public function league(Request $request)
     {
+        // "role":"assistant_coach","head_coach_id":30
+        \Log::info('Authenticated user:', ['user' => auth()->user()->assistant_coach]);
         $id =  auth()->user()->id;
+        $user=auth()->user();
         $userRoleIds = auth()->user()->roles->pluck('id');
         $league = League::with([
             'teams',  // Selecting only 'id' and 'name' from teams
@@ -30,17 +33,26 @@ class SportController extends Controller
             'sport:id,title',
             'roles' 
         ])
-        ->orWhere('user_id',auth('api')->user()->id)->where('sport_id',$request->sport_id)
+        ->when($user->role == 'assistant_coach', function ($query) use ($user) {
+                return $query->where(function ($q) use ($user) {
+                    $q->where('user_id', $user->id)
+                    ->orWhere('user_id', $user->head_coach_id);
+                });
+             
+            }, function ($query) use ($user) {
+                return $query->orWhere('user_id', $user->id);
+        })
+        ->where('sport_id',$request->sport_id)
         ->orWhereHas('roles', function ($query) use ($userRoleIds) {
-        $query->where(function ($q) use ($userRoleIds) {
-              $q->whereIn('roleables.role_id', $userRoleIds);
-        });
+            $query->where(function ($q) use ($userRoleIds) {
+                $q->whereIn('roleables.role_id', $userRoleIds);
+            });
        })
        ->get();
         
         
        
-        \Log::info(['league'=>$league]);
+        
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "leauqe List  ", $league);
     }
     public function leagueRule(Request $request)
@@ -189,6 +201,7 @@ class SportController extends Controller
 
     public function dashboard(Request $request)
     {
+        
         $leauqe =  League::with('teams','league_rule','sport')->get();
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "leauqe List  ", $leauqe);
     }
