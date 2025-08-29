@@ -171,8 +171,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     });
    Route::post('/scoreboard/broadcast', [BroadCastScoreController::class, 'scoreBoardBroadCast']);
-   Route::get('/scoreboard/{game_id}', [BroadCastScoreController::class, 'getWebSocketScoreBoard']); 
-   Route::get('/delete-scoreboard/{game_id}',[BroadCastScoreController::class,'delete'])->name('deleteScoreBoard');
+   Route::get('/scoreboard', [BroadCastScoreController::class, 'getWebSocketScoreBoard']); 
+   Route::get('/delete-scoreboard',[BroadCastScoreController::class,'delete'])->name('deleteScoreBoard');
    Route::prefix('leagues')->group(function () {
         Route::prefix('/{league}/matches')->group(function () {
             Route::get('/', [MatchController::class, 'index']);

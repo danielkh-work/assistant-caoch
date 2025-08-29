@@ -17,7 +17,7 @@ Broadcast::routes(['middleware' => ['auth:sanctum']]);
 
 
 
-Broadcast::channel('user.{userId}.game.{gameId}', function ($user, $id,$gameId) {
+Broadcast::channel('user.{userId}', function ($user, $id) {
     if ($user->role === 'head_coach' && $user->id == $id) {
         return true;
     }
