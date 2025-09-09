@@ -52,8 +52,8 @@ class AuthController extends Controller
         $token = $user->createToken('auth_token')->plainTextToken;
         $user['permissions'] = $user->getPermissionsViaRoles()->pluck('name');
         $expiresIn = now()->addMinutes(config('sanctum.expiration', 60))->timestamp;
-        Mail::to('aminnoorulamin977@gmail.com')->send(new UserLoggedIn($user));
-        \Log::info(['user'=>$user]);
+        // Mail::to('aminnoorulamin977@gmail.com')->send(new UserLoggedIn($user));
+        // \Log::info(['user'=>$user]);
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Login SuccessFully", $user,$token);
     }
 
