@@ -10,7 +10,8 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
-
+use Illuminate\Support\Facades\Mail;
+use App\Mail\UserLoggedIn;
 class AuthController extends Controller
 {
     public function register(Request $request)
@@ -51,6 +52,8 @@ class AuthController extends Controller
         $token = $user->createToken('auth_token')->plainTextToken;
         $user['permissions'] = $user->getPermissionsViaRoles()->pluck('name');
         $expiresIn = now()->addMinutes(config('sanctum.expiration', 60))->timestamp;
+        Mail::to('aminnoorulamin977@gmail.com')->send(new UserLoggedIn($user));
+        \Log::info(['user'=>$user]);
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Login SuccessFully", $user,$token);
     }
 
@@ -180,5 +183,34 @@ class AuthController extends Controller
        $user->sport_id = $request->sport_id;
        $user->save();
        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "User Updated Successfully",$user );
+    }
+
+    public function addAssistantCoach(Request $request){
+
+          \Log::info(['data'=>$request->all()]);
+            $request->validate([
+                'name'     => 'required|string',
+                'email'    => 'required|email|unique:users', 
+            ]);
+            $headCoach = auth()->user();
+            if ($headCoach->role !== 'head_coach') {
+                abort(403);
+            }
+
+            $assistant = User::create([
+                'name'          => $request->name,
+                'email'         => $request->email,
+                'password'      => bcrypt('12345678'),
+                'role'          => 'assistant_coach',
+                'head_coach_id' => $headCoach->id,
+                'sport_id' => $headCoach->sport_id,
+                'is_subscribe' => $headCoach->is_subscribe,
+                'subscription_id' => $headCoach->subscription_id,
+               
+            ]);
+            $headCoachRoles = $headCoach->roles->pluck('name'); 
+            $assistant->assignRole($headCoachRoles); 
+            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Add Assistant Coach Successfully",$assistant );
+           
     }
 }

@@ -8,6 +8,7 @@ use App\Models\Player;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use App\Models\TeamPlayer;
 
 class PlayerController extends Controller
 {
@@ -39,10 +40,24 @@ class PlayerController extends Controller
     // }
     public  function store(Request $request)
     {
+
+        \Log::info(['team'=>$request->all()]);
         DB::beginTransaction();
         try {
             $player = new Player();
-            $player->user_id = auth()->id();
+           $type= $request->type;
+           \Log::info(['type'=>$type]);
+            if ($type === 'player') {
+            //   $player->user_id = auth()->id();
+                \Log::info(['type nformaion'=>$type]);
+            } elseif ($type === 'league') {
+                 \Log::info(['type  league nformaion'=>$request->league_id.' '.$request->league_id]);
+                $player->league_id = $request->league_id;
+                
+            } elseif ($type === 'team') {
+                 \Log::info(['type  league nformaion'=>$type]);
+                $player->user_id = auth()->id();
+            }
            
             $player->name = $request->name;
             $player->number=  $request->number;
@@ -62,25 +77,26 @@ class PlayerController extends Controller
                 $player->image =$path;
             }
             $player->save();
-
-            DB::table('team_players')->insert([
-                'player_id' => $player->id,
-                'team_id' => $request->team_id,
-                'name' => $player->name,
-                'number' => $player->number,
-                'position' => $player->position,
-                'size' => $player->size,
-                'speed' => $player->speed,
-                'strength' => $player->strength,
-                'weight' => $player->weight,
-                'height' => $player->height,
-                'dob' => $player->dob,
-                'image' => $player->image,
-                'position_value' => $player->position_value,
-                'ofp' => $player->ofp,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+           if($type === 'team'){
+                    DB::table('team_players')->insert([
+                        'player_id' => $player->id,
+                        'team_id' => $request->team_id,
+                        'name' => $player->name,
+                        'number' => $player->number,
+                        'position' => $player->position,
+                        'size' => $player->size,
+                        'speed' => $player->speed,
+                        'strength' => $player->strength,
+                        'weight' => $player->weight,
+                        'height' => $player->height,
+                        'dob' => $player->dob,
+                        'image' => $player->image,
+                        'position_value' => $player->position_value,
+                        'ofp' => $player->ofp,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+            }
             DB::commit();
             return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Player Added SuccessFully ", $player);
         } catch (\Throwable $th) {
@@ -179,7 +195,20 @@ class PlayerController extends Controller
             return new BaseResponse(STATUS_CODE_BADREQUEST, STATUS_CODE_BADREQUEST, $th->getMessage());
         }
     }
+    
+    public function updateOFP(Request $request, $id)
+    {
+        \Log::info(['data'=>$request->all()]);
+        $request->validate([
+            'ofp' => 'required|integer|min:0|max:100',
+        ]);
 
+        $teamPlayer = TeamPlayer::findOrFail($id);
+        $teamPlayer->ofp = $request->input('ofp');
+        $teamPlayer->save();
+
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Player OFP Updated SuccessFully ", $teamPlayer);
+    }
     public function delete($id,$team_id)
     {
         $player =  Player::find($id);

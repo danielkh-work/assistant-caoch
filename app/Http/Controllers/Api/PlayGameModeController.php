@@ -69,6 +69,7 @@ class PlayGameModeController extends Controller
                 'my_points' => $value['my_points'],
                 'oponent_points' => $value['oponent_points'],
                 'time' => $value['time'],
+                'reasons' => $value['reasons'] ?? '',
                 'type_of_log' => $value['type_of_log'],
                 'created_at' => now(),
                 'updated_at' => now(),

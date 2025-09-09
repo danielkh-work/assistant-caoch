@@ -25,6 +25,7 @@ use App\Http\Controllers\Api\BroadCastScoreController;
 
 
 
+
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -40,11 +41,30 @@ use App\Http\Controllers\Api\BroadCastScoreController;
 //     return $request->user();
 
 // });
+
+// this data will add to the in the user controller
+//  $headCoach = auth()->user(); // or User::find($headCoachId);
+
+//     // 1. Create assistant coach user
+//     $assistant = User::create([
+//         'name' => $request->name,
+//         'email' => $request->email,
+//         'password' => bcrypt($request->password),
+//         'role' => 'assistant_coach',
+//         'head_coach_id' => $headCoach->id
+//     ]);
+
+//     // 2. Copy roles from head coach to assistant
+//     $headCoachRoles = $headCoach->roles->pluck('name'); // use names, not IDs
+
+//     $assistant->assignRole($headCoachRoles);
+
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('userUpdate',[AuthController::class,'userUpdate']);
     Route::post('save-sport',[AuthController::class,'saveSport']);
     Route::post('change-password',[AuthController::class,'changePassword'])->name('password.change');
+    Route::post('add-assistant-coach',[AuthController::class,'addAssistantCoach'])->name('add.assistantCoach');
     Route::get('/sport',[SportController::class,'sport'])->name('sport');
 
     //  Leaque
@@ -67,6 +87,7 @@ Route::middleware('auth:sanctum')->group(function () {
      Route::get('/get-opponent-packages/{gameId}/{teamId}', [BenchPlayerController::class, 'getOpponentTeamPackages']);
     
     Route::put('/update-player/{id}',[PlayerController::class,'update'])->name('update.player');
+    Route::put('/team-players/{id}/ofp', [PlayerController::class, 'updateOFP']);
     Route::get('/player-list',[PlayerController::class,'list'])->name('player.list');
     Route::post('/update-player/{id}',[PlayerController::class,'update'])->name('player.update');
     Route::get('/delete-player/{id}/{team_id}',[PlayerController::class,'delete'])->name('player.delete');
@@ -151,8 +172,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     });
    Route::post('/scoreboard/broadcast', [BroadCastScoreController::class, 'scoreBoardBroadCast']);
-   Route::get('/scoreboard/{game_id}', [BroadCastScoreController::class, 'getWebSocketScoreBoard']); 
-   Route::get('/delete-scoreboard/{game_id}',[BroadCastScoreController::class,'delete'])->name('deleteScoreBoard');
+   Route::get('/scoreboard', [BroadCastScoreController::class, 'getWebSocketScoreBoard']); 
+   Route::get('/delete-scoreboard',[BroadCastScoreController::class,'delete'])->name('deleteScoreBoard');
    Route::prefix('leagues')->group(function () {
         Route::prefix('/{league}/matches')->group(function () {
             Route::get('/', [MatchController::class, 'index']);

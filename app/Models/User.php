@@ -21,9 +21,15 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'head_coach_id',
+        'sport_id',
+        'is_subscribe',
+        'role',
+        'subscription_id',
         'image','is_subscribed'
     ];
-
+ 
+             
     /**
      * The attributes that should be hidden for serialization.
      *

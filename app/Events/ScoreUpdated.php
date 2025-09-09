@@ -30,7 +30,7 @@ class ScoreUpdated implements ShouldBroadcast
     {
         // return new PrivateChannel("user.{$this->userId}.league.{$this->leagueId}");
        
-         return new PrivateChannel("user.{$this->userId}.game.{$this->gameId}");
+         return new PrivateChannel("user.{$this->userId}");
        
     }
 
