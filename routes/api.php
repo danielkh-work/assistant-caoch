@@ -87,6 +87,7 @@ Route::middleware('auth:sanctum')->group(function () {
      Route::get('/get-opponent-packages/{gameId}/{teamId}', [BenchPlayerController::class, 'getOpponentTeamPackages']);
     
     Route::put('/update-player/{id}',[PlayerController::class,'update'])->name('update.player');
+    Route::put('/team-players/{id}/ofp', [PlayerController::class, 'updateOFP']);
     Route::get('/player-list',[PlayerController::class,'list'])->name('player.list');
     Route::post('/update-player/{id}',[PlayerController::class,'update'])->name('player.update');
     Route::get('/delete-player/{id}/{team_id}',[PlayerController::class,'delete'])->name('player.delete');
