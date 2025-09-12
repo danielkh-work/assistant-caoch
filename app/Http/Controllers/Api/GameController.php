@@ -36,10 +36,26 @@ class GameController extends Controller
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "games", $game);
     }
         public function getByLeague($leagueId)
-    {
-        $games = Game::with(['myTeam', 'opponentTeam','configuredPlays','configureMyTeams','configureVisitingTeams'])->where('league_id',$leagueId)->get();
-        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "games list", $games);
-    }
+    {  
+      
+
+            $gamesQuery = Game::with([
+                'myTeam',
+                'opponentTeam',
+                'configuredPlays',
+                'configureMyTeams',
+                'configureVisitingTeams'
+            ])->where('league_id', $leagueId);
+
+            // Apply filter only if 'type' exists in the request
+            if (request()->has('type')) {
+                $gameType = request()->type;
+                $gamesQuery->where('type', $gameType);
+            }
+
+            $games = $gamesQuery->get();
+                    return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "games list", $games);
+                }
     
     
 }

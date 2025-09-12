@@ -13,6 +13,7 @@ use App\Models\PlayTargetOffensivePlayer;
 use App\Models\PlayTargetDefensivePlayer;
 use App\Models\OffensivePosition;
 use App\Models\DefensivePosition;
+use App\Models\PlayResult;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -322,4 +323,37 @@ class PlayController extends Controller
         $positions = DefensivePosition::all(['id', 'name']);
          return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Defensive positions retrieved successfully.", $positions);
     }
+
+    public function addPlayResult(Request $request)
+    {
+
+        $playResult = PlayResult::create([
+            'game_id' => $request->game_id,
+            'play_id' => $request->play_id,
+            'type' => $request->type,
+            'result' => $request->result,
+            'suggested_count' => $request->suggested_count ?? 0,
+        ]);
+
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "suggestion plays wining ratio is added", $playResult);
+    }
+        public function getPlayResult(Request $request)
+        {
+            $gameId = $request->game_id;
+            $playId = $request->play_id;
+
+            // You might want to validate these IDs before querying (optional)
+
+            $playResult = PlayResult::where('game_id', $gameId)
+                                    ->where('play_id', $playId)
+                                    ->first();
+
+            if (!$playResult) {
+                return response()->json([
+                    'message' => 'Play result not found'
+                ], 404);
+            }
+
+           return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Plays Suggestion is Fetch", $playResult);
+        }
 }
