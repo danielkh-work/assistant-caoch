@@ -341,12 +341,14 @@ class PlayController extends Controller
         {
             $gameId = $request->game_id;
             $playId = $request->play_id;
+            $type = $request->type;
 
             // You might want to validate these IDs before querying (optional)
 
             $playResult = PlayResult::where('game_id', $gameId)
                                     ->where('play_id', $playId)
-                                    ->first();
+                                    ->where('type', $type)
+                                    ->get();
 
             if (!$playResult) {
                 return response()->json([

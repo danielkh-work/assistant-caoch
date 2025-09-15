@@ -120,7 +120,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/offensive-positions', [PlayController::class, 'getOffensivePositions'])->name('offensive-positions');
     Route::get('/defensive-positions', [PlayController::class, 'getDefensivePositions'])->name('defensive-positions');
     Route::get('/play-results', [PlayController::class, 'getPlayResult']);
-    Route::get('/play-results', [PlayController::class, 'getPlayResult']);
+
     Route::post('/play-results-add', [PlayController::class, 'addPlayResult']);
 
    

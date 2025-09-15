@@ -37,17 +37,18 @@ class GameController extends Controller
     }
         public function getByLeague($leagueId)
     {  
-      
-
+          \Log::info(['data'=>'checkit working ornot']);
             $gamesQuery = Game::with([
                 'myTeam',
                 'opponentTeam',
                 'configuredPlays',
                 'configureMyTeams',
                 'configureVisitingTeams'
-            ])->where('league_id', $leagueId);
+            ])
+            
+            ->where('league_id', $leagueId);
 
-            // Apply filter only if 'type' exists in the request
+           
             if (request()->has('type')) {
                 $gameType = request()->type;
                 $gamesQuery->where('type', $gameType);
@@ -55,7 +56,7 @@ class GameController extends Controller
 
             $games = $gamesQuery->get();
                     return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "games list", $games);
-                }
+    }
     
     
 }

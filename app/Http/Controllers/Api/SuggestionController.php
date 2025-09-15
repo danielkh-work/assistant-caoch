@@ -89,11 +89,12 @@ class SuggestionController extends Controller
     {  
 
         $possession = $request->input('possession');
-
+          \Log::info(['possession'=>$possession ]);
         if ($possession === 'defensive') {
+           \Log::info(['possession defensive'=>$possession ]);
            return $this->getDefensivePlays($request);
         }
-
+         \Log::info(['possession offensive'=>$possession ]);
         return $this->getOffensivePlays($request);
      
     }
