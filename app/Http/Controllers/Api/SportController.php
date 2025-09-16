@@ -175,7 +175,10 @@ class SportController extends Controller
       $leauqe = League::with('teams','league_rule','sport')->find($request->id);
       
  
-      $teams = LeagueTeam::where('league_id', $leauqe->id)->get();
+      $teams = LeagueTeam::where('league_id', $leauqe->id)->where(function ($q) {
+        $q->where('type', 1)
+          ->orWhereNull('type');
+    })->where('is_practice',0)->get();
       $matches = PlayGameMode::where('league_id', $leauqe->id)->where('status', 4)->get();
  
       $pointsTable = [];
