@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\SportController;
 use App\Http\Controllers\Api\SubscriptionPlanController;
 use App\Http\Controllers\Api\SuggestionController;
 use App\Http\Controllers\Api\TeamController;
+use App\Http\Controllers\Api\PracticeTeamPlayerController;
 use App\Http\Controllers\Api\GameController;
 use App\Http\Responses\BaseResponse;
 use Illuminate\Http\Request;
@@ -118,8 +119,9 @@ Route::middleware('auth:sanctum')->group(function () {
     
     Route::get('/offensive-positions', [PlayController::class, 'getOffensivePositions'])->name('offensive-positions');
     Route::get('/defensive-positions', [PlayController::class, 'getDefensivePositions'])->name('defensive-positions');
+    Route::get('/play-results', [PlayController::class, 'getPlayResult']);
 
-
+    Route::post('/play-results-add', [PlayController::class, 'addPlayResult']);
 
    
 
@@ -127,6 +129,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('create-team',[TeamController::class,'store']);
     Route::get('team-list',[TeamController::class,'index']);
     Route::get('view-team/{id}',[TeamController::class,'view']);
+    Route::get('practice-team-list/{id}',[TeamController::class,'practiceTeamList']);
+    
+    Route::post('practice-update-team/{id}',[PracticeTeamPlayerController::class,'update']);
     Route::post('update-team/{id}',[TeamController::class,'update']);
     Route::get('team-list-by-league/{id}',[TeamController::class,'teamListByLeague']);
 

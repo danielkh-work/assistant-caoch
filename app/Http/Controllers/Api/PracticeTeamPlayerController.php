@@ -3,67 +3,19 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Responses\BaseResponse;
-use App\Models\LeagueTeam;
-use App\Models\Team;
-use App\Models\TeamPlayer;
 use Illuminate\Http\Request;
+use App\Models\LeagueTeam;
+use App\Models\PracticeTeamPlayer;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use App\Http\Responses\BaseResponse;
 
-class TeamController extends Controller
+class PracticeTeamPlayerController extends Controller
 {
-    public function store(Request $request)
-    {
-        DB::beginTransaction();
-        try {
-            $team =  new Team();
-            $team->name =  $request->team_name;
-            if ($request->hasFile('image')) {
-                $path =  uploadImage($request->image, 'uploads');
-                $team->image = $path;
-            }
-            $team->save();
-           
-
-            
-            foreach ($request->playerid as  $key=> $id) {
-                
-                $t_player =  new TeamPlayer();
-                $t_player->team_id = $team->id;
-                $t_player->player_id = $id;
-                $t_player->size = 0;
-                $t_player->position = 0;
-                $t_player->strength = 0;
-                $t_player->type = $request->playertype[$key];
-                $t_player->save();
-            }
-            DB::commit();
-            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Team save successFully", $team);
-        } catch (\Throwable $th) {
-            DB::rollBack();
-            return new BaseResponse(STATUS_CODE_UNPROCESSABLE, STATUS_CODE_UNPROCESSABLE, $th->getMessage());
-        }
-    }
-
-    public function index()
-    {
-        $team =  Team::with('teamplayer.player')->get();
-        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Team list", $team);
-    }
-    public function view($id)
-    {
-        $team =  LeagueTeam::with(['teamplayer.player','practiceTeamplayer.TeamPlayer.player'])->find($id);
-        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Team view", $team);
-    }
-     public function practiceTeamList($id)
-    {
-        $team =  LeagueTeam::with('teamplayer.player')->where('type',1)->where('league_id',$id)->first();
-        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Team view", $team);
-    }
+    
     public function update(Request $request ,$id)
     {
-        \Log::info(['data'=>$request->all()]);
+      
         DB::beginTransaction();
         try {
 
@@ -75,9 +27,9 @@ class TeamController extends Controller
             }
             $team->save();
 
-            TeamPlayer::where('team_id',$id)->delete();
+            PracticeTeamPlayer::where('team_id',$id)->delete();
             foreach ($request->playerid as $key => $id) {
-                $t_player = new TeamPlayer();
+                $t_player = new PracticeTeamPlayer();
                 $t_player->team_id = $team->id;
                 $t_player->player_id = $id;
                 $t_player->league_id = $request->league_id;
@@ -145,11 +97,5 @@ class TeamController extends Controller
             DB::rollBack();
             return new BaseResponse(STATUS_CODE_UNPROCESSABLE, STATUS_CODE_UNPROCESSABLE, $th->getMessage());
         }
-    }
-
-    public  function teamListByLeague(Request $request)
-    {
-        $team = LeagueTeam::where('league_id',$request->id)->where('is_practice',0)->get();
-        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Team List", $team);
     }
 }

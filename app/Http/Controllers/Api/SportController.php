@@ -12,6 +12,7 @@ use App\Models\PlayGameMode;
 use App\Models\Sport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Models\Game;
 
 class SportController extends Controller
 {
@@ -82,14 +83,39 @@ class SportController extends Controller
            $League->number_of_players=$request->number_of_players;
            $League->flag_tbd =$request->flag_tbd;
            $League->save();
+           $practiceTeams = [];
            foreach($request->team_name as $index => $value)
            {
              $team =  new LeagueTeam;
              $team->league_id =  $League->id;
-             $team->team_name = $value;
-             $team->type = $index == 0 ? 1 : null;
+             $team->team_name = $value['name'];
+             if($index==0){
+                 $team->type=1;
+             }else if( $value['is_practice']==1){
+                $team->type=1;
+             }else{
+                 $team->type=null;
+             }
+            
+             $team->is_practice = $value['is_practice'];
              $team->save();
+              if ($team->is_practice == 1) {
+                $practiceTeams[] = $team->id;
+            }
+
+
            }
+
+            if (count($practiceTeams) == 2) {
+                    $game = new Game; 
+                    $game->league_id = $League->id;
+                    $game->creator_id = auth('api')->user()->id;
+                    $game->my_team_id = $practiceTeams[0];
+                    $game->oponent_team_id	 = $practiceTeams[1];
+                    $game->type	 = 2;
+                   
+                    $game->save();
+            }
            DB::commit();
            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "League Created SuccessFully",$League);
         } catch (\Throwable $th) {

@@ -12,5 +12,12 @@ class LeagueTeam extends Model
     {
         return $this->hasMany(TeamPlayer::class,'team_id');
     }
+     public function practiceTeamplayer()
+    {
+        return $this->hasMany(PracticeTeamPlayer::class,'team_id');
+    }
+
+
+    
     
 }
