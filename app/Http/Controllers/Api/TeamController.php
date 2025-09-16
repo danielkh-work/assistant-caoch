@@ -149,7 +149,15 @@ class TeamController extends Controller
 
     public  function teamListByLeague(Request $request)
     {
+        $team = LeagueTeam::where('league_id',$request->id)->get();
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Team List", $team);
+    }
+
+    public  function teamListForPlayMode(Request $request)
+    {
         $team = LeagueTeam::where('league_id',$request->id)->where('is_practice',0)->get();
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Team List", $team);
     }
+
+    
 }

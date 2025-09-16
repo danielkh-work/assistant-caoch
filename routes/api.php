@@ -134,6 +134,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('practice-update-team/{id}',[PracticeTeamPlayerController::class,'update']);
     Route::post('update-team/{id}',[TeamController::class,'update']);
     Route::get('team-list-by-league/{id}',[TeamController::class,'teamListByLeague']);
+    Route::get('team-list-by-play-mode/{id}',[TeamController::class,'teamListForPlayMode']);
 
     Route::post('/configure-player',[ConfigureController::class,'store']);
     Route::post('/configure-player-visiting',[ConfigureController::class,'storevisiting']);
