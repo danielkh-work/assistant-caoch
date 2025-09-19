@@ -22,6 +22,11 @@ class Play extends Model
     {
         return $this->belongsToMany(DefensivePosition::class, 'play_target_defensive_players', 'play_id', 'defensive_position_id')->withPivot('strength');
     }
+      public function playResults()
+    {
+        return $this->hasMany(PlayResult::class);
+    }
+   
     public function roles()
     {
         return $this->morphToMany(Role::class, 'roleable');

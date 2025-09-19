@@ -23,17 +23,28 @@ class PlayController extends Controller
 
     public function index(Request $request)
     {  
+    
         $userRoleIds = auth()->user()->roles->pluck('id');
          $id =  ['1', $request->league_id];
         // $play =  Play::whereIn('league_id', $id)->get();
-        $play = Play::with('roles')
-            ->where(function ($query) use ($id, $userRoleIds) {
-                $query->orWhereIn('league_id', $id)
-                    ->orWhereHas('roles', function ($q) use ($userRoleIds) {
-                        $q->whereIn('roleables.role_id', $userRoleIds);
-                    });
-            })
-            ->get();
+        $play = Play::with(['roles', 'playResults'])
+    ->where(function ($query) use ($id, $userRoleIds) {
+        $query->orWhereIn('league_id', $id)
+            ->orWhereHas('roles', function ($q) use ($userRoleIds) {
+                $q->whereIn('roleables.role_id', $userRoleIds);
+            });
+    })
+    ->withCount([
+        'playResults as win_result' => function ($q) {
+            $q->where('result', 'win');
+        },
+        'playResults as loss_result' => function ($q) {
+            $q->where('result', 'loss');
+        },
+         'playResults as total_count'
+    ])
+    ->get();
+
 
       
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play Uploaded List ", $play);
@@ -331,6 +342,7 @@ class PlayController extends Controller
             'game_id' => $request->game_id,
             'play_id' => $request->play_id,
             'type' => $request->type,
+            'is_practice' => $request->is_practice,
             'result' => $request->result,
             'suggested_count' => $request->suggested_count ?? 0,
         ]);
@@ -342,12 +354,15 @@ class PlayController extends Controller
             $gameId = $request->game_id;
             $playId = $request->play_id;
             $type = $request->type;
+            $is_practice = $request->is_practice;
+            
 
             // You might want to validate these IDs before querying (optional)
 
             $playResult = PlayResult::where('game_id', $gameId)
                                     ->where('play_id', $playId)
                                     ->where('type', $type)
+                                    ->where('is_practice', $is_practice)
                                     ->get();
 
             if (!$playResult) {

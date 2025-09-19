@@ -65,7 +65,17 @@ class DefensivePlayController extends Controller
     public function index(Request $request)
     {
         
-        $plays = DefensivePlay::with('strategyBlitz','formation','personals.teamPlayer.player')->where('league_id',$request->league_id)->get();
+        $plays = DefensivePlay::with('playResults','strategyBlitz','formation','personals.teamPlayer.player')->where('league_id',$request->league_id)
+            ->withCount([
+            'playResults as win_result' => function ($q) {
+            $q->where('result', 'win');
+            },
+            'playResults as loss_result' => function ($q) {
+            $q->where('result', 'loss');
+            },
+            'playResults as total_count'
+            ])
+        ->get();
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play Uploaded List ", $plays);
     }
 

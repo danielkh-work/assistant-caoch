@@ -22,10 +22,7 @@ class Game extends Model
     }
 
   
-    public function configuredPlays()
-    {
-        return $this->hasMany(ConfigurePlay::class, 'match_id');
-    }
+  
     public function configureMyTeams()
     {
         return $this->hasMany(ConfiguredPlayingTeamPlayer::class, 'match_id')
@@ -35,5 +32,10 @@ class Game extends Model
     {
         return $this->hasMany(ConfiguredPlayingTeamPlayer::class, 'match_id')
                     ->where('team_type', 2);
+    }
+
+      public function configuredPlays()
+    {
+        return $this->hasMany(ConfigurePlay::class, 'match_id');
     }
 }

@@ -23,6 +23,10 @@ class DefensivePlay extends Model
     {
        return $this->belongsTo(DefensivePlayParameter::class,'formation');
     }
+      public function playResults()
+    {
+       return $this->hasMany(PlayResult::class, 'play_id', 'id');
+    }
 
    // 
 
