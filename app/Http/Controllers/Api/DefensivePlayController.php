@@ -54,10 +54,7 @@ class DefensivePlayController extends Controller
             }
         }
 
-        //   $personals = json_decode($validated['players'], true);
-        //     foreach ($personals as $player) {
-        //         $defensivePlay->personals()->create($player); // if using hasMany
-        //     }
+    
            
 
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play Uploaded Successfully", $defensivePlay);
@@ -88,78 +85,99 @@ class DefensivePlayController extends Controller
        
     }
 
-    public function update(Request $request, $id)
+    public function delete($id)
     {
-       
-        $defensivePlay = DefensivePlay::findOrFail($id);
+        $parameter = DefensivePlay::findOrFail($id);
+        $parameter->delete();
 
-       
-        if ($request->has('name')) {
-            $defensivePlay->name = $request->name;
-        }
-
-        if ($request->has('formation')) {
-            $defensivePlay->formation = $request->formation;
-        }
-
-        if ($request->has('strategy_blitz')) {
-            $defensivePlay->strategy_blitz = $request->strategy_blitz;
-        }
-
-        if ($request->has('coverage_type')) {
-            $defensivePlay->coverage_type = $request->coverage_type;
-        }
-
-        if ($request->has('description')) {
-            $defensivePlay->description = $request->description;
-        }
-
-        if ($request->hasFile('image')) {
-            $imagePath = uploadImage($request->file('image'), 'public/uploads/public');
-            $defensivePlay->image = $imagePath;
-        }
-
-        $defensivePlay->save();
-
-     
-        if (is_array($request->all())) {
-        $personals = $request->all(); 
-        $existingPlayerIds = [];
-
-        foreach ($personals as $player) {
-            if (!isset($player['player_id'])) {
-                continue;
-            }
-
-            $existingPlayerIds[] = $player['player_id'];
-
-            $existingPersonal = $defensivePlay->personals()
-                ->where('teamplayer_id', $player['player_id'])
-                ->first();
-
-            if ($existingPersonal) {
-                $existingPersonal->update([
-                    'teamplayer_id' => $player['player_id'],
-                    'position' => $player['position'] ?? null,
-                   
-                ]);
-            } else {
-                $defensivePlay->personals()->create([
-                    'teamplayer_id' => $player['player_id'],
-                    'name' => $player['customInput'] ?? null,
-                   
-                ]);
-            }
-               $defensivePlay->personals()
-            ->whereNotIn('teamplayer_id', $existingPlayerIds)
-            ->delete();
-        }
-
-
+        return response()->json(['message' => 'Deleted']);
     }
 
+public function update(Request $request, $id)
+{
+  
+    // \Log::info($request->all()); // parsed fields
+    // \Log::info($request->getContent()); // raw payload
+  
+    $defensivePlay = DefensivePlay::findOrFail($id);
 
-        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Defensive Play Updated Successfully", $defensivePlay);
+    // Replace image if uploaded
+    if ($request->hasFile('image')) {
+        $imagePath = uploadImage($request->file('image'), 'public/uploads/public');
+        $defensivePlay->image = $imagePath;
     }
+    if ($request->filled('name')) {
+        $defensivePlay->name = $request->name;
+    }
+     if ($request->filled('opponent_personnel_grouping')) {
+      $defensivePlay->opponent_personnel_grouping = $request->opponent_personnel_grouping;
+    }
+    if ($request->filled('formation')) {
+      $defensivePlay->formation = $request->formation;
+    }
+    if ($request->filled('strategy_blitz')) {
+      $defensivePlay->strategy_blitz = $request->strategy_blitz;
+    }
+     if ($request->filled('description')) {
+      $defensivePlay->description = $request->description;
+    }
+  
+
+    $defensivePlay->save();
+
+    // Delete old personals
+    DefensivePlayPersonal::where('defensive_play_id', $defensivePlay->id)->delete();
+
+    // Recreate personals
+    if ($request->has('opponentPlayers') && is_array($request->opponentPlayers)) {
+        foreach ($request->opponentPlayers as $player) {
+            if (!empty($player['id'])) {
+                DefensivePlayPersonal::create([
+                    'defensive_play_id' => $defensivePlay->id,
+                    'teamplayer_id' => $player['id'],
+                    'name' => 'name', // optional: replace with real name from request
+                ]);
+            }
+        }
+    }
+
+    return new BaseResponse(
+        STATUS_CODE_OK,
+        STATUS_CODE_OK,
+        "Play updated successfully",
+        $defensivePlay
+    );
+}
+
+
+ public function duplicateDefensivePlay($id){
+
+
+     $play = DefensivePlay::findOrFail($id);
+
+    $newPlay = $play->replicate();
+
+    // If you want to tweak some fields (like name to avoid conflict)
+    $newPlay->name = $play->name . ' (Copy)';
+
+    // Save the new record
+    $newPlay->save();
+
+    // If it has related personals and you want to duplicate them too
+    foreach ($play->personals as $personal) {
+        $newPersonal = $personal->replicate();
+        $newPersonal->defensive_play_id = $newPlay->id;
+        $newPersonal->save();
+    }
+
+   return new BaseResponse(
+        STATUS_CODE_OK,
+        STATUS_CODE_OK,
+        "play clone successfully",
+        $newPlay
+    );
+
+ }
+
     
 }

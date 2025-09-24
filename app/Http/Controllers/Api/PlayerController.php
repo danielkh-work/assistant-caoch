@@ -48,7 +48,7 @@ class PlayerController extends Controller
            $type= $request->type;
            \Log::info(['type'=>$type]);
             if ($type === 'player') {
-            //   $player->user_id = auth()->id();
+                 $player->user_id = auth()->id();
                 \Log::info(['type nformaion'=>$type]);
             } elseif ($type === 'league') {
                  \Log::info(['type  league nformaion'=>$request->league_id.' '.$request->league_id]);
@@ -57,6 +57,8 @@ class PlayerController extends Controller
             } elseif ($type === 'team') {
                  \Log::info(['type  league nformaion'=>$type]);
                 $player->user_id = auth()->id();
+            }else{
+
             }
            
             $player->name = $request->name;
@@ -68,7 +70,7 @@ class PlayerController extends Controller
             $player->height= $request->height;
             $player->dob= $request->dob;
             $player->ofp= $request->ofp;
-            $player->ofp= $request->ofp;
+            
             $player->strength =  $request->strength;
             $player->position_value =  $request->positionValue;
             if($request->hasFile('image'))
@@ -120,6 +122,7 @@ class PlayerController extends Controller
           
            $type = $request->type;
            if ($type == 'team_player') {
+            \Log::info(['type log of play when edit',$type]);
             $player = DB::table('team_players')->where('player_id', $id)->where('team_id', $request->team_id)->first();
 
             if (!$player) {
@@ -160,7 +163,7 @@ class PlayerController extends Controller
             ->first();
 
         } else {
-
+          \Log::info(['type log of play when edit else part']);
             $player =  Player::find($id);
             $player->name = $request->name;
             $player->number=  $request->number;

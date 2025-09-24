@@ -102,7 +102,8 @@ class PlayController extends Controller
 
     public function store(Request $request)
     {
-           
+         
+       
         $request->validate([
             'image' => 'required|image|mimes:jpeg,png,jpg,gif,svg,webp',
            
@@ -155,15 +156,32 @@ class PlayController extends Controller
             $play->position_status = 2;
             $play->video_path = 'video path';
             // Upload image
-            if ($request->hasFile('image')) {
-                $imagePath = uploadImage($request->file('image'), 'public/uploads/public');
-                $play->image = $imagePath;
-            }
-            // Upload video (optional)
-            if ($request->hasFile('video')) {
-                $videoPath = uploadImage($request->file('video'), 'public/uploads/videos');
-                $play->video_path = $videoPath;
-            }
+           if ($request->hasFile('image')) {
+    $imageFile = $request->file('image');
+
+    \Log::info('Image uploaded', [
+        'original_name' => $imageFile->getClientOriginalName(),
+        'mime_type'     => $imageFile->getClientMimeType(),
+        'size'          => $imageFile->getSize(),
+    ]);
+
+    $imagePath = uploadImage($imageFile, 'public/uploads/public');
+    $play->image = $imagePath;
+}
+
+// Replace video if uploaded
+if ($request->hasFile('video')) {
+    $videoFile = $request->file('video');
+
+    \Log::info('Video uploaded', [
+        'original_name' => $videoFile->getClientOriginalName(),
+        'mime_type'     => $videoFile->getClientMimeType(),
+        'size'          => $videoFile->getSize(),
+    ]);
+
+    $videoPath = uploadImage($videoFile, 'public/uploads/videos');
+    $play->video_path = $videoPath;
+}
             $play->save();
             
            
@@ -208,6 +226,17 @@ class PlayController extends Controller
 
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play Uploaded Successfully", $play);
     }
+    
+
+        public function duplicatePlay($id)
+        {
+        
+            $play = Play::findOrFail($id);
+            $newPlay = $play->replicate();
+            $newPlay->play_name = $play->play_name . ' (Copy)';
+            $newPlay->save();
+             return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play cloned successfully", $newPlay);
+        }
 
 
     public function update(Request $request, $id)
@@ -256,6 +285,7 @@ class PlayController extends Controller
 
             // Replace image if uploaded
             if ($request->hasFile('image')) {
+              
                 $imagePath = uploadImage($request->file('image'), 'public/uploads/public');
                 $play->image = $imagePath;
             }
@@ -359,10 +389,8 @@ class PlayController extends Controller
 
             // You might want to validate these IDs before querying (optional)
 
-            $playResult = PlayResult::where('game_id', $gameId)
-                                    ->where('play_id', $playId)
+            $playResult = PlayResult::where('play_id', $playId)
                                     ->where('type', $type)
-                                    ->where('is_practice', $is_practice)
                                     ->get();
 
             if (!$playResult) {

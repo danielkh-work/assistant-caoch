@@ -37,8 +37,9 @@ class DefensivePlayParameterController extends Controller
         $parameter = DefensivePlayParameter::findOrFail($id);
 
         $validated = $request->validate([
-            'parameter_name' => 'sometimes|required|string|max:255',
-            'value' => 'nullable|string|max:255',
+            'formation' => 'required',
+            'blitz_packages' => 'required',
+           
         ]);
 
         $parameter->update($validated);
@@ -46,7 +47,15 @@ class DefensivePlayParameterController extends Controller
         return response()->json($parameter);
     }
 
-    public function destroy($id)
+     public function edit($id)
+    {
+        $play = DefensivePlayParameter::findOrFail($id);
+        if ($play)
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play List", $play);
+       
+    }
+
+    public function delete($id)
     {
         $parameter = DefensivePlayParameter::findOrFail($id);
         $parameter->delete();

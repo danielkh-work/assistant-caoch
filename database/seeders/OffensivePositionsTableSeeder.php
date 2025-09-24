@@ -15,12 +15,15 @@ class OffensivePositionsTableSeeder extends Seeder
     {
           DB::table('offensive_positions')->delete();
           $positions = [
+
+    
+
                 ['code' => 'QB',     'name' => 'Quarterback'],
                 ['code' => 'RB',     'name' => 'Running Back'],
                 ['code' => 'FB',     'name' => 'Fullback'],
-                ['code' => 'WRW',     'name' => 'Wide receiver W'],
+                ['code' => 'WRW',     'name' => 'Wide receiver X'],
                 ['code' => 'WRZ',     'name' => 'Wide receiver Z'],
-                ['code' => 'Slot X','name' => 'Slot X'],
+                ['code' => 'Slot W','name' => 'Slot W'],
                 ['code' => 'Slot Y','name' => 'Slot Y'],
                 ['code' => 'TEH',     'name' => 'Tight End H'],
                 ['code' => 'TEF',     'name' => 'Tight End F'],

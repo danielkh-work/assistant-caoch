@@ -115,6 +115,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/upload-play-list',[PlayController::class,'index'])->name('upload-play-list');
     Route::get('/delete-play/{id}',[PlayController::class,'delete'])->name('delete-play');
     Route::get('/edit-play/{id}',[PlayController::class,'editPlay'])->name('edit-play');
+    Route::get('/duplicate-play/{id}',[PlayController::class,'duplicatePlay'])->name('edit-play');
+   
+   
+    
     Route::post('/update-play/{id}',[PlayController::class,'update'])->name('update-play');
     
     Route::get('/offensive-positions', [PlayController::class, 'getOffensivePositions'])->name('offensive-positions');
@@ -151,10 +155,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/defensive-plays', [DefensivePlayController::class, 'store']);
     Route::post('/defensive-plays-parameters', [DefensivePlayParameterController::class, 'store']);
     Route::get('/defensive-plays-parameters/{id}', [DefensivePlayParameterController::class, 'index']);
-    
+    Route::get('/delete-defensive-play/{id}', [DefensivePlayController::class, 'delete']);
+    Route::get('/delete-play-parameters/{id}', [DefensivePlayParameterController::class, 'delete']);
+    Route::get('/edit-defensive-play-parameter/{id}', [DefensivePlayParameterController::class, 'edit']);
+    Route::put('/update-defensive-play-parameter/{id}',[DefensivePlayParameterController::class,'update'])->name('update.defensive-player'); 
     Route::get('/upload-defensive-play-list',[DefensivePlayController::class,'index'])->name('upload-play-list');
     Route::get('/edit-defensive-play/{id}',[DefensivePlayController::class,'editDefensivePlay'])->name('edit-defensive-play');
-    Route::put('/update-defensive-play/{id}',[DefensivePlayController::class,'update'])->name('update.defensive-player');
+    Route::post('/update-defensive-play/{id}',[DefensivePlayController::class,'update'])->name('update.defensive-player');
+    Route::get('/duplicate-defensive-play/{id}',[DefensivePlayController::class,'duplicateDefensivePlay'])->name('edit-play');
     Route::controller(GameController::class)->group(function () {
             Route::get('/games/id', 'index');                  
             Route::post('/games', 'store');

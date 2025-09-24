@@ -13,6 +13,8 @@ class DefensivePositionsTableSeeder extends Seeder
      */
     public function run(): void
     {
+
+        
         DB::table('defensive_positions')->delete();
         $positions = [
                 ['code' => 'DT',   'name' => 'Defensive Tackle'],
@@ -23,6 +25,10 @@ class DefensivePositionsTableSeeder extends Seeder
                 ['code' => 'MLBM', 'name' => 'Middle linebacker (Mike)'],
                 ['code' => 'MLBS',  'name' => 'Strong Side Linebacker (Sam)'],
                 ['code' => 'MLBW',  'name' => 'Weak Side Linebacker (Will)'],
+                ['code' => 'Add Dime',  'name' => 'Add Dime'],
+                ['code' => 'Dollar',  'name' => 'Dollar'],
+                ['code' => 'Extras',  'name' => 'Extras'],
+                ['code' => '1/2 Back',  'name' => '1/2 Back'],
                 ['code' => 'OLB',  'name' => 'Outside Linebacker'],
                 ['code' => 'ILB',  'name' => 'Inside Linebacker'],
                 ['code' => 'CB',   'name' => 'Corner Weak Side'],
