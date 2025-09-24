@@ -28,6 +28,7 @@ class DefensivePlayParameterController extends Controller
         ]);
         $validated['league_id']=$request->league_id;
         $validated['user_id'] = auth()->id();
+        $validated['description']=$request->description;
         $parameter = DefensivePlayParameter::create($validated);
         return response()->json($parameter, 201);
     }
@@ -41,7 +42,7 @@ class DefensivePlayParameterController extends Controller
             'blitz_packages' => 'required',
            
         ]);
-
+        $validated['description']=$request->description;
         $parameter->update($validated);
 
         return response()->json($parameter);
