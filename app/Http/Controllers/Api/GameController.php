@@ -14,6 +14,7 @@ class GameController extends Controller
             'league_id' => 'required|integer',
             'my_team_id' => 'required|integer',
             'oponent_team_id' => 'required|integer',
+            'date' => 'required',
         ]);
         $validated['creator_id']= auth()->user()->id;
         $game = Game::create($validated);
