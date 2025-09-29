@@ -43,6 +43,7 @@ class PlayController extends Controller
         },
          'playResults as total_count'
     ])
+     ->withAvg('playResults as yardage_difference', 'yardage_difference') 
     ->get();
 
 
@@ -375,6 +376,7 @@ if ($request->hasFile('video')) {
             'is_practice' => $request->is_practice,
             'result' => $request->result,
             'suggested_count' => $request->suggested_count ?? 0,
+            'yardage_difference'=>$request->yardage_difference
         ]);
 
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "suggestion plays wining ratio is added", $playResult);
