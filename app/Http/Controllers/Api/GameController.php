@@ -5,6 +5,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Game;
 use Illuminate\Http\Request;
 use App\Http\Responses\BaseResponse;
+use App\Models\Penality;
 
 class GameController extends Controller
 {
@@ -57,6 +58,56 @@ class GameController extends Controller
 
             $games = $gamesQuery->get();
                     return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "games list", $games);
+    }
+
+    public function Penalities(Request $request)
+    {
+          $validated = $request->validate([
+            'league_id'             => 'required|exists:leagues,id',
+            'game_id'              => 'required',
+            'penalty_type_id'       => 'required',
+            'category'              => 'nullable',
+            'severity'              => 'nullable',
+            'yardage_penalty'       => 'nullable',
+            'automatic_first_down'  => 'nullable',
+            'loss_down'             => 'nullable',
+            'accept_reject'         => 'nullable',
+            'replay_down'           => 'nullable',
+            'new_down'              => 'nullable',
+            'new_ball_sport'        => 'nullable',
+            'play_time'             => 'nullable',
+            'setuation'             => 'nullable',
+            'referee'               => 'nullable',
+            'notes_description'     => 'nullable',
+        ]);
+
+        // ✅ Store penalty
+        $penalty = Penality::create([
+            'league_id'             => $validated['league_id'],
+            'game_id'              => $validated['game_id'],
+            'penalty_type_id'       => $validated['penalty_type_id'],
+            'category'              => $validated['category'] ?? null,
+            'severity'              => $validated['severity'] ?? null,
+            'yardage_penalty'       => $validated['yardage_penalty'] ?? null,
+            'automatic_first_down'  => $validated['automatic_first_down'] ?? null,
+            'loss_down'             => $validated['loss_down'] ?? null,
+            'accept_reject'         => $validated['accept_reject'] ?? null,
+            'replay_down'           => $validated['replay_down'] ?? null,
+            'new_down'              => $validated['new_down'] ?? null,
+            'new_ball_sport'        => $validated['new_ball_sport'] ?? null,
+            'play_time'             => $validated['play_time'] ?? null,
+            'setuation'             => $validated['setuation'] ?? null,
+            'referee'               => $validated['referee'] ?? null,
+            'notes_description'     => $validated['notes_description'] ?? null,
+        ]);
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "'Penalty created successfully", $penalty);
+    }
+
+    public function penaltyList(Request $request)
+    {
+       $penalities =  Penality::where(['league_id'=>$request->league_id,'game_id'=>$request->game_id])->get();
+       return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "'Penalty List", $penalities);
+  
     }
     
     
