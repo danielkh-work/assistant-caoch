@@ -72,6 +72,7 @@ class DefensivePlayController extends Controller
             },
             'playResults as total_count'
             ])
+             ->withAvg('playResults as yardage_difference', 'yardage_difference') 
         ->get();
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play Uploaded List ", $plays);
     }
