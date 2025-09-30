@@ -167,8 +167,10 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/games/id', 'index');                  
             Route::post('/games', 'store');
             Route::get('/game/{id}', 'show');     
-               Route::get('/game/{id}/opponents_my', 'getOpponentMyTeamPlayers');          
+            Route::get('/game/{id}/opponents_my', 'getOpponentMyTeamPlayers');          
             Route::get('/games/league/{leagueId}', 'getByLeague');                
+            Route::post('/penalities', 'Penalities');                
+            Route::get('/penalty-list', 'penaltyList');                
     });
 
     Route::controller(SubscriptionPlanController::class)->group(function () {
