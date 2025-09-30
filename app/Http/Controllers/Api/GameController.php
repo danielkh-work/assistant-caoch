@@ -105,8 +105,18 @@ class GameController extends Controller
 
     public function penaltyList(Request $request)
     {
-       $penalities =  Penality::where(['league_id'=>$request->league_id,'game_id'=>$request->game_id])->get();
-       return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "'Penalty List", $penalities);
+       $penalties = Penality::where([
+        'league_id' => $request->league_id,
+        'game_id'   => $request->game_id,
+        ])
+        ->orderBy('id', 'desc') // or ->orderBy('created_at', 'desc')
+        ->get()
+        ->map(function ($penalty) {
+            // Format created_at as American 12-hour time
+            $penalty->time_only = $penalty->created_at->format('h:i A');
+            return $penalty;
+        });
+       return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "'Penalty List", $penalties);
   
     }
     
