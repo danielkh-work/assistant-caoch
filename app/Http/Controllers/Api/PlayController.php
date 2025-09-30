@@ -109,6 +109,7 @@ class PlayController extends Controller
             'image' => 'required|image|mimes:jpeg,png,jpg,gif,svg,webp',
            
             'play_name' => 'required|string',
+            'playType' => 'required|string',
             'league_id' => 'required|exists:leagues,id',
             'play_type' => 'required|integer',
             'zone_selection' => 'required|integer',
@@ -125,6 +126,7 @@ class PlayController extends Controller
 
         try {
             $play = new Play();
+            $play->offensive_play_type=$request->playType;
             $play->play_name = $request->play_name;
             $play->league_id = $request->league_id;
             $play->play_type = $request->play_type;
@@ -247,6 +249,7 @@ if ($request->hasFile('video')) {
             'play_name' => 'required|string',
             'league_id' => 'required|exists:leagues,id',
             'play_type' => 'required|integer',
+            'playType' => 'required|string',
             'zone_selection' => 'required|integer',
             'min_expected_yard' => 'required|string',
             'max_expected_yard' => 'required|string',
@@ -266,6 +269,7 @@ if ($request->hasFile('video')) {
             $play->play_name = $request->play_name;
             $play->league_id = $request->league_id;
             $play->play_type = $request->play_type;
+            $play->offensive_play_type=$request->playType;
             $play->quarter = $request->quarter;
             $play->zone_selection = $request->zone_selection;
             $play->min_expected_yard = $request->min_expected_yard;
