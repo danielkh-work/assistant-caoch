@@ -44,7 +44,14 @@ class PlayerController extends Controller
         \Log::info(['team'=>$request->all()]);
         DB::beginTransaction();
         try {
-            $player = new Player();
+
+          $existingPlayer = Player::where('name', $request->name)
+                        ->where('number', $request->number)
+                        ->first();
+        if ($existingPlayer) {
+              return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "A player with this name and number already exists.",$existingPlayer);
+           }
+           $player = new Player();
            $type= $request->type;
            \Log::info(['type'=>$type]);
             if ($type === 'player') {
