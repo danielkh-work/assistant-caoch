@@ -73,11 +73,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/leaque',[SportController::class,'league'])->name('leaque');
     Route::get('/leaque-view/{id}',[SportController::class,'leagueView'])->name('leagueView');
     Route::post('/leaque-update/{id}',[SportController::class,'leagueUpdate'])->name('leagueUpdate');
+    Route::post('/leaque-update-points/{id}',[SportController::class,'leagueUpdatePoints']);
 
 
     Route::get('/leaque-rule',[SportController::class,'leagueRule'])->name('leaque-rule');
 
     Route::post('/add-player',[PlayerController::class,'store'])->name('add.player');
+    Route::post('/add-open-player',[PlayerController::class,'addOpenPlayer']);
+    
     Route::post('/bench-players', [BenchPlayerController::class, 'store']);
     Route::post('/opponent-bench-player-store', [BenchPlayerController::class, 'opponentBenchPlayerStore']);
     Route::get('/bench-players/{gameId}/{teamId}', [BenchPlayerController::class, 'index']);
@@ -170,7 +173,8 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/game/{id}/opponents_my', 'getOpponentMyTeamPlayers');          
             Route::get('/games/league/{leagueId}', 'getByLeague');                
             Route::post('/penalities', 'Penalities');                
-            Route::get('/penalty-list', 'penaltyList');                
+            Route::get('/penalty-list', 'penaltyList'); 
+            Route::get('/delete-game/{id}','delete');               
     });
 
     Route::controller(SubscriptionPlanController::class)->group(function () {

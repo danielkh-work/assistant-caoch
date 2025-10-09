@@ -119,6 +119,17 @@ class GameController extends Controller
        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "'Penalty List", $penalties);
   
     }
+
+
+     public function delete(Request $request)
+    {
+        $game = Game::find($request->id);
+        if ($game)
+            $game->delete();
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Game Delete Successfully ");
+    }
+
+
     
     
 }

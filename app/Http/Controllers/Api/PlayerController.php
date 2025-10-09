@@ -53,16 +53,91 @@ class PlayerController extends Controller
            }
            $player = new Player();
            $type= $request->type;
-           \Log::info(['type'=>$type]);
+          
             if ($type === 'player') {
                  $player->user_id = auth()->id();
-                \Log::info(['type nformaion'=>$type]);
+
             } elseif ($type === 'league') {
-                 \Log::info(['type  league nformaion'=>$request->league_id.' '.$request->league_id]);
+                 
                 $player->league_id = $request->league_id;
                 
             } elseif ($type === 'team') {
-                 \Log::info(['type  league nformaion'=>$type]);
+               
+                $player->user_id = auth()->id();
+            }else{
+
+            }
+           
+            $player->name = $request->name;
+            $player->number=  $request->number;
+            $player->position = $request->position;
+            $player->size= $request->size;
+            $player->speed= $request->speed;
+            $player->weight= $request->weight;
+            $player->height= $request->height;
+            $player->dob= $request->dob;
+            $player->ofp= $request->ofp;
+            
+            $player->strength =  $request->strength;
+            $player->position_value =  $request->positionValue;
+            if($request->hasFile('image'))
+            {
+                $path =  uploadImage($request->image,'player');
+                $player->image =$path;
+            }
+            $player->save();
+        //    if($type === 'team'){
+                    DB::table('team_players')->insert([
+                        'player_id' => $player->id,
+                        'team_id' => $request->team_id,
+                        'name' => $player->name,
+                        'number' => $player->number,
+                        'position' => $player->position,
+                        'size' => $player->size,
+                        'speed' => $player->speed,
+                        'strength' => $player->strength,
+                        'weight' => $player->weight,
+                        'height' => $player->height,
+                        'dob' => $player->dob,
+                        'image' => $player->image,
+                        'position_value' => $player->position_value,
+                        'ofp' => $player->ofp,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+            // }
+            DB::commit();
+            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Player Added SuccessFully ", $player);
+        } catch (\Throwable $th) {
+            DB::rollBack();
+            return new BaseResponse(STATUS_CODE_BADREQUEST, STATUS_CODE_BADREQUEST, $th->getMessage());
+        }
+    }
+    public  function addOpenPlayer(Request $request)
+    {
+
+        \Log::info(['team'=>$request->all()]);
+        DB::beginTransaction();
+        try {
+
+          $existingPlayer = Player::where('name', $request->name)
+                        ->where('number', $request->number)
+                        ->first();
+        if ($existingPlayer) {
+              return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "A player with this name and number already exists.",$existingPlayer);
+           }
+           $player = new Player();
+           $type= $request->type;
+          
+            if ($type === 'player') {
+                 $player->user_id = auth()->id();
+
+            } elseif ($type === 'league') {
+                 
+                $player->league_id = $request->league_id;
+                
+            } elseif ($type === 'team') {
+               
                 $player->user_id = auth()->id();
             }else{
 
@@ -123,20 +198,21 @@ class PlayerController extends Controller
     }
     public function update(Request $request,$id)
     { 
+
         DB::beginTransaction();
         try {
 
           
            $type = $request->type;
            if ($type == 'team_player') {
-            \Log::info(['type log of play when edit',$type]);
-            $player = DB::table('team_players')->where('player_id', $id)->where('team_id', $request->team_id)->first();
+            
+            $player = DB::table('team_players')->where('player_id', $request->player_id)->where('team_id', $id)->first();
 
             if (!$player) {
                 return new BaseResponse(404, 404, "Team Player not found.");
             }
 
-            // Build update data array
+           
             $updateData = [
                 'name' => $request->name,
                 'number' => $request->number,
@@ -163,11 +239,12 @@ class PlayerController extends Controller
                 $updateData['image'] = $path;
             }
 
-         DB::table('team_players')->where('player_id', $id)->where('team_id', $request->team_id)->update($updateData);
-        $player = DB::table('team_players')
-            ->where('player_id', $id)
-            ->where('team_id', $request->team_id)
-            ->first();
+             DB::table('team_players')
+            ->where('player_id', $request->player_id)
+            ->where('team_id', $id)
+            ->update($updateData);
+
+            DB::commit();
 
         } else {
           \Log::info(['type log of play when edit else part']);

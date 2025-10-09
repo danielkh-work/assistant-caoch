@@ -170,6 +170,29 @@ class SportController extends Controller
           return new BaseResponse(STATUS_CODE_BADREQUEST, STATUS_CODE_BADREQUEST, $th->getMessage());
         }
     }
+
+    public function leagueUpdatePoints(Request $request)
+    {
+        $team = LeagueTeam::where('id', $request->team_id)
+                   
+                    ->first();
+        if (!$team) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Team not found for this league'
+            ], 404);
+        }
+
+        $team->won = $request->won;
+        $team->drawn = $request->drawn;
+        $team->lost = $request->lost;
+        $team->points = $request->points;
+        $team->save();
+   
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Team Points Update ", $team);
+    }
+
+    
     public function leagueView(Request $request)
     {
       $leauqe = League::with('teams','league_rule','sport')->find($request->id); 
@@ -183,13 +206,15 @@ class SportController extends Controller
  
       foreach ($teams as $team) {
           $pointsTable[$team->id] = [
+              'leauqe_id'=>$leauqe->id,
+              'team_id'=>$team->id,
               'team_name' => $team->team_name,
               'type' => $team->type,
               'played' => 0,
-              'won' => 0,
-              'lost' => 0,
-              'drawn' => 0,
-              'points' => 0,
+              'won' => $team->won,
+              'lost' => $team->lost,
+              'drawn' => $team->drawn,
+              'points' => $team->points,
           ];
       }
  
@@ -218,11 +243,35 @@ class SportController extends Controller
               $pointsTable[$teamB]['points'] += 1;
           }
       }
- 
+
+      foreach ($pointsTable as $entry) {
+   
+        if (!isset($entry['team_id'], $entry['leauqe_id'])) {
+            continue;
+        }
+
+        LeagueTeam::where('id', $entry['team_id'])
+            ->where('league_id', $entry['leauqe_id'])
+            ->update([
+                'won'    => $entry['won'],
+                'drawn'  => $entry['drawn'],
+                'lost'   => $entry['lost'],
+                'points' => $entry['points'],
+            ]);
+      }  
+
+      $updatedPoints = LeagueTeam::where('league_id', $leauqe->id)
+        ->where(function ($q) {
+            $q->where('type', 1)->orWhereNull('type');
+        })
+        ->where('is_practice', 0)
+        ->get(['id', 'team_name', 'type', 'won', 'drawn', 'lost', 'points']);
+        \Log::info(['updatedPoints',$updatedPoints]);
+
       return response()->json([
           'status' => STATUS_CODE_OK,
           'league' => $leauqe,
-          'pointsTable' => $pointsTable
+          'pointsTable' => $updatedPoints
       ]);
     }
 
