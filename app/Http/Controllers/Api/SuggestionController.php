@@ -149,17 +149,44 @@ class SuggestionController extends Controller
 
       public function getDefensivePlays(Request $request)
         {
+             
+            $strategy      = $request->strategy;
+            $expectedYard  = $request->expectedyard;
+            $down          = $request->down;
+
             $leagueId = $request->league_id;
             $playerIds = \DB::table('opponent_package_player')
             ->where('opponent_team_package_id', $request->pkg)
              ->pluck('player_id')->toArray();
 
-        
+
       
             $defensivePlays = DefensivePlay::whereHas('personals', function ($query) use ($playerIds) {
-                    $query->whereIn('teamplayer_id',  $playerIds);
-            })->with('strategyBlitz','formation','personals.teamPlayer.player','personals')->where('league_id', $leagueId)->get();
-            \Log::info(['defensive play'=>$defensivePlays]);
+                $query->whereIn('teamplayer_id',  $playerIds);
+                })
+                ->with('strategyBlitz','formation','personals.teamPlayer.player','personals')
+                ->where('league_id', $leagueId)
+                ->get();
+
+                if ($defensivePlays->isEmpty()) {
+                    \Log::info(['request all...'=>$request->all()]);
+                // fallback if no player match
+                    $strategy = $request->input('strategy');
+                    $expectedYard = $request->input('expected_yard');
+                    $down = $request->input('down');
+                    $defensivePlays = DefensivePlay::with('strategyBlitz','formation','personals.teamPlayer.player','personals')
+                    ->where('league_id', $leagueId)
+                    ->when($strategy, function ($query, $strategy) {
+                    $query->where('strategies', $strategy);
+                    })
+                
+                    // ->when($down, function ($query, $down) {
+                    // $query->where('preferred_down', $down);
+                    // })
+                ->get();
+            }
+
+          
             return response()->json($defensivePlays);
            
         }

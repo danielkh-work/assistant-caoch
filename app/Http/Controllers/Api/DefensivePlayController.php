@@ -32,9 +32,10 @@ class DefensivePlayController extends Controller
             'image' => $imagePath,
             'league_id' =>  $request->league_id,
             'opponent_personnel_grouping' =>  $request->opponent_personnel_grouping,
-            
+            'min_expected_yard' =>  $request->min_expected_yard,
+            'preferred_down' =>  $request->preferred_down,
+            'strategies' =>  $request->strategies,
             'formation' => $validated['formation'],
-          
             'strategy_blitz' => $validated['strategy_blitz'],
             'description' => $request->description,
             
@@ -119,12 +120,23 @@ public function update(Request $request, $id)
     if ($request->filled('strategy_blitz')) {
       $defensivePlay->strategy_blitz = $request->strategy_blitz;
     }
+        if ($request->filled('min_expected_yard')) {
+        $defensivePlay->min_expected_yard = $request->min_expected_yard;
+    }
+
+    if ($request->filled('preferred_down')) {
+        $defensivePlay->preferred_down = $request->preferred_down;
+    }
+
+    if ($request->filled('strategies')) {
+        $defensivePlay->strategies = $request->strategies;
+    }
      if ($request->filled('description')) {
       $defensivePlay->description = $request->description;
     }
-  
+     
 
-    $defensivePlay->save();
+     $defensivePlay->save();
 
     // Delete old personals
     DefensivePlayPersonal::where('defensive_play_id', $defensivePlay->id)->delete();
