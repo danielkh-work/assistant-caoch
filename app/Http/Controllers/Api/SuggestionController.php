@@ -147,49 +147,77 @@ class SuggestionController extends Controller
     }
 
 
-      public function getDefensivePlays(Request $request)
-        {
-             
-            $strategy      = $request->strategy;
-            $expectedYard  = $request->expectedyard;
-            $down          = $request->down;
+public function getDefensivePlays(Request $request)
+{
+    $leagueId = $request->input('league_id');
 
-            $leagueId = $request->league_id;
-            $playerIds = \DB::table('opponent_package_player')
-            ->where('opponent_team_package_id', $request->pkg)
-             ->pluck('player_id')->toArray();
+    // Step 1: Get player IDs from opponent package
+    $playerIds = \DB::table('opponent_package_player')
+        ->where('opponent_team_package_id', $request->input('pkg'))
+        ->pluck('player_id')
+        ->toArray();
 
+    // Step 2: Check if any DefensivePlay matches the playerIds
+    $hasMatchingPlayers = false;
 
-      
-            $defensivePlays = DefensivePlay::whereHas('personals', function ($query) use ($playerIds) {
-                $query->whereIn('teamplayer_id',  $playerIds);
-                })
-                ->with('strategyBlitz','formation','personals.teamPlayer.player','personals')
-                ->where('league_id', $leagueId)
-                ->get();
+    if (!empty($playerIds)) {
+        $matchingCount = DefensivePlay::whereHas('personals', function ($query) use ($playerIds) {
+            $query->whereIn('teamplayer_id', $playerIds);
+        })
+        ->where('league_id', $leagueId)
+        ->count();
 
-                if ($defensivePlays->isEmpty()) {
-                    \Log::info(['request all...'=>$request->all()]);
-                // fallback if no player match
-                    $strategy = $request->input('strategy');
-                    $expectedYard = $request->input('expected_yard');
-                    $down = $request->input('down');
-                    $defensivePlays = DefensivePlay::with('strategyBlitz','formation','personals.teamPlayer.player','personals')
-                    ->where('league_id', $leagueId)
-                    ->when($strategy, function ($query, $strategy) {
-                    $query->where('strategies', $strategy);
-                    })
-                
-                    // ->when($down, function ($query, $down) {
-                    // $query->where('preferred_down', $down);
-                    // })
-                ->get();
-            }
-
-          
-            return response()->json($defensivePlays);
-           
+        if ($matchingCount > 0) {
+            $hasMatchingPlayers = true;
         }
+    }
+
+    // Step 3: Base query with eager loading
+    $query = DefensivePlay::with([
+        'strategyBlitz',
+        'formation',
+        'personals.teamPlayer.player',
+        'personals'
+    ])->where('league_id', $leagueId);
+
+    // Step 4: If matching players found, filter by them
+    if ($hasMatchingPlayers) {
+        $query->whereHas('personals', function ($subQuery) use ($playerIds) {
+            $subQuery->whereIn('teamplayer_id', $playerIds);
+        });
+    } else {
+        // Step 5: Fallback to parameter-based filters
+        $filters = [
+            'preferred_down'      => $request->input('down'),
+          
+            'strategies'          => $request->input('strategy'),
+            'min_expected_yard'      => $request->input('expectedyard'), // actual column name
+        ];
+
+        foreach ($filters as $field => $value) {
+            if (!in_array($value, [null, '', 'null'], true)) {
+                switch ($field) {
+                    case 'preferred_down':
+                    case 'strategies':
+                        // Match comma-separated values
+                        $query->whereRaw("FIND_IN_SET(?, $field)", [$value]);
+                        break;
+
+                    default:
+                        $query->where($field, $value);
+                        break;
+                }
+            }
+        }
+    }
+
+    // Step 6: Fetch results
+    $defensivePlays = $query->get();
+
+    return response()->json($defensivePlays);
+}
+
+
 
 //     protected function getDefensivePlays(Request $request)
 //     {
