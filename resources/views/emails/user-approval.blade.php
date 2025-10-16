@@ -2,10 +2,10 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>User Approval Request</title>
+  <title>User Approval Request – Human Dashboard</title>
 </head>
 <body>
-  <h2>New Signup Request</h2>
+  <h2>New User Signup Request – Human Dashboard</h2>
   <p>
     You have a new signup request from <strong>{{ $name }}</strong> ({{ $email }}).
   </p>
