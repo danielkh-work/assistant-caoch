@@ -12,8 +12,96 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\UserLoggedIn;
+use App\Models\PendingUser;
+use App\Mail\UserApprovalRequest;
 class AuthController extends Controller
 {
+
+
+    public function signupRequest(Request $request)
+    {
+       
+        \Log::info(['all re'=>$request->all()]);
+       $request->validate([
+
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => 'required|string|min:6',
+        ]);
+
+         
+        $password= Hash::make($request->password);
+        PendingUser::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => $password,
+        ]);
+
+         $user = User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => $password,
+        ]);
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        $pendingUser = PendingUser::latest()->first();
+        
+        $user['pendingUser']=  $pendingUser;
+      
+         $approvalUrl = url("/api/approve-user/{$pendingUser->id}");
+        
+         Mail::to('robert.taillefer@ekeau.com')->send(new UserApprovalRequest($request->name, $request->email, $approvalUrl));
+       
+        // Mail::raw("New signup request from {$request->name} ({$request->email})\n\nApprove here: " . url("/api/approve-user/" . PendingUser::latest()->first()->id), function ($msg) {
+        //     $msg->to('aminnoorulamin977@gmail.com')->subject('User Signup Approval');
+        // });
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Signup request sent. Wait for approval.", $user,$token);
+    }
+
+    public function approveUser($id)
+    {
+        $pending = PendingUser::findOrFail($id);
+
+        if ($pending->approved_at) {
+            return response()->json(['message' => 'Already approved']);
+        }
+
+        $code = rand(100000, 999999);
+
+        $pending->update([
+            'verification_code' => $code,
+            'approved_at' => now(),
+        ]);
+
+        // Email verification code to user
+        Mail::raw("Your verification code is: $code", function ($message) use ($pending) {
+            $message->to($pending->email)->subject('Your Verification Code');
+        });
+         return response()->json(['message' => 'User approved. Verification code sent to user.']);
+         return redirect()->route('pending-users.index') // or wherever you want
+                     ->with('success', 'User approved and verification code sent.');
+
+       
+    }
+    public function verifyCode(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'code' => 'required',
+        ]);
+
+        $pending = PendingUser::where('email', $request->email)
+            ->where('verification_code', $request->code)
+            ->first();
+
+        if (!$pending) {
+            return response()->json(['message' => 'Invalid code or email'], 400);
+        }
+
+        $pending->delete();
+
+        return response()->json(['message' => 'Account verified.']);
+    }
     public function register(Request $request)
     {
         $request->validate([
@@ -28,6 +116,7 @@ class AuthController extends Controller
             'email' => $request->email,
             'password' => Hash::make($request->password),
         ]);
+     
         $token = $user->createToken('auth_token')->plainTextToken;
         $expiresIn = now()->addMinutes(config('sanctum.expiration', 60))->timestamp;
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "You have Register SuccessFully", $user,$token);
@@ -42,6 +131,7 @@ class AuthController extends Controller
         ]);
 
         $user = User::where('email', $request->email)->first();
+        $pendingUser = PendingUser::where('email', $request->email)->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
             throw ValidationException::withMessages([
@@ -51,6 +141,7 @@ class AuthController extends Controller
 
         $token = $user->createToken('auth_token')->plainTextToken;
         $user['permissions'] = $user->getPermissionsViaRoles()->pluck('name');
+        $user['pendingUser']=  $pendingUser;
         $expiresIn = now()->addMinutes(config('sanctum.expiration', 60))->timestamp;
         // Mail::to('aminnoorulamin977@gmail.com')->send(new UserLoggedIn($user));
         // \Log::info(['user'=>$user]);
@@ -213,4 +304,6 @@ class AuthController extends Controller
             return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Add Assistant Coach Successfully",$assistant );
            
     }
+
+  
 }

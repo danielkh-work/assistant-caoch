@@ -23,6 +23,9 @@ use App\Events\MessageSent;
 Route::get('/', function () {
     return view('welcome');
 });
+Route::get('/pending-users', function () {
+    return view('pending_user');
+})->name('pending-users.index');
 
 Route::get('/test-ethereal', function () {
     try {

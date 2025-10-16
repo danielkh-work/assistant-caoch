@@ -210,7 +210,11 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 // start-game-mode
-Route::post('/register', [AuthController::class, 'register']);
+Route::post('/register', [AuthController::class, 'signupRequest']);
+Route::post('/login', [AuthController::class, 'login']);
+Route::post('/signup-request', [AuthController::class, 'signupRequest']);
+Route::get('/approve-user/{id}', [AuthController::class, 'approveUser']);
+Route::post('/verify-code', [AuthController::class, 'verifyCode']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/forget-password',[AuthController::class,'forgotPassword'])->name('forget.change');
 Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('password.reset');
