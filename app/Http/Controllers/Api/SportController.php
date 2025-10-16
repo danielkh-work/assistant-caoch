@@ -69,6 +69,7 @@ class SportController extends Controller
            $League =  new League;
            $League->user_id=  auth('api')->user()->id;
            $League->sport_id=$request->sport_id;
+           $League->location=$request->location;
            $League->league_rule_id=$request->league_rule_id;
            $League->number_of_team=$request->number_of_team;
            $League->title=$request->title;

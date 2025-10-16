@@ -17,32 +17,34 @@ class BenchPlayerController extends Controller
     {
         
        
-       $configure = BenchPlayer::with('player.player')
-        ->where('game_id', $gameId)
-        ->where('team_id', $teamId)
-        ->where('type', 'myteam')
-        
-        ->get()
-        ->map(function ($benchPlayer) {
-            return [
-                'id' => optional($benchPlayer->player)->id ?? null,
-                'name' => optional($benchPlayer->player)->player->name ?? null,
-                'number' => optional($benchPlayer->player)->number ?? null,
-                'size' => optional($benchPlayer->player)->size ?? null,
-                'position_value' => optional($benchPlayer->player)->position_value ?? null,
-                'squad' => 3,
-                'position' => optional($benchPlayer->player)->position ?? null,
-                'speed' => optional($benchPlayer->player)->speed ?? null,
-                'strength' => optional($benchPlayer->player)->strength ?? null,
-                'ofp' => optional($benchPlayer->player)->ofp ?? null,
-                'weight' => optional($benchPlayer->player)->weight ?? null,
-                'height' => optional($benchPlayer->player)->height ?? null,
-                'dob' => optional($benchPlayer->player)->player->dob ?? null,
-                
-                // Add other fields as needed
-            ];
-        });
-     
+            $configure = BenchPlayer::with('player.player')
+                ->where('game_id', $gameId)
+                ->where('team_id', $teamId)
+                ->where('type', 'myteam')
+                ->get()
+                // Filter out records where related player or nested player is missing
+                ->filter(function ($benchPlayer) {
+                    return $benchPlayer->player && $benchPlayer->player->player;
+                })
+                ->map(function ($benchPlayer) {
+                    return [
+                        'id' => $benchPlayer->player->id,
+                        'name' => $benchPlayer->player->player->name,
+                        'number' => $benchPlayer->player->number,
+                        'size' => $benchPlayer->player->size,
+                        'position_value' => $benchPlayer->player->position_value,
+                        'squad' => 3,
+                        'position' => $benchPlayer->player->position,
+                        'speed' => $benchPlayer->player->speed,
+                        'strength' => $benchPlayer->player->strength,
+                        'ofp' => $benchPlayer->player->ofp,
+                        'weight' => $benchPlayer->player->weight,
+                        'height' => $benchPlayer->player->height,
+                        'dob' => $benchPlayer->player->player->dob,
+                    ];
+                })
+                ->values(); // reindex if needed
+
         
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "bench Player List",$configure);
      
