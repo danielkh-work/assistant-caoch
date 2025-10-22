@@ -45,7 +45,7 @@ class BenchPlayerController extends Controller
                 })
                 ->values(); // reindex if needed
 
-        
+        \Log::info(['offense and defense players....'=> $configure]);
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "bench Player List",$configure);
      
     }
@@ -120,8 +120,11 @@ class BenchPlayerController extends Controller
        
         $benchData=$request->get('benchPlayers');
         $team_id=$request->get('teamId');
+        $player_type=$request->get('playerType');
         $league_id=(int) $request->get('leagueId');
         $game_id=(int) $request->get('gameId');
+
+        
       
         $savedPlayers=[];
         foreach ($benchData as $index => $item) {
@@ -135,6 +138,7 @@ class BenchPlayerController extends Controller
                 'team_id' => $team_id,
                 'league_id' =>  $league_id,
                 'type' => 'myteam',
+                'player_type' =>  $player_type,
             ];
         }
          BenchPlayer::insert($savedPlayers);

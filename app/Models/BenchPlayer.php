@@ -8,10 +8,11 @@ use Illuminate\Database\Eloquent\Model;
 class BenchPlayer extends Model
 {
     use HasFactory;
-
+     protected $table = 'offense_defense_players';
      protected $fillable = [
         'team_id',
         'type',
+        'player_type',
         'league_id',
         'game_id',
         'player_id',
