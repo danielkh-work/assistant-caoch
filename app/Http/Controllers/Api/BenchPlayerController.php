@@ -93,7 +93,7 @@ class BenchPlayerController extends Controller
         $team_id=$request->get('teamId');
         $league_id=(int) $request->get('leagueId');
         $game_id=(int) $request->get('gameId');
-      
+        $player_type=$request->get('playerType');
         $savedPlayers=[];
         foreach ($benchData as $index => $item) {
         ConfiguredPlayingTeamPlayer::where('match_id', $game_id)
@@ -106,6 +106,7 @@ class BenchPlayerController extends Controller
                 'team_id' => $team_id,
                 'league_id' =>  $league_id,
                 'type' => 'opponent',
+                'player_type' =>  $player_type
             ];
         }
          BenchPlayer::insert($savedPlayers);
@@ -156,6 +157,7 @@ class BenchPlayerController extends Controller
                                      
             $configurePlayers =$request->get('configurePlayers');
             $benchData=$request->get('benchPlayers');
+        
             $team_id=$request->get('teamId');
             $league_id=(int) $request->get('leagueId');
             $game_id=(int) $request->get('gameId');
