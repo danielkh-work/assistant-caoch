@@ -22,7 +22,7 @@ class BroadCastScoreController extends Controller
     public function scoreBoardBroadCast(Request $request)
     {
  
-         \Log::info(['team' => $request->all()]);
+         
         
         $validated = $request->validate([
             'team' => 'required|in:left,right,both',
