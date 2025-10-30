@@ -29,6 +29,7 @@ class BenchPlayerController extends Controller
                 ->map(function ($benchPlayer) {
                     return [
                         'id' => $benchPlayer->player->id,
+                        'player' => $benchPlayer->player,
                         'name' => $benchPlayer->player->player->name,
                         'number' => $benchPlayer->player->number,
                         'size' => $benchPlayer->player->size,
@@ -62,6 +63,7 @@ class BenchPlayerController extends Controller
         ->map(function ($benchPlayer) {
             return [
                 'id' => optional($benchPlayer->player)->id ?? null,
+                'player' => $benchPlayer->player,
                 'name' => optional($benchPlayer->player)->player->name ?? null,
                 'number' => optional($benchPlayer->player)->number ?? null,
                 'size' => optional($benchPlayer->player)->size ?? null,

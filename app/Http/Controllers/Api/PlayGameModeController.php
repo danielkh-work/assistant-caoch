@@ -12,11 +12,14 @@ use Illuminate\Support\Facades\DB;
 class PlayGameModeController extends Controller
 {
     public function startGameGode(Request $request)
-    {
+    {   
+         $user = auth()->user(); // get the logged-in user
+        \Log::info(['game start'=>$request->all()]);
+        \Log::info(['sport_id'=>$user->sport_id]);
         DB::beginTransaction();
         try {
             $game = new PlayGameMode();
-            $game->sport_id =$request->sport_id;
+            $game->sport_id =$user->sport_id;
             $game->league_id = $request->league_id;
             $game->my_team_id =$request->my_team_id;
             $game->oponent_team_id =$request->oponent_team_id;
