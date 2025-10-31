@@ -248,7 +248,7 @@ if ($request->hasFile('video')) {
            
             'play_name' => 'required|string',
             'league_id' => 'required|exists:leagues,id',
-            'play_type' => 'required|integer',
+            'play_type' => 'required',
             'playType' => 'required|string',
             'zone_selection' => 'required|integer',
             'min_expected_yard' => 'required|string',
