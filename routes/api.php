@@ -192,8 +192,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
     });
    Route::post('/scoreboard/broadcast', [BroadCastScoreController::class, 'scoreBoardBroadCast']);
+   Route::post('/practice/scoreboard/broadcast', [BroadCastScoreController::class, 'practiceScoreBoardBroadCast']);
    Route::get('/scoreboard', [BroadCastScoreController::class, 'getWebSocketScoreBoard']); 
-   Route::get('/delete-scoreboard',[BroadCastScoreController::class,'delete'])->name('deleteScoreBoard');
+   Route::get('/practice-scoreboard', [BroadCastScoreController::class, 'getPracticeWebSocketScoreBoard']); 
+   Route::get('/delete-scoreboard/{gameId}',[BroadCastScoreController::class,'delete'])->name('deleteScoreBoard');
+   Route::get('/practice/delete-scoreboard/{gameId}',[BroadCastScoreController::class,'deletePractice'])->name('deletePracticeScoreBoard');
+   
    Route::prefix('leagues')->group(function () {
         Route::prefix('/{league}/matches')->group(function () {
             Route::get('/', [MatchController::class, 'index']);

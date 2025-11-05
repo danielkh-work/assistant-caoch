@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use App\Events\PracticeScoreUpdated;
 use App\Events\ScoreUpdated;
 use App\Models\WebsocketScoreboard;
+use App\Models\WebsocketPracticeScoreboard;
 use App\Http\Responses\BaseResponse;
 
 class BroadCastScoreController extends Controller
@@ -18,6 +20,100 @@ class BroadCastScoreController extends Controller
             'total' => 0 
         ]
     ];
+
+
+    
+
+     public function practiceScoreBoardBroadCast(Request $request)
+    {
+ 
+            \Log::info('store Broadcasting ScoreUpdated event');
+        $validated = $request->validate([
+            'team' => 'required|in:left,right,both',
+            'points' => 'required|integer',
+            'action' => 'required|string'
+        ]);
+       
+        $team = $validated['team'];
+        $points = $validated['points'];
+        $action = $validated['action'];
+        if($team=='left'){
+          self::$scores[$team]['total'] = $request->teamLeftScore+$points;
+        }
+        else if($team=='right'){
+         self::$scores[$team]['total'] = $request->teamRightScore+$points;
+        }else{
+
+            self::$scores['left']['total'] = $request->teamLeftScore;
+            self::$scores['right']['total'] = $request->teamRightScore;
+        }
+       
+        $record = WebsocketPracticeScoreboard::firstOrNew(
+            [
+             'user_id' => auth()->id(),
+             'game_id' => $request->game_id,
+             
+            ] // lookup condition
+             
+        );
+
+
+       
+        if (!$record->exists) {
+        $record->time = \Carbon\Carbon::now('America/New_York')->toDateTimeString();
+        }
+
+        // Always update these fields
+        $record->left_score = self::$scores['left']['total'];
+        $record->right_score = self::$scores['right']['total'];
+        $record->action = $action;
+        $record->game_id = $request->game_id;
+      
+        $record->quarter = $request->quarter;
+        $record->is_start = $request->isStartTime;
+        $record->down = $request->down;
+        $record->team_position = $request->teamPosition;
+        $record->expected_yard_gain = $request->expectedyardgain;
+        $record->position_number = $request->positionNumber;
+        $record->pkg = $request->pkg;
+        $record->strategies = $request->strategies;
+        $record->possession = $request->possession;
+
+        // Save (creates or updates)
+        $record->save();
+
+   
+        $payload = [
+            'scores' => self::$scores,
+            'team' => $team,
+            'game_id' => $request->game_id,
+             'user_id' => auth()->id(),
+            'points' => $points,
+            'action' => $action,
+            'isStart'=>$request->isStartTime,
+            'time'=>$request->time,
+            'sys_time' => now()->toDateTimeString(), 
+            'quarter' => $request->quarter,
+            'down' => $request->down,
+            'strategies' => $request->strategies,
+            'teamPosition' => $request->teamPosition,
+            'expectedyardgain' => $request->expectedyardgain,
+            'positionNumber' => $request->positionNumber,
+            'pkg' => $request->pkg,
+            'possession' => $request->possession,
+        ];
+
+        $user = auth()->user();
+        $coachGroupId = $user->role === 'head_coach'
+            ? $user->id
+            : $user->head_coach_id;
+        \Log::info('Before broadcast');
+        broadcast(new PracticeScoreUpdated($payload, $coachGroupId, $request->game_id))->toOthers();
+        \Log::info('After broadcast');
+
+
+      
+    }
 
     public function scoreBoardBroadCast(Request $request)
     {
@@ -44,29 +140,37 @@ class BroadCastScoreController extends Controller
             self::$scores['right']['total'] = $request->teamRightScore;
         }
        
-        WebsocketScoreboard::updateOrCreate(
+        $record = WebsocketScoreboard::firstOrNew(
             [
-            'user_id' => auth()->id(),
-        
-            ],
-            [
-                'left_score' => self::$scores['left']['total'],
-                'right_score' => self::$scores['right']['total'],
-                'action' => $action,
-                'game_id' => $request->game_id,
-                'quarter' => $request->quarter,
-                'time' => now()->toDateTimeString(),
-                'is_start' => $request->isStartTime,
-                'down' => $request->down,
-                'team_position' => $request->teamPosition,
-                'expected_yard_gain' => $request->expectedyardgain,
-                'position_number' => $request->positionNumber,
-                'pkg' => $request->pkg,
-                'strategies' => $request->strategies,
-                'possession' => $request->possession,
-                
-            ]
+             'user_id' => auth()->id(),
+           
+             'game_id' => $request->game_id,
+            ] // lookup condition
+            
         );
+
+       
+        if (!$record->exists) {
+        $record->time = \Carbon\Carbon::now('America/New_York')->toDateTimeString();
+        }
+
+        // Always update these fields
+        $record->left_score = self::$scores['left']['total'];
+        $record->right_score = self::$scores['right']['total'];
+        $record->action = $action;
+        $record->game_id = $request->game_id;
+        $record->quarter = $request->quarter;
+        $record->is_start = $request->isStartTime;
+        $record->down = $request->down;
+        $record->team_position = $request->teamPosition;
+        $record->expected_yard_gain = $request->expectedyardgain;
+        $record->position_number = $request->positionNumber;
+        $record->pkg = $request->pkg;
+        $record->strategies = $request->strategies;
+        $record->possession = $request->possession;
+
+        // Save (creates or updates)
+        $record->save();
 
    
         $payload = [
@@ -113,7 +217,23 @@ class BroadCastScoreController extends Controller
         // return WebsocketScoreboard::where('game_id', $game_id)->firstOrFail();
     }
 
-     public function delete(){
+    public function getPracticeWebSocketScoreBoard(){
+
+        $user = auth()->user();
+        $coachGroupId = $user->role === 'head_coach'
+            ? $user->id
+            : $user->head_coach_id;
+        $webSocketScorboard= WebsocketPracticeScoreboard::where('user_id',$coachGroupId)
+        ->firstOrFail();
+         if (!$webSocketScorboard) {
+             return response()->noContent();
+          }
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "scoreboardList",$webSocketScorboard);
+        // return WebsocketScoreboard::where('game_id', $game_id)->firstOrFail();
+    }
+    
+
+     public function delete($gameId){
          $user = auth()->user();
         $coachGroupId = $user->role === 'head_coach'
             ? $user->id
@@ -122,11 +242,32 @@ class BroadCastScoreController extends Controller
         $deleted= WebsocketScoreboard::where('user_id',$coachGroupId)
         ->delete();
         if ($deleted) {
-        
-            broadcast(new ScoreUpdated((object)[], $coachGroupId, 1))->toOthers();
+          broadcast(new ScoreUpdated((object)[], $coachGroupId,$gameId))->toOthers();
+          
         }
         return response()->noContent();
         
     }
+
+    public function deletePractice($gameId){
+        \Log::info(['gameid'=>$gameId]);
+         $user = auth()->user();
+        $coachGroupId = $user->role === 'head_coach'
+            ? $user->id
+            : $user->head_coach_id;
+           
+        $deleted= WebsocketPracticeScoreboard::where('user_id',$coachGroupId)
+        ->delete();
+        if ($deleted) {
+          
+             broadcast(new PracticeScoreUpdated((object)[], $coachGroupId,$gameId))->toOthers();
+           
+        return response()->noContent();
+        
+    }
+}
+
+
+    
   
 }
