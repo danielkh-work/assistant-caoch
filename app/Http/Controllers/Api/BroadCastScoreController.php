@@ -158,6 +158,7 @@ class BroadCastScoreController extends Controller
         $record->left_score = self::$scores['left']['total'];
         $record->right_score = self::$scores['right']['total'];
         $record->action = $action;
+        $record->sync_time = $request->sync_time;
         $record->game_id = $request->game_id;
         $record->quarter = $request->quarter;
         $record->is_start = $request->isStartTime;
@@ -180,6 +181,7 @@ class BroadCastScoreController extends Controller
              'user_id' => auth()->id(),
             'points' => $points,
             'action' => $action,
+            'sync_time' => $request->sync_time,
             'isStart'=>$request->isStartTime,
             'time'=>$request->time,
             'sys_time' => now()->toDateTimeString(), 
