@@ -142,7 +142,9 @@ class BroadCastScoreController extends Controller
        
         $record = WebsocketScoreboard::firstOrNew(
             [
-             'user_id' => auth()->id(),
+             'user_id' =>  auth()->user()->role === 'head_coach'
+        ? auth()->id()
+        : auth()->user()->head_coach_id,
            
              'game_id' => $request->game_id,
             ] // lookup condition
@@ -178,7 +180,10 @@ class BroadCastScoreController extends Controller
             'scores' => self::$scores,
             'team' => $team,
             'game_id' => $request->game_id,
-             'user_id' => auth()->id(),
+          'user_id' => auth()->user()->role === 'head_coach'
+        ? auth()->id()
+        : auth()->user()->head_coach_id,
+
             'points' => $points,
             'action' => $action,
             'sync_time' => $request->sync_time,

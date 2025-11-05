@@ -60,7 +60,7 @@ class PlayGameModeController extends Controller
             // Prepare the log data
             $logs[] = [
                 'game_id' => $value['game_id'],
-                'sport_id' => $value['sport_id'],
+                'sport_id' => auth()->user()->sport_id,
                 'league_id' => $value['league_id'],
                 'player_id' => $value['player_id'],
                 'my_team_id' => $value['my_team_id'],
