@@ -21,13 +21,10 @@ class BroadCastScoreController extends Controller
         ]
     ];
 
-
-    
-
      public function practiceScoreBoardBroadCast(Request $request)
     {
  
-            \Log::info('store Broadcasting ScoreUpdated event');
+        \Log::info('store Broadcasting ScoreUpdated event');
         $validated = $request->validate([
             'team' => 'required|in:left,right,both',
             'points' => 'required|integer',
@@ -258,7 +255,7 @@ class BroadCastScoreController extends Controller
 
     public function deletePractice($gameId){
         \Log::info(['gameid'=>$gameId]);
-         $user = auth()->user();
+        $user = auth()->user();
         $coachGroupId = $user->role === 'head_coach'
             ? $user->id
             : $user->head_coach_id;
@@ -269,12 +266,8 @@ class BroadCastScoreController extends Controller
           
              broadcast(new PracticeScoreUpdated((object)[], $coachGroupId,$gameId))->toOthers();
            
-        return response()->noContent();
+             return response()->noContent();
         
-    }
-}
-
-
-    
-  
+         }
+  }
 }

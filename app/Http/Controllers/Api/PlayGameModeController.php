@@ -13,9 +13,8 @@ class PlayGameModeController extends Controller
 {
     public function startGameGode(Request $request)
     {   
-         $user = auth()->user(); // get the logged-in user
-        \Log::info(['game start'=>$request->all()]);
-        \Log::info(['sport_id'=>$user->sport_id]);
+         $user = auth()->user(); 
+       
         DB::beginTransaction();
         try {
             $game = new PlayGameMode();
@@ -55,6 +54,8 @@ class PlayGameModeController extends Controller
         foreach ($data as $value) {
             // Update the game record
             $game = PlayGameMode::find($value['game_id']);
+            \Log::info(['game'=>$game]);
+            \Log::info(['game_id'=>$value['game_id']]);
             $game->save();
 
             // Prepare the log data

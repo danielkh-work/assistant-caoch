@@ -107,7 +107,7 @@ class SuggestionController extends Controller
         $matchId=$request->match_id;
               
 
-        $query = Play::whereHas('configuredLeagues', function ($q) use ($leagueId,$matchId) {
+        $query = Play::with(['roles', 'playResults'])->whereHas('configuredLeagues', function ($q) use ($leagueId,$matchId) {
               $q->where('configure_plays.league_id', $leagueId)->where('configure_plays.match_id', $matchId);
                     // ->orWhereIn('configure_plays.play_id', [1, 2, 3, 4]);
         });
@@ -142,7 +142,28 @@ class SuggestionController extends Controller
  
 
     
-        $plays = $query->inRandomOrder()->limit(3)->get();
+        $plays = $query->inRandomOrder()->limit(3)->withCount([
+        'playResults as win_result' => function ($q) {
+            $q->where('result', 'win')->where('is_practice', 0);
+        },
+        'playResults as loss_result' => function ($q) {
+            $q->where('result', 'loss')->where('is_practice', 0);
+        },
+        'playResults as practice_win_result' => function ($q) {
+            $q->where('result', 'win')->where('is_practice', 1);
+        },
+         'playResults as practice_loss_result' => function ($q) {
+            $q->where('result', 'win')->where('is_practice', 1);
+        },
+        'playResults as total_count' => function ($q) {
+            $q->where('is_practice', 0);
+         },
+          'playResults as total_practice_count' => function ($q) {
+            $q->where('is_practice', 1);
+         },
+        
+    ])
+     ->withAvg('playResults as yardage_difference', 'yardage_difference')->get();
         return response()->json($plays);
     }
 
@@ -174,6 +195,7 @@ public function getDefensivePlays(Request $request)
 
     // Step 3: Base query with eager loading
     $query = DefensivePlay::with([
+        'playResults',
         'strategyBlitz',
         'formation',
         'personals.teamPlayer.player',
@@ -212,7 +234,16 @@ public function getDefensivePlays(Request $request)
     }
 
     // Step 6: Fetch results
-    $defensivePlays = $query->get();
+    $defensivePlays = $query->withCount([
+            'playResults as win_result' => function ($q) {
+            $q->where('result', 'win');
+            },
+            'playResults as loss_result' => function ($q) {
+            $q->where('result', 'loss');
+            },
+            'playResults as total_count'
+            ])
+             ->withAvg('playResults as yardage_difference', 'yardage_difference') ->get();
 
     return response()->json($defensivePlays);
 }

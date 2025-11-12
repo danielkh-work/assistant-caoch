@@ -36,18 +36,28 @@ class PlayController extends Controller
     })
     ->withCount([
         'playResults as win_result' => function ($q) {
-            $q->where('result', 'win');
+            $q->where('result', 'win')->where('is_practice', 0);
         },
         'playResults as loss_result' => function ($q) {
-            $q->where('result', 'loss');
+            $q->where('result', 'loss')->where('is_practice', 0);
         },
-         'playResults as total_count'
+        'playResults as practice_win_result' => function ($q) {
+            $q->where('result', 'win')->where('is_practice', 1);
+        },
+         'playResults as practice_loss_result' => function ($q) {
+            $q->where('result', 'win')->where('is_practice', 1);
+        },
+        'playResults as total_count' => function ($q) {
+            $q->where('is_practice', 0);
+         },
+          'playResults as total_practice_count' => function ($q) {
+            $q->where('is_practice', 1);
+         },
+        
     ])
      ->withAvg('playResults as yardage_difference', 'yardage_difference') 
     ->get();
 
-
-      
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play Uploaded List ", $play);
     }
     // comment By Noor
