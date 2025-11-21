@@ -60,6 +60,21 @@ class PlayController extends Controller
 
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play Uploaded List ", $play);
     }
+
+    public function deletePlayResults($id)
+    {
+        
+        $play = PlayResult::where('play_id', $id)
+                ->where('result', 'win');
+            if ($play)
+                $play->delete();
+
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play success has been reset successfully");
+
+    
+    }
+
+
     // comment By Noor
     // public function store(Request $request)
     // {

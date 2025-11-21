@@ -119,7 +119,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/delete-play/{id}',[PlayController::class,'delete'])->name('delete-play');
     Route::get('/edit-play/{id}',[PlayController::class,'editPlay'])->name('edit-play');
     Route::get('/duplicate-play/{id}',[PlayController::class,'duplicatePlay'])->name('edit-play');
-   
+    Route::get('/delete-play-results/{id}', [PlayController::class, 'deletePlayResults']);
+
    
     
     Route::post('/update-play/{id}',[PlayController::class,'update'])->name('update-play');

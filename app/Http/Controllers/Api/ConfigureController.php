@@ -77,8 +77,8 @@ class ConfigureController extends Controller
     }
     public function view(Request $request)
     {
-        $configure =  ConfiguredPlayingTeamPlayer::with('player.player')->where('team_id',$request->team_id)->where('match_id',$request->game_id)->get();
-        \Log::info(['configure', $configure]);
+        $configure =  ConfiguredPlayingTeamPlayer::with('player.player')->where('team_id',$request->team_id)->where('match_id',$request->game_id)->take(11)->get();
+       
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "configure Player List",$configure);
     }
 
