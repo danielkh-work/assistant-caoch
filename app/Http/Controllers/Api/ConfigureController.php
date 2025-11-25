@@ -77,7 +77,10 @@ class ConfigureController extends Controller
     }
     public function view(Request $request)
     {
-        $configure =  ConfiguredPlayingTeamPlayer::with('player.player')->where('team_id',$request->team_id)->where('match_id',$request->game_id)->take(11)->get();
+        $league = \App\Models\League::find($request->league_id);
+        
+        \Log::info(['log player'=>$league->number_of_players]);
+        $configure =  ConfiguredPlayingTeamPlayer::with('player.player')->where('team_id',$request->team_id)->where('match_id',$request->game_id)->take($league->number_of_players)->get();
        
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "configure Player List",$configure);
     }
