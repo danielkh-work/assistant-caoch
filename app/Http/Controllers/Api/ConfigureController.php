@@ -78,11 +78,21 @@ class ConfigureController extends Controller
     public function view(Request $request)
     {
         $league = \App\Models\League::find($request->league_id);
-        
-        \Log::info(['log player'=>$league->number_of_players]);
-        $configure =  ConfiguredPlayingTeamPlayer::with('player.player')->where('team_id',$request->team_id)->where('match_id',$request->game_id)->take($league->number_of_players)->get();
+
+        // Base query (runs in all cases)
+        $query = ConfiguredPlayingTeamPlayer::with('player.player')
+        ->where('team_id', $request->team_id)
+        ->where('match_id', $request->game_id);
+
+        // Apply LIMIT only if league exists AND number_of_players exists
+        if ($league && !empty($league->number_of_players)) {
+          $query->take($league->number_of_players);
+        }
+
+        $configured = $query->get();
+
        
-        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "configure Player List",$configure);
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "configure Player List",$configured);
     }
 
     public function configureFormation(Request $request)
