@@ -149,10 +149,16 @@ class BroadCastScoreController extends Controller
         );
 
        
-        if (!$record->exists) {
-        $record->time = \Carbon\Carbon::now('America/New_York')->toDateTimeString();
-        }
-
+        // if (!$record->exists ) {
+        // $record->time = \Carbon\Carbon::now('America/New_York')->toDateTimeString();
+        // }
+       
+if (
+    !$record->exists || 
+    ($record->exists && $record->quarter != $request->quarter)
+) {
+    $record->time = \Carbon\Carbon::now('America/New_York')->toDateTimeString();
+}
         // Always update these fields
         $record->left_score = self::$scores['left']['total'];
         $record->right_score = self::$scores['right']['total'];
