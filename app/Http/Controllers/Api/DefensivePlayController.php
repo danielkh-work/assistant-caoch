@@ -18,6 +18,7 @@ class DefensivePlayController extends Controller
             'formation' => 'required|string',
             'formation' => 'required|string',
             'strategy_blitz' => 'required|string',
+            'coverage_category' => 'required|string',
            
           
         
@@ -37,6 +38,7 @@ class DefensivePlayController extends Controller
             'strategies' =>  $request->strategies,
             'formation' => $validated['formation'],
             'strategy_blitz' => $validated['strategy_blitz'],
+            'coverage_category' => $validated['coverage_category'],
             'description' => $request->description,
             
            
