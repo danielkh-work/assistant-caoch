@@ -11,8 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('defensive_plays', function (Blueprint $table) {
-              $table->string('coverage_category')->nullable();
+        Schema::table('games', function (Blueprint $table) {
+             $table->string('neutral_location')->nullable();
         });
     }
 
@@ -21,9 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-    
-        Schema::table('defensive_plays', function (Blueprint $table) {
-               $table->dropColumn('coverage_category');
+        Schema::table('games', function (Blueprint $table) {
+             $table->dropColumn('neutral_location');
         });
     }
 };

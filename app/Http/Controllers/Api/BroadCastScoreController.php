@@ -126,11 +126,28 @@ class BroadCastScoreController extends Controller
         $team = $validated['team'];
         $points = $validated['points'];
         $action = $validated['action'];
+        \Log::info(['operation'=>$request->operation]);
         if($team=='left'){
-          self::$scores[$team]['total'] = $request->teamLeftScore+$points;
+
+         
+
+            $operation = strtolower(trim($request->operation));
+            $adjustedPoints = ($operation == 'subtract')
+            ? $request->teamLeftScore - $points
+            : $request->teamLeftScore + $points;
+
+  
+
+
+          self::$scores[$team]['total'] =  $adjustedPoints;
         }
         else if($team=='right'){
-         self::$scores[$team]['total'] = $request->teamRightScore+$points;
+            $operation = strtolower(trim($request->operation));
+            $adjustedPoints = ($operation == 'subtract')
+            ? $request->teamRightScore - $points
+            : $request->teamRightScore + $points;
+           // $request->teamRightScore+$points;
+             self::$scores[$team]['total'] = $adjustedPoints;
         }else{
 
             self::$scores['left']['total'] = $request->teamLeftScore;
