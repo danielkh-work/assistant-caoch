@@ -83,6 +83,7 @@ class SportController extends Controller
            $League->overtime_rules=$request->overtime_rules;
            $League->number_of_players=$request->number_of_players;
            $League->flag_tbd =$request->flag_tbd;
+           $League->warning_time_minutes =$request->warning_time_minutes;
            $League->save();
            $practiceTeams = [];
            foreach($request->team_name as $index => $value)
@@ -144,6 +145,7 @@ class SportController extends Controller
            $League->overtime_rules=$request->overtime_rules;
            $League->number_of_players=$request->number_of_players;
            $League->flag_tbd =$request->flag_tbd;
+           $League->warning_time_minutes =$request->warning_time_minutes;
            $League->save();
         
            foreach ($request->team_name as $index => $teamData) {

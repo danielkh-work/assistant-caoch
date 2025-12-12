@@ -71,6 +71,22 @@ class LeaqueSeeder extends Seeder
                 'created_at' => now(),
                 'updated_at' => now()
             ],
+            [
+                'sport_id'=>1,
+                'title' => 'CFL',
+                'number_of_downs' => 4,
+                'length_of_field' => '100 yards',
+                'number_of_timeouts' => 3,
+                'clock_time' => 'NFL',
+                'number_of_quarters' => 4,
+                'length_of_quarters' => 15,
+                'stop_time_reason' => 2,
+                'overtime_rules' => 2,
+                'number_of_players' => 11,
+                'flag_tbd' => 'No',
+                'created_at' => now(),
+                'updated_at' => now()
+            ],
             // Hybrid (SICA) Entry
             // [
             //     'sport_id'=>1,
