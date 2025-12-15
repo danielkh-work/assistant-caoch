@@ -23,7 +23,7 @@ class PlayController extends Controller
 
     public function index(Request $request)
     {  
-    
+       
         $userRoleIds = auth()->user()->roles->pluck('id');
          $id =  ['1', $request->league_id];
         // $play =  Play::whereIn('league_id', $id)->get();
@@ -55,8 +55,9 @@ class PlayController extends Controller
          },
         
     ])
-     ->withAvg('playResults as yardage_difference', 'yardage_difference') 
-    ->get();
+     ->withAvg('playResults as yardage_difference', 'yardage_difference')
+      ->orderByDesc('win_result') 
+      ->get();
 
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play Uploaded List ", $play);
     }
