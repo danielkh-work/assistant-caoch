@@ -182,6 +182,8 @@ class PlayController extends Controller
 
             $play->possession = $request->possession;
             $play->description = $request->description;
+            $play->read_1 = $request->read_2;
+            $play->read_2 = $request->read_3;
             $play->position_status = 2;
             $play->video_path = 'video path';
             // Upload image

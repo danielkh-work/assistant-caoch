@@ -139,6 +139,12 @@ class AuthController extends Controller
             ]);
         }
 
+         if ($user->status === 'rejected') {
+                throw ValidationException::withMessages([
+                    'email' => ['Your account has been rejected and you cannot log in.'],
+                ]);
+          }
+
         $token = $user->createToken('auth_token')->plainTextToken;
         $user['permissions'] = $user->getPermissionsViaRoles()->pluck('name');
         $user['pendingUser']=  $pendingUser;
