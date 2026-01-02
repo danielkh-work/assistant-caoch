@@ -54,8 +54,7 @@ class PlayGameModeController extends Controller
         foreach ($data as $value) {
             // Update the game record
             $game = PlayGameMode::find($value['game_id']);
-            \Log::info(['game'=>$game]);
-            \Log::info(['game_id'=>$value['game_id']]);
+          
             $game->save();
 
             // Prepare the log data
@@ -78,8 +77,10 @@ class PlayGameModeController extends Controller
                 'created_at' => now(),
                 'updated_at' => now(),
             ];
-        }
+        }  
 
+        \Log::info(['data'=>$logs]);
+  
         // Insert all logs in a single query
         PlayGameLog::insert($logs);
 

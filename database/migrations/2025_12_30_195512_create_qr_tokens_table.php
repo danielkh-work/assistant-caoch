@@ -11,10 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('league_teams', function (Blueprint $table) {
-             if (!Schema::hasColumn('league_teams', 'type')) {
-        $table->integer('type')->nullable();
-    }
+        Schema::create('qr_tokens', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+    $table->string('token')->unique();
+    $table->boolean('used')->default(false);
+            $table->timestamps();
         });
     }
 
@@ -23,8 +25,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('league_teams', function (Blueprint $table) {
-             $table->dropColumn('type');
-        });
+        Schema::dropIfExists('qr_tokens');
     }
 };
