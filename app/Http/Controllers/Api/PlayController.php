@@ -23,6 +23,8 @@ class PlayController extends Controller
 
     public function index(Request $request)
     {  
+
+      
        
         $userRoleIds = auth()->user()->roles->pluck('id');
          $id =  ['1', $request->league_id];
@@ -405,6 +407,7 @@ if ($request->hasFile('video')) {
             'game_id' => $request->game_id,
             'play_id' => $request->play_id,
             'type' => $request->type,
+            'weather' => $request->weather,
             'is_practice' => $request->is_practice,
             'result' => $request->result,
             'suggested_count' => $request->suggested_count ?? 0,
@@ -415,6 +418,8 @@ if ($request->hasFile('video')) {
     }
         public function getPlayResult(Request $request)
         {
+
+           
             $gameId = $request->game_id;
             $playId = $request->play_id;
             $type = $request->type;

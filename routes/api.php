@@ -189,8 +189,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::controller(PlayGameModeController::class)->group(function () {
        Route::post('/start-game-mode', 'startGameGode');
        Route::post('/add-points-update-state', 'addPoints');
+       Route::post('/add-play-game-log', 'addPointsObject');
       
-
     });
    Route::post('/scoreboard/broadcast', [BroadCastScoreController::class, 'scoreBoardBroadCast']);
    Route::post('/practice/scoreboard/broadcast', [BroadCastScoreController::class, 'practiceScoreBoardBroadCast']);
