@@ -71,6 +71,7 @@ class PlayGameModeController extends Controller
         $log->my_team_id = $value['my_team_id'];
         $log->oponent_team_id = $value['oponent_team_id'];
         $log->quater = $value['quater'];
+        $log->play_id = $value['play_id'];
         $log->downs = $value['downs'];
         $log->current_position = $value['current_position'];
         $log->target = $value['target'];

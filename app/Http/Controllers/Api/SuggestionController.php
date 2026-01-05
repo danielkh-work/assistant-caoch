@@ -149,7 +149,7 @@ class SuggestionController extends Controller
         'playResults as win_result_rain' => function ($q) {
             $q->where('result', 'win')->where('weather', 'rain');
         },
-        'playResults as win_result_rain' => function ($q) {
+        'playResults as win_result_snow' => function ($q) {
             $q->where('result', 'win')->where('weather', 'snow');
         },
       
