@@ -64,6 +64,18 @@
                         </p>
                     </a>
                 </li>
+
+                    <li class="nav-item">
+                    <a 
+                    href="{{ route('users.index') }}"
+                        class="{{ Request::is('play') || Request::is('users/*') ? 'nav-link active' : 'nav-link' }}" 
+                        >
+                        <i class="nav-icon fas fa-video"></i>
+                        <p>
+                            Users
+                        </p>
+                    </a>
+                </li>
                 
              
                 {{-- <li class="nav-item">

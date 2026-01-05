@@ -3,6 +3,7 @@
 use App\Http\Controllers\LeagueController;
 use App\Http\Controllers\PlayController;
 use App\Http\Controllers\PlayerController;
+use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Http\Request;
@@ -76,6 +77,15 @@ Route::middleware(['auth'])->group(function () {
         Route::put('league/{id}', 'update')->name('league.update');
         Route::get('league/{id}', 'show')->name('league.show');
         Route::post('league', 'store')->name('league.store');
+    });
+
+     Route::controller(UserController::class)->group(function () {
+        Route::get('users', 'index')->name('users.index');
+        Route::get('users/{id}/approve', 'approve')->name('users.approve');
+         Route::get('users/{id}/reject', 'reject')->name('users.reject');
+         Route::post('users/{id}/reset-password', [UserController::class, 'adminResetPassword'])
+          ->name('users.reset_password');
+       
     });
 
 });

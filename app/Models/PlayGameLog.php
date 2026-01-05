@@ -9,6 +9,11 @@ class PlayGameLog extends Model
 {
     use HasFactory;
 
+    protected $casts = [
+        'players' => 'array',    
+       
+    ];
+
     public function myTeam()
     {
         return $this->belongsTo(LeagueTeam::class, 'my_team_id');

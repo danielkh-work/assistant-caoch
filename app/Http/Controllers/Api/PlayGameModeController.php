@@ -35,6 +35,72 @@ class PlayGameModeController extends Controller
 
         }
     }
+    
+
+    public function addPointsObject(Request $request)
+    {
+
+        \Log::info(['data'=>$request->all()]);
+
+        
+        $value = $request->all();
+
+        \Log::info(['value... log data'=>$value]);
+
+        if (empty($value) || !isset($value['game_id'])) {
+            return response()->json(['message' => 'Invalid data'], 400);
+        }
+
+        DB::beginTransaction();
+
+        try {
+        // Update game
+        // $game = PlayGameMode::findOrFail($value['game_id']);
+        // $game->save();
+
+        // ✅ Create object & save
+        $log = new PlayGameLog();
+        $log->game_id = $value['game_id'];
+        $log->sport_id = auth()->user()->sport_id;
+        $log->league_id = $value['league_id'];
+
+        // ✅ new columns
+        $log->players = json_encode($value['players']) ?? null;          // array
+        $log->confirmed = $value['is_confirmed'] ?? null;   // true / false / null
+
+        $log->my_team_id = $value['my_team_id'];
+        $log->oponent_team_id = $value['oponent_team_id'];
+        $log->quater = $value['quater'];
+        $log->downs = $value['downs'];
+        $log->current_position = $value['current_position'];
+        $log->target = $value['target'];
+        $log->my_points = $value['my_points'];
+        $log->oponent_points = $value['oponent_points'];
+        $log->time = $value['time'];
+        $log->reasons = $value['reasons'] ?? '';
+        $log->type_of_log = $value['type_of_log'];
+
+        $log->save(); // ✅ save() method
+
+        DB::commit();
+
+        return new BaseResponse(
+            STATUS_CODE_OK,
+            STATUS_CODE_OK,
+            "Update Added",
+            $log
+        );
+
+        } catch (\Throwable $th) {
+            DB::rollBack();
+
+            return new BaseResponse(
+                STATUS_CODE_BADREQUEST,
+                STATUS_CODE_BADREQUEST,
+                $th->getMessage()
+            );
+        }
+    }
 
     public function addPoints(Request $request)
     {
@@ -79,6 +145,9 @@ class PlayGameModeController extends Controller
                 'updated_at' => now(),
             ];
         }
+
+        //  'players' => json_encode($value['players']), // array → json
+        //     'confirmed' => $value['is_confirmed'],        // true / false
 
         // Insert all logs in a single query
         PlayGameLog::insert($logs);
