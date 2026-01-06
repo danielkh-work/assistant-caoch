@@ -250,13 +250,34 @@ public function getDefensivePlays(Request $request)
     // Step 6: Fetch results
     $defensivePlays = $query->withCount([
             'playResults as win_result' => function ($q) {
-            $q->where('result', 'win');
+              $q->where('result', 'win')->where('is_practice', 0);
+            },
+            'playResults as practice_win_result' => function ($q) {
+                $q->where('result', 'win')->where('is_practice', 1);
+            },
+            'playResults as win_result_rain' => function ($q) {
+                $q->where('result', 'win')->where('weather', 'rain');
+             },
+            'playResults as win_result_snow' => function ($q) {
+                $q->where('result', 'win')->where('weather', 'snow');
+            },
+            'playResults as total_rain' => function ($q) {
+              $q->where('weather', 'rain');
+             },
+            'playResults as total_snow' => function ($q) {
+             $q->where('weather', 'snow');
             },
             'playResults as loss_result' => function ($q) {
-            $q->where('result', 'loss');
+              $q->where('result', 'loss');
             },
-            'playResults as total_count'
+            'playResults as total_count' => function ($q) {
+                $q->where('is_practice', 0);
+             },
+            'playResults as total_practice_count' => function ($q) {
+               $q->where('is_practice', 1);
+             },
             ])
+            
              ->withAvg('playResults as yardage_difference', 'yardage_difference') ->get();
 
     return response()->json($defensivePlays);
