@@ -82,6 +82,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/add-open-player',[PlayerController::class,'addOpenPlayer']);
     
     Route::post('/bench-players', [BenchPlayerController::class, 'store']);
+    Route::post('/shuffle-players', [BenchPlayerController::class, 'shufflePlayers']);
     Route::post('/opponent-bench-player-store', [BenchPlayerController::class, 'opponentBenchPlayerStore']);
     Route::get('/bench-players/{gameId}/{teamId}', [BenchPlayerController::class, 'index']);
      Route::get('/bench-opponent-players/{gameId}/{teamId}', [BenchPlayerController::class, 'getOpponentBenchPlayers']);

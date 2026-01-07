@@ -117,6 +117,78 @@ class BenchPlayerController extends Controller
     }
 
 
+   public function shufflePlayers(Request $request)
+    {
+        
+      
+        $offensePlayers = $request->input('offensePlayers', []);
+        $benchPlayers   = $request->input('benchPlayers', []);
+        $teamId         = $request->input('teamId');
+        $gameId         = $request->input('gameId');
+        $playerType     = $request->input('playerType'); 
+        $team_type     = $request->input('team_type'); 
+        $leagueId     = $request->input('leagueId'); 
+        $type     = $request->input('type'); 
+
+        DB::transaction(function() use ($offensePlayers, $benchPlayers, $teamId,$leagueId,$type, $gameId, $playerType,$team_type) {
+
+       
+        if (!empty($offensePlayers)) {
+            BenchPlayer::where('team_id', $teamId)
+                ->where('game_id', $gameId)
+                ->whereIn('player_id', $offensePlayers)
+                
+                ->delete();
+        }
+
+        
+            if (!empty($benchPlayers)) {
+                    $insertData = [];
+                    foreach ($benchPlayers as $playerId) {
+                        $insertData[] = [
+                            'team_id'   => $teamId,
+                            'game_id'   => $gameId,
+                            'player_id' => $playerId,
+                            'league_id' => $leagueId,
+                            'player_type' => $playerType,
+                            'type' => $type,
+                           
+                        ];
+                    }
+
+                    BenchPlayer::insert($insertData);
+                    }
+                
+                    if (!empty($benchPlayers)) {
+                        ConfiguredPlayingTeamPlayer::where('team_id', $teamId)
+                            ->where('match_id', $gameId)
+                            ->whereIn('player_id', $benchPlayers)
+                           
+                            ->delete();
+                    }
+
+                    if (!empty($offensePlayers)) {
+                        
+                            $insertDataa = [];
+                            foreach ($offensePlayers as $playerId) {
+                                $insertDataa[] = [
+                                    'team_id'   => $teamId,
+                                    'match_id'   => $gameId,
+                                    'player_id' => $playerId,
+                                    'team_type' => $team_type
+                                   
+                                ];
+                            }
+
+                            ConfiguredPlayingTeamPlayer::insert($insertDataa);
+                        }
+                
+                });
+  
+         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, " Player Shuffle  Successfully", []);
+       
+    }
+
     public function store(Request $request)
     {
 
