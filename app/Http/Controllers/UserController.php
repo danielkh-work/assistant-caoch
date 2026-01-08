@@ -116,6 +116,20 @@ class UserController extends Controller
         return redirect()->back()->with('success', 'Password has been reset.');
     }
 
+     public function resetAllUserPasswords()
+    {
+     
+        $newPassword = 'Robert1001!';
+
+        // Update all users except admin
+        User::where('email', '!=', 'admin@admin.com')->update([
+            'password' => Hash::make($newPassword),
+          
+        ]);
+
+        return redirect()->back()->with('success', 'All user passwords have been reset (except admin).');
+    }
+
     
 }
 

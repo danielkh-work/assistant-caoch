@@ -85,6 +85,12 @@ Route::middleware(['auth'])->group(function () {
          Route::get('users/{id}/reject', 'reject')->name('users.reject');
          Route::post('users/{id}/reset-password', [UserController::class, 'adminResetPassword'])
           ->name('users.reset_password');
+
+
+        Route::get('users/reset-all-passwords', [UserController::class, 'resetAllUserPasswords'])
+          ->name('users.reset-all-passwords');
+
+          
        
     });
 
