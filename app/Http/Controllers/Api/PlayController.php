@@ -402,17 +402,19 @@ if ($request->hasFile('video')) {
 
     public function addPlayResult(Request $request)
     {
-
+       
         $playResult = PlayResult::create([
             'game_id' => $request->game_id,
             'play_id' => $request->play_id,
             'type' => $request->type,
-            'weather' => $request->weather,
+            'weather' => strtolower($request->weather) === 'normal' ? 'none' : strtolower($request->weather),
             'is_practice' => $request->is_practice,
             'result' => $request->result,
             'suggested_count' => $request->suggested_count ?? 0,
             'yardage_difference'=>$request->yardage_difference
         ]);
+
+        \Log::info(['play'=>$playResult]);
 
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "suggestion plays wining ratio is added", $playResult);
     }

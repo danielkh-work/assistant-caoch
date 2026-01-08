@@ -35,20 +35,40 @@ class UserController extends Controller
                 //    ->addColumn('created_by', function($row) {
                 //             return $row->user->name ?? 'admin';
                 //     })
-            ->addColumn('action', function($row){
-                $approveUrl = route('users.approve', ['id' => $row->id]);
-                $rejectUrl  = route('users.reject', ['id' => $row->id]);
-                $resetUrl   = route('users.reset_password', ['id' => $row->id]); // New
+            ->addColumn('action', function ($row) {
+    $approveUrl = route('users.approve', ['id' => $row->id]);
+    $rejectUrl  = route('users.reject', ['id' => $row->id]);
+    $resetUrl   = route('users.reset_password', ['id' => $row->id]);
 
-                return '
-                    <a href="' . $approveUrl . '" class="btn btn-success btn-sm me-1">Approve</a>
-                    <a href="' . $rejectUrl . '" class="btn btn-danger btn-sm me-1">Reject</a>
-                    <form action="' . $resetUrl . '" method="POST" style="display:inline;">
-                        ' . csrf_field() . '
-                        <button type="submit" class="btn btn-warning btn-sm">Reset Password</button>
-                    </form>
-                ';
-            })
+    $buttons = '';
+
+    // Pending user → show Approve & Reject only
+     if ($row->status == 'pending') {
+        $buttons .= '
+            <a href="' . $approveUrl . '" class="btn btn-success btn-sm me-1">Approve</a>
+            <a href="' . $rejectUrl . '" class="btn btn-danger btn-sm me-1">Reject</a>
+        ';
+     }
+    // Approved / non-pending → show Reset Password only
+    if ($row->status !== 'pending') {
+
+        //  $buttons .= '
+        //     <a href="' . $approveUrl . '" class="btn btn-success btn-sm me-1">Approve</a>
+        //     <a href="' . $rejectUrl . '" class="btn btn-danger btn-sm me-1">Reject</a>
+        // ';
+        $buttons .= '
+            <form action="' . $resetUrl . '" method="POST" style="display:inline;">
+                ' . csrf_field() . '
+                <button type="submit" class="btn btn-warning btn-sm">
+                    Reset Password
+                </button>
+            </form>
+        ';
+    }
+
+    return $buttons;
+})
+
 
 //  <form action="' . $deleteUrl . '" method="POST" style="display:inline;">
                     //         ' . csrf_field() . '
@@ -85,10 +105,10 @@ class UserController extends Controller
         
         $user = User::findOrFail($id);
         $newPassword = Str::random(8);
-        $user->password = Hash::make($newPassword);
+        $user->password = Hash::make('newuser12345');
         $user->save();
-        Mail::to($user->email)->send(new PasswordResetByAdmin($user, $newPassword));
-        return redirect()->back()->with('success', 'Password has been reset and sent to the user.');
+        // Mail::to($user->email)->send(new PasswordResetByAdmin($user, $newPassword));
+        return redirect()->back()->with('success', 'Password has been reset.');
     }
 
     

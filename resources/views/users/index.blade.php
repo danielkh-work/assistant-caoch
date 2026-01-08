@@ -18,10 +18,17 @@
     </div>
     <!-- /.content-header -->
     <!-- Main content -->
+
+
     <section class="content">
         <div class="container-fluid">
             <div class="row">
                 <div class="col-md-12">
+                         @if(session('success'))
+                            <div class="alert alert-success">
+                                {{ session('success') }}
+                            </div>
+                        @endif
                 <!-- <a href="{{ route('players.create') }}" class="btn btn-success">Add Player</a> -->
                 <br>
                 </div>

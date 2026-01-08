@@ -29,7 +29,12 @@ class User extends Authenticatable
         'image','is_subscribed'
     ];
  
-             
+      
+    
+    public function assistants()
+    {
+        return $this->hasMany(User::class, 'head_coach_id');
+    }
     /**
      * The attributes that should be hidden for serialization.
      *

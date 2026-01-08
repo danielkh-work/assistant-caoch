@@ -22,6 +22,8 @@ use App\Http\Controllers\Api\DefensivePlayParameterController;
 use App\Http\Controllers\Api\BenchPlayerController;
 use App\Http\Controllers\Api\BroadCastScoreController;
 
+use App\Http\Controllers\PersionalGroupingController;
+
 
 
 
@@ -200,6 +202,7 @@ Route::middleware('auth:sanctum')->group(function () {
    Route::get('/delete-scoreboard/{gameId}',[BroadCastScoreController::class,'delete'])->name('deleteScoreBoard');
    Route::get('/practice/delete-scoreboard/{gameId}',[BroadCastScoreController::class,'deletePractice'])->name('deletePracticeScoreBoard');
    
+  Route::post('/persional-groups', [PersionalGroupingController::class, 'storeAllGroups']);
    Route::prefix('leagues')->group(function () {
         Route::prefix('/{league}/matches')->group(function () {
             Route::get('/', [MatchController::class, 'index']);
@@ -216,7 +219,7 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 // start-game-mode
-Route::post('/register', [AuthController::class, 'signupRequest']);
+Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/signup-request', [AuthController::class, 'signupRequest']);
 Route::get('/approve-user/{id}', [AuthController::class, 'approveUser']);

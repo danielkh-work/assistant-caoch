@@ -47,7 +47,8 @@ class AuthController extends Controller
         $pendingUser = PendingUser::latest()->first();
         
         $user['pendingUser']=  $pendingUser;
-      
+        $user['role']=  'head_coach';
+        $user->loadCount('assistants');
          $approvalUrl = url("/api/approve-user/{$pendingUser->id}");
         
          Mail::to('robert.taillefer@ekeau.com')->send(new UserApprovalRequest($request->name, $request->email, $approvalUrl));
@@ -104,6 +105,7 @@ class AuthController extends Controller
     }
     public function register(Request $request)
     {
+      
         $request->validate([
 
             'name' => 'required|string|max:255',
@@ -115,9 +117,12 @@ class AuthController extends Controller
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
+            'status' => 'pending',
         ]);
      
         $token = $user->createToken('auth_token')->plainTextToken;
+        $user->loadCount('assistants');
+        $user['role']=  'head_coach';
         $expiresIn = now()->addMinutes(config('sanctum.expiration', 60))->timestamp;
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "You have Register SuccessFully", $user,$token);
 
@@ -145,9 +150,17 @@ class AuthController extends Controller
                 ]);
           }
 
+            if ($user->status === 'pending') {
+                throw ValidationException::withMessages([
+                    'email' => ['Your account has been pending and you cannot log in.'],
+                ]);
+          }
+
         $token = $user->createToken('auth_token')->plainTextToken;
         $user['permissions'] = $user->getPermissionsViaRoles()->pluck('name');
         $user['pendingUser']=  $pendingUser;
+        $count = $user->assistants()->count();
+        $user['assistant_count']=  $count;
         $expiresIn = now()->addMinutes(config('sanctum.expiration', 60))->timestamp;
         // Mail::to('aminnoorulamin977@gmail.com')->send(new UserLoggedIn($user));
         // \Log::info(['user'=>$user]);
