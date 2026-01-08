@@ -203,6 +203,9 @@ Route::middleware('auth:sanctum')->group(function () {
    Route::get('/practice/delete-scoreboard/{gameId}',[BroadCastScoreController::class,'deletePractice'])->name('deletePracticeScoreBoard');
    
   Route::post('/persional-groups', [PersionalGroupingController::class, 'storeAllGroups']);
+  Route::get('/persional-groups-players', [PersionalGroupingController::class, 'getGroupsByTeamAndGame']);
+  
+
    Route::prefix('leagues')->group(function () {
         Route::prefix('/{league}/matches')->group(function () {
             Route::get('/', [MatchController::class, 'index']);

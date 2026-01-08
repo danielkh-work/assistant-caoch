@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\PersionalGrouping;
 use Illuminate\Support\Facades\DB;
-
+use App\Http\Responses\BaseResponse;
 class PersionalGroupingController extends Controller
 {
     public function storeAllGroups(Request $request)
@@ -52,6 +52,35 @@ class PersionalGroupingController extends Controller
         );
     }
 }
+
+
+   public function getGroupsByTeamAndGame(Request $request)
+    {
+        $teamId = $request->query('team_id');
+        $gameId = $request->query('game_id');
+        \Log::info(['data requea players'=>$teamId]);
+
+        if (!$teamId || !$gameId) {
+            return new BaseResponse(
+                STATUS_CODE_ERROR,
+                STATUS_CODE_ERROR,
+                "team_id and game_id are required"
+            );
+        }
+
+        $groups = PersionalGrouping::where('team_id', $teamId)
+                    ->where('game_id', $gameId)
+                    ->orderBy('created_at', 'desc')
+                    ->get();
+
+        return new BaseResponse(
+            STATUS_CODE_OK,
+            STATUS_CODE_OK,
+            "Groups fetched successfully",
+            $groups
+        );
+    }
+
 
 }
 

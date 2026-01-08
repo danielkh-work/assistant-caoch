@@ -130,21 +130,30 @@ class BenchPlayerController extends Controller
         $leagueId     = $request->input('leagueId'); 
         $type     = $request->input('type'); 
 
-        DB::transaction(function() use ($offensePlayers, $benchPlayers, $teamId,$leagueId,$type, $gameId, $playerType,$team_type) {
+        
+     $offenseIds = array_map(fn($player) => $player['id'], $offensePlayers);
+     $benchIds   = array_map(fn($player) => $player['id'], $benchPlayers);
+
+ 
+
+      
+        DB::transaction(function() use ($offenseIds, $benchIds, $teamId,$leagueId,$type, $gameId, $playerType,$team_type) {
 
        
-        if (!empty($offensePlayers)) {
+
+
+        if (!empty($offenseIds)) {
             BenchPlayer::where('team_id', $teamId)
                 ->where('game_id', $gameId)
-                ->whereIn('player_id', $offensePlayers)
+                ->whereIn('player_id', $offenseIds)
                 
                 ->delete();
         }
 
         
-            if (!empty($benchPlayers)) {
+            if (!empty($benchIds)) {
                     $insertData = [];
-                    foreach ($benchPlayers as $playerId) {
+                    foreach ($benchIds as $playerId) {
                         $insertData[] = [
                             'team_id'   => $teamId,
                             'game_id'   => $gameId,
@@ -159,18 +168,18 @@ class BenchPlayerController extends Controller
                     BenchPlayer::insert($insertData);
                     }
                 
-                    if (!empty($benchPlayers)) {
+                    if (!empty($benchIds)) {
                         ConfiguredPlayingTeamPlayer::where('team_id', $teamId)
                             ->where('match_id', $gameId)
-                            ->whereIn('player_id', $benchPlayers)
+                            ->whereIn('player_id', $benchIds)
                            
                             ->delete();
                     }
 
-                    if (!empty($offensePlayers)) {
+                    if (!empty($offenseIds)) {
                         
                             $insertDataa = [];
-                            foreach ($offensePlayers as $playerId) {
+                            foreach ($offenseIds as $playerId) {
                                 $insertDataa[] = [
                                     'team_id'   => $teamId,
                                     'match_id'   => $gameId,

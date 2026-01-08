@@ -10,7 +10,7 @@ class PersionalGrouping extends Model
     use HasFactory;
 
     protected $table = 'persional_grouping';
-
+    protected $appends = ['players_data'];
     protected $fillable = [
         'game_id',
         'league_id',
@@ -23,4 +23,18 @@ class PersionalGrouping extends Model
     protected $casts = [
         'players' => 'array', 
     ];
+
+
+
+    public function getPlayersDataAttribute()
+    {
+        if (empty($this->players)) {
+            return [];
+        }
+
+        return TeamPlayer::whereIn('id', $this->players)->get();
+    }
+
+
+    
 }
