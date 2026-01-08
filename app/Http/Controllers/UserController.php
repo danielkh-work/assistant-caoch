@@ -80,7 +80,12 @@ class UserController extends Controller
         }
         return view('users.index',$data);
     }
-
+   
+    public function showResetPasswordForm($id)
+    {
+        $user = User::findOrFail($id);
+        return view('admin.users.reset-password', compact('user'));
+    }
      public function approve($id)
     {
         $user = User::findOrFail($id);
@@ -105,7 +110,7 @@ class UserController extends Controller
         
         $user = User::findOrFail($id);
         $newPassword = Str::random(8);
-        $user->password = Hash::make('newuser12345');
+        $user->password = Hash::make('Robert1001!');
         $user->save();
         // Mail::to($user->email)->send(new PasswordResetByAdmin($user, $newPassword));
         return redirect()->back()->with('success', 'Password has been reset.');
