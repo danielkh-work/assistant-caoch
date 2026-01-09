@@ -9,6 +9,8 @@ use Illuminate\Http\Request;
 use App\Http\Responses\BaseResponse;
 use Illuminate\Support\Facades\DB;
 use App\Models\OpponentTeamPackage;
+use App\Models\PersionalGrouping;
+
 
 
 class BenchPlayerController extends Controller
@@ -120,6 +122,7 @@ class BenchPlayerController extends Controller
    public function shufflePlayers(Request $request)
     {
         
+        
       
         $offensePlayers = $request->input('offensePlayers', []);
         $benchPlayers   = $request->input('benchPlayers', []);
@@ -129,10 +132,11 @@ class BenchPlayerController extends Controller
         $team_type     = $request->input('team_type'); 
         $leagueId     = $request->input('leagueId'); 
         $type     = $request->input('type'); 
+        // $group_id     = $request->input('group_id'); 
 
         
-     $offenseIds = array_map(fn($player) => $player['id'], $offensePlayers);
-     $benchIds   = array_map(fn($player) => $player['id'], $benchPlayers);
+        $offenseIds = array_map(fn($player) => $player['id'], $offensePlayers);
+        $benchIds   = array_map(fn($player) => $player['id'], $benchPlayers);
 
  
 
@@ -145,8 +149,8 @@ class BenchPlayerController extends Controller
         if (!empty($offenseIds)) {
             BenchPlayer::where('team_id', $teamId)
                 ->where('game_id', $gameId)
+                ->where('player_type', $playerType)
                 ->whereIn('player_id', $offenseIds)
-                
                 ->delete();
         }
 
@@ -191,6 +195,23 @@ class BenchPlayerController extends Controller
 
                             ConfiguredPlayingTeamPlayer::insert($insertDataa);
                         }
+
+
+                         
+
+                        
+                        // $group_type = ($playerType === 'offence') ? 'offense' : 'defensive';
+
+                       
+                        // PersionalGrouping::where('game_id', $gameId)
+                        //     ->where('team_id', $teamId)
+                        //     ->where('type', $group_type)
+                        //     ->where('id', '<>', $group_id) 
+                        //     ->update(['status' => 'substituted']);
+
+                       
+                        // PersionalGrouping::where('team_id', $teamId)->where('type', $group_type)->update(['status' => null]);
+
                 
                 });
   

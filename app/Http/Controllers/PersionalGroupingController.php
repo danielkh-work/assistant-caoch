@@ -32,7 +32,7 @@ class PersionalGroupingController extends Controller
         }
 
         PersionalGrouping::insert($insertData); // bulk insert
-
+        
         DB::commit();
 
         return new BaseResponse(
