@@ -22,6 +22,7 @@ class LogController extends Controller
                 'players' => $log->players,
                 'quater' => $log->quater,
                 'time' => $log->time,
+                'current_position' => $log->current_position,
                 'my_points' => $log->my_points,
                 'oponent_points' => $log->oponent_points,
                 'downs' => $log->downs,

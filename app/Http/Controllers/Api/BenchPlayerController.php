@@ -139,11 +139,7 @@ class BenchPlayerController extends Controller
         $benchIds   = array_map(fn($player) => $player['id'], $benchPlayers);
 
  
-
-      
         DB::transaction(function() use ($offenseIds, $benchIds, $teamId,$leagueId,$type, $gameId, $playerType,$team_type) {
-
-       
 
 
         if (!empty($offenseIds)) {
