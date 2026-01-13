@@ -67,12 +67,14 @@ class PlayGameModeController extends Controller
         // ✅ new columns
         $log->players = json_encode($value['players']) ?? null;          // array
         $log->confirmed = $value['is_confirmed'] ?? null;   // true / false / null
-
+                        
         $log->my_team_id = $value['my_team_id'];
         $log->oponent_team_id = $value['oponent_team_id'];
         $log->quater = $value['quater'];
         $log->play_id = $value['play_id'];
         $log->downs = $value['downs'];
+        $log->play_yardage_gain = isset($value['play_yardage_gain']) ? $value['play_yardage_gain'] : null;
+        $log->weather_status = $value['weather_status'];
         $log->current_position = $value['current_position'];
         $log->target = $value['target'];
         $log->my_points = $value['my_points'];
@@ -135,6 +137,7 @@ class PlayGameModeController extends Controller
                 'oponent_team_id' => $value['oponent_team_id'],
                 'quater' => $value['quater'],
                 'downs' => $value['downs'],
+                'weather_status' => $value['weather_status'],
                 'current_position' => $value['current_position'],
                 'target' => $value['target'],
                 'my_points' => $value['my_points'],
