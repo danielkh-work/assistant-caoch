@@ -41,7 +41,7 @@ class PlayerController extends Controller
     public  function store(Request $request)
     {
 
-        \Log::info(['team'=>$request->all()]);
+  
         DB::beginTransaction();
         try {
 
@@ -76,7 +76,7 @@ class PlayerController extends Controller
             $player->weight= $request->weight;
             $player->height= $request->height;
             $player->dob= $request->dob;
-            $player->ofp= $request->ofp;
+            $player->rpp= $request->ofp;
             
             $player->strength =  $request->strength;
             $player->position_value =  $request->positionValue;
@@ -101,7 +101,7 @@ class PlayerController extends Controller
                         'dob' => $player->dob,
                         'image' => $player->image,
                         'position_value' => $player->position_value,
-                        'ofp' => $player->ofp,
+                        'rpp' => $player->rpp,
                         'created_at' => now(),
                         'updated_at' => now(),
                     ]);
@@ -151,7 +151,7 @@ class PlayerController extends Controller
             $player->weight= $request->weight;
             $player->height= $request->height;
             $player->dob= $request->dob;
-            $player->ofp= $request->ofp;
+            $player->rpp= $request->ofp;
             
             $player->strength =  $request->strength;
             $player->position_value =  $request->positionValue;
@@ -176,7 +176,7 @@ class PlayerController extends Controller
                         'dob' => $player->dob,
                         'image' => $player->image,
                         'position_value' => $player->position_value,
-                        'ofp' => $player->ofp,
+                        'rpp' => $player->rpp,
                         'created_at' => now(),
                         'updated_at' => now(),
                     ]);
@@ -222,7 +222,7 @@ class PlayerController extends Controller
                 'strength' => $request->strength,
                 'weight' => $request->weight,
                 'height' => $request->height,
-                'ofp' => $request->ofp,
+                'rpp' => $request->ofp,
                 'position_value' => $request->positionValue,
                 'updated_at' => now()
             ];
@@ -263,7 +263,7 @@ class PlayerController extends Controller
             $dob = null;
             }
              $player->dob=  $dob;
-             $player->ofp= $request->ofp;
+             $player->rpp= $request->ofp;
              $player->position_value =  $request->positionValue;
             if($request->hasFile('image'))
             {
@@ -285,16 +285,16 @@ class PlayerController extends Controller
     
     public function updateOFP(Request $request, $id)
     {
-        \Log::info(['data'=>$request->all()]);
+        
         $request->validate([
-            'ofp' => 'required|integer|min:0|max:100',
+            'rpp' => 'required|integer|min:0|max:100',
         ]);
-
+     
         $teamPlayer = TeamPlayer::findOrFail($id);
-        $teamPlayer->ofp = $request->input('ofp');
+        $teamPlayer->rpp = $request->input('rpp');
         $teamPlayer->save();
 
-        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Player OFP Updated SuccessFully ", $teamPlayer);
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Player RPP Updated SuccessFully ", $teamPlayer);
     }
     public function delete($id,$team_id)
     {

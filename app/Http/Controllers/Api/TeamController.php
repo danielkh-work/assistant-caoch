@@ -88,8 +88,9 @@ class TeamController extends Controller
 
                 // Sanitize helper
                 $sanitize = function ($value) {
-                    return ($value === 'N/A' || $value === null || $value === '') ? null : $value;
-                };
+    return (in_array($value, ['N/A', '', null, 'null'], true)) ? null : $value;
+};
+
 
                 $t_player->name = $sanitize($request->name[$key]);
                 $t_player->position_value = $sanitize($request->position_value[$key]);
@@ -111,9 +112,18 @@ class TeamController extends Controller
                     $t_player->dob = null;
                 }
 
-                $t_player->ofp = $sanitize($request->ofp[$key]);
+                $t_player->rpp = $sanitize($request->ofp[$key]);
                 $t_player->save();
             }
+              
+
+
+
+    
+
+  
+  
+
 
             // foreach ($request->playerid as $key=>$id) {
             //     $t_player =  new TeamPlayer();
