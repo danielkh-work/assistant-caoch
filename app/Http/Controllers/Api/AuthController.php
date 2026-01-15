@@ -324,5 +324,76 @@ class AuthController extends Controller
            
     }
 
+    public function addQB(Request $request){
+
+            $request->validate([
+                'name'     => 'required|string',
+                'email'    => 'required|email|unique:users', 
+            ]);
+            $headCoach = auth()->user();
+            if ($headCoach->role !== 'head_coach') {
+                abort(403);
+            }
+
+            $assistant = User::create([
+                'name'          => $request->name,
+                'email'         => $request->email,
+                'password'      => bcrypt('12345678'),
+                'role'          => 'qb',
+                'head_coach_id' => $headCoach->id,
+                'sport_id' => $headCoach->sport_id,
+                'is_subscribe' => $headCoach->is_subscribe,
+                'subscription_id' => $headCoach->subscription_id,
+                'code' => User::generateUniqueCode()
+               
+            ]);
+
+            $headCoachRoles = $headCoach->roles->pluck('name'); 
+            $assistant->assignRole($headCoachRoles); 
+            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Add Assistant Coach Successfully",$assistant );
+           
+    }
+
+
+    public function loginWithSession(Request $request)
+    {
+        // Validate input
+        $request->validate([
+            'session_id' => 'nullable|string',  // optional string
+            'code'       => 'required|digits:4' // required 4-digit code
+        ]);
+
+        // Find the user by code and role
+        $user = User::where('code', $request->code)
+                    ->where('role', 'qb')
+                    ->first();
+
+        if (!$user) {
+            return response()->json([
+                'status' => 401,
+                'message' => 'Invalid code'
+            ], 401);
+        }
+
+        // Save session_id if provided
+        if ($request->filled('session_id')) {
+            $user->session_id = $request->session_id;
+            $user->save();
+        }
+
+        // Generate Laravel Sanctum token
+        $token = $user->createToken('QB-App-Token')->plainTextToken;
+
+        return response()->json([
+            'status'       => 201,
+            'message'      => 'Login successful',
+            'user'         => $user->only(['name', 'session_id', 'code']),
+            'access_token' => $token,
+            'token_type'   => 'Bearer'
+        ]);
+     }
+
+
+
   
 }

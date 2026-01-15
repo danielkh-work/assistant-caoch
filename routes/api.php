@@ -21,7 +21,7 @@ use App\Http\Controllers\Api\DefensivePlayController;
 use App\Http\Controllers\Api\DefensivePlayParameterController;
 use App\Http\Controllers\Api\BenchPlayerController;
 use App\Http\Controllers\Api\BroadCastScoreController;
-
+use App\Http\Controllers\QBController;
 use App\Http\Controllers\PersionalGroupingController;
 
 
@@ -62,12 +62,24 @@ use App\Http\Controllers\PersionalGroupingController;
 
 //     $assistant->assignRole($headCoachRoles);
 
+
+
+
+
+
+Route::prefix('qb')->group(function () {
+  
+    Route::post('login-with-session', [AuthController::class, 'loginWithSession']);
+});
+
+
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('userUpdate',[AuthController::class,'userUpdate']);
     Route::post('save-sport',[AuthController::class,'saveSport']);
     Route::post('change-password',[AuthController::class,'changePassword'])->name('password.change');
     Route::post('add-assistant-coach',[AuthController::class,'addAssistantCoach'])->name('add.assistantCoach');
+    Route::post('add-qb',[AuthController::class,'addQB'])->name('add.qb');
     Route::get('/sport',[SportController::class,'sport'])->name('sport');
 
     //  Leaque

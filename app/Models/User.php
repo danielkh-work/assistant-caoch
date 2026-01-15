@@ -26,7 +26,8 @@ class User extends Authenticatable
         'is_subscribe',
         'role',
         'subscription_id',
-        'image','is_subscribed'
+        'image','is_subscribed',
+        'code'
     ];
  
       
@@ -54,4 +55,13 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
     ];
+
+       public static function generateUniqueCode()
+    {
+        do {
+            $code = rand(1000, 9999); // 4-digit number
+        } while (self::where('code', $code)->exists());
+
+        return $code;
+    }
 }
