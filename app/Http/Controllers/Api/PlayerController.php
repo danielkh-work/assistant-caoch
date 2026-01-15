@@ -282,6 +282,77 @@ class PlayerController extends Controller
             return new BaseResponse(STATUS_CODE_BADREQUEST, STATUS_CODE_BADREQUEST, $th->getMessage());
         }
     }
+
+       public function updatePracticePlayer(Request $request,$id)
+    { 
+          
+        //  \Log::info(['id'=>$id]);
+        // \Log::info(['data'=>$request->all()]);
+
+        // return;
+     
+        DB::beginTransaction();
+        try {
+
+          
+           $type = $request->type;
+           if ($type == 'team_player') {
+            
+            $player = DB::table('practice_team_players')->where('player_id', $id)->where('team_id', $request->team_id)->first();
+
+            if (!$player) {
+                return new BaseResponse(404, 404, "Team Player not found.");
+            }
+
+           
+            $updateData = [
+                'name' => $request->name,
+                'number' => $request->number,
+                'position' => $request->position,
+                'size' => $request->size,
+                'speed' => $request->speed,
+                'strength' => $request->strength,
+                'weight' => $request->weight,
+                'height' => $request->height,
+                'rpp' => $request->ofp,
+                'position_value' => $request->positionValue,
+                'updated_at' => now()
+            ];
+
+            try {
+                $dob = Carbon::parse($request->dob);
+                $updateData['dob'] = $dob;
+            } catch (\Exception $e) {
+                $updateData['dob'] = null;
+            }
+
+            // if ($request->hasFile('image')) {
+            //     $path = uploadImage($request->image, 'player');
+            //     $updateData['image'] = $path;
+            // }
+
+           DB::table('practice_team_players')
+            ->where('player_id', $id)
+            ->where('team_id', $request->team_id)
+            ->update($updateData);
+
+
+            $updatedPracticePlayer = DB::table('practice_team_players')
+                ->where('player_id', $id)
+                ->where('team_id', $request->team_id)
+             ->first(); // 👈 full row
+
+            DB::commit();
+           return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Player Updated SuccessFully ", $updatedPracticePlayer );
+        } 
+           
+            
+        } catch (\Throwable $th) {
+            DB::rollBack();
+            return new BaseResponse(STATUS_CODE_BADREQUEST, STATUS_CODE_BADREQUEST, $th->getMessage());
+        }
+    }
+    
     
     public function updateOFP(Request $request, $id)
     {
