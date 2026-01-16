@@ -69,7 +69,7 @@ use App\Http\Controllers\PersionalGroupingController;
 
 Route::prefix('qb')->group(function () {
   
-    Route::post('login-with-session', [AuthController::class, 'loginWithSession']);
+    Route::get('login-with-session', [AuthController::class, 'loginWithSession']);
 });
 
 
