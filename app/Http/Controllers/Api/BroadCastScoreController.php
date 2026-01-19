@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Events\PracticeScoreUpdated;
 use App\Events\ScoreUpdated;
+use App\Events\TeamScoreUpdated;
 use App\Models\WebsocketScoreboard;
 use App\Models\WebsocketPracticeScoreboard;
 use App\Http\Responses\BaseResponse;
@@ -155,15 +156,13 @@ class BroadCastScoreController extends Controller
         }
        
         $payload = [
-            'scores' => self::$scores,
+            'scores' => self::$qb,
             'left'=>$request->myteam,      
             'right'=>$request->oponentTeam,      
-            'user_id' => auth()->id()
             'points' => $points,
-            'action' => $action,
-            // 'sync_time' => $request->sync_time,
+            'quarter_length'=>$request->quarter_length/4,
             'isStart'=>$request->isStartTime,
-            'time'=>$request->time,
+          
             // 'sys_time' => now()->toDateTimeString(), 
             // 'quarter' => $request->quarter,
             // 'down' => $request->down,
@@ -174,22 +173,21 @@ class BroadCastScoreController extends Controller
             // 'pkg' => $request->pkg,
             // 'possession' => $request->possession,
         ];
-            \Log::info(['data payload'=> $payload]);
-        \Log::info([
-                'user_id' => auth()->id()
-            ]);
-
-        return ;
+           
+      
         $user = auth()->user();
         $coachGroupId = $user->role === 'head_coach'
             ? $user->id
             : $user->head_coach_id;
+         
+         
 
        
-         broadcast(new ScoreUpdated($payload, $coachGroupId,$request->game_id))->toOthers();
+         broadcast(new TeamScoreUpdated($payload, $coachGroupId))->toOthers();
 
       
     }
+
    
     public function scoreBoardBroadCast(Request $request)
     {

@@ -9,18 +9,24 @@ use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
-class TeamScoreUpdated
+class TeamScoreUpdated implements ShouldBroadcast
 {
     use SerializesModels;
     public $score;
+    public $coachGroupId;
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     /**
      * Create a new event instance.
      */
-    public function __construct($score)
+    public function __construct($score, $coachGroupId)
     {
-          $this->score = $score;
+          
+          
+         $this->score = $score;
+         $this->coachGroupId = $coachGroupId;
+
+        
     }
 
     /**
@@ -30,7 +36,9 @@ class TeamScoreUpdated
      */
     public function broadcastOn()
     {
-        return new PrivateChannel('headcoach.' . $this->score['head_coach_id'] . '.qb');
+    //    {$this->coachGroupId}
+        return new PrivateChannel("headcoach.{$this->coachGroupId}.qb");
+        //return new PrivateChannel('headcoach.' . $this->coachGroupId . '.qb');
     }
 
      public function broadcastAs()
