@@ -81,6 +81,40 @@ class PersionalGroupingController extends Controller
         );
     }
 
+ 
+
+    public function getPlays(PersionalGrouping $group)
+    {
+      
+
+        $attachedPlayIds = $group->plays()->pluck('play_id')->toArray();
+
+        return new BaseResponse(
+            STATUS_CODE_OK,
+            STATUS_CODE_OK,
+            "plays synced successfully",
+            $attachedPlayIds
+        );
+    }
+    public function syncPlays(Request $request, PersionalGrouping $group)
+    {
+        // Validate incoming data: 'play_ids' must be an array of integers
+        $validated = $request->validate([
+            'play_ids' => 'required|array',
+            'play_ids.*' => 'integer|exists:plays,id',
+        ]);
+
+        // Sync plays to the group
+        $group->plays()->sync($validated['play_ids']);
+
+        return new BaseResponse(
+            STATUS_CODE_OK,
+            STATUS_CODE_OK,
+            "plays synced successfully",
+            $group
+        );
+    }
+
 
 }
 

@@ -9,7 +9,7 @@ class PersionalGrouping extends Model
 {
     use HasFactory;
 
-    protected $table = 'persional_grouping';
+    protected $table = 'personal_groupings';
     protected $appends = ['players_data'];
     protected $fillable = [
         'game_id',
@@ -35,6 +35,14 @@ class PersionalGrouping extends Model
         return TeamPlayer::whereIn('id', $this->players)->get();
     }
 
-
+   public function plays()
+    {
+        return $this->belongsToMany(
+            Play::class,               // Related model
+            'personal_grouping_play', // Pivot table name
+            'personal_grouping_id',   // Foreign key on pivot table for this model
+            'play_id'                 // Foreign key on pivot table for related model
+        );
+    }
     
 }
