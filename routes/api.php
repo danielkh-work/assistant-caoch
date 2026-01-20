@@ -70,6 +70,8 @@ use App\Http\Controllers\PersionalGroupingController;
 Route::prefix('qb')->group(function () {
   
     Route::get('login-with-session', [AuthController::class, 'loginWithSession']);
+     Route::middleware('auth:sanctum')->post('/scoreboard/broadcast', [BroadCastScoreController::class, 'scoreBoardBroadCastQB']);
+    //Route::post('/scoreboard/broadcast', [BroadCastScoreController::class, 'scoreBoardBroadCastQB']);
 });
 
 
@@ -208,6 +210,7 @@ Route::middleware('auth:sanctum')->group(function () {
        Route::post('/add-play-game-log', 'addPointsObject');
       
     });
+
    Route::post('/scoreboard/broadcast', [BroadCastScoreController::class, 'scoreBoardBroadCast']);
    Route::post('/practice/scoreboard/broadcast', [BroadCastScoreController::class, 'practiceScoreBoardBroadCast']);
    Route::get('/scoreboard', [BroadCastScoreController::class, 'getWebSocketScoreBoard']); 

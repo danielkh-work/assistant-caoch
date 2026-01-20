@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Events\PracticeScoreUpdated;
 use App\Events\ScoreUpdated;
+use App\Events\TeamScoreUpdated;
 use App\Models\WebsocketScoreboard;
 use App\Models\WebsocketPracticeScoreboard;
 use App\Http\Responses\BaseResponse;
@@ -21,10 +22,19 @@ class BroadCastScoreController extends Controller
         ]
     ];
 
+     public static $qb = [
+        'left' => [
+            'total' => 0
+        ],
+        'right' => [
+            'total' => 0 
+        ]
+    ];
+
      public function practiceScoreBoardBroadCast(Request $request)
     {
  
-        \Log::info('store Broadcasting ScoreUpdated event');
+      
         $validated = $request->validate([
             'team' => 'required|in:left,right,both',
             'points' => 'required|integer',
@@ -108,10 +118,77 @@ class BroadCastScoreController extends Controller
         broadcast(new PracticeScoreUpdated($payload, $coachGroupId, $request->game_id))->toOthers();
         \Log::info('After broadcast');
 
+    }
+    
+
+    public function scoreBoardBroadCastQB(Request $request)
+    {
+        
+        $validated = $request->validate([
+            'team' => 'required|in:left,right,both',
+            'points' => 'required|integer',
+            'action' => 'required|string'
+        ]);
+       
+        $team = $validated['team'];
+        $points = $validated['points'];
+        $action = $validated['action'];
+       
+        if($team=='left'){
+            $operation = strtolower(trim($request->operation));
+            $adjustedPoints = ($operation == 'subtract')
+            ? $request->teamLeftScore - $points
+            : $request->teamLeftScore + $points;
+
+          self::$qb[$team]['total'] =  $adjustedPoints;
+        }
+        else if($team=='right'){
+            $operation = strtolower(trim($request->operation));
+            $adjustedPoints = ($operation == 'subtract')
+            ? $request->teamRightScore - $points
+            : $request->teamRightScore + $points;
+           // $request->teamRightScore+$points;
+             self::$qb[$team]['total'] = $adjustedPoints;
+        }else{
+
+            self::$qb['left']['total'] = $request->teamLeftScore;
+            self::$qb['right']['total'] = $request->teamRightScore;
+        }
+       
+        $payload = [
+            'scores' => self::$qb,
+            'left'=>$request->myteam,      
+            'right'=>$request->oponentTeam,      
+            'points' => $points,
+            'quarter_length'=>$request->quarter_length/4,
+            'isStart'=>$request->isStartTime,
+          
+            // 'sys_time' => now()->toDateTimeString(), 
+            // 'quarter' => $request->quarter,
+            // 'down' => $request->down,
+            // 'strategies' => $request->strategies,
+            // 'teamPosition' => $request->teamPosition,
+            // 'expectedyardgain' => $request->expectedyardgain,
+            // 'positionNumber' => $request->positionNumber,
+            // 'pkg' => $request->pkg,
+            // 'possession' => $request->possession,
+        ];
+           
+      
+        $user = auth()->user();
+        $coachGroupId = $user->role === 'head_coach'
+            ? $user->id
+            : $user->head_coach_id;
+         
+         
+
+       
+         broadcast(new TeamScoreUpdated($payload, $coachGroupId))->toOthers();
 
       
     }
 
+   
     public function scoreBoardBroadCast(Request $request)
     {
  
