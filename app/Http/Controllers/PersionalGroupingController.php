@@ -88,32 +88,47 @@ class PersionalGroupingController extends Controller
       
 
         $attachedPlayIds = $group->plays()->pluck('play_id')->toArray();
+         $attachedDefPlayIds = $group->defensivePlays()->pluck('defensive_play_id')->toArray();
 
         return new BaseResponse(
             STATUS_CODE_OK,
             STATUS_CODE_OK,
             "plays synced successfully",
-            $attachedPlayIds
+                [
+                        'offensive' => $attachedPlayIds,
+                        'defensive' => $attachedDefPlayIds
+                ]
         );
     }
     public function syncPlays(Request $request, PersionalGrouping $group)
     {
         // Validate incoming data: 'play_ids' must be an array of integers
-        $validated = $request->validate([
-            'play_ids' => 'required|array',
-            'play_ids.*' => 'integer|exists:plays,id',
+         $validated = $request->validate([
+           'type' => 'required|in:offense,defensive',
+           'play_ids' => 'required|array',
         ]);
 
-        // Sync plays to the group
-        $group->plays()->sync($validated['play_ids']);
+        if($request->type=='offense'){
+           $group->plays()->sync($validated['play_ids']);
+        }else if($request->type=='defensive'){
+          $group->defensivePlays()->sync($validated['play_ids']);
+        }
+       $group->load(['plays', 'defensivePlays']);
 
+       
+        $responseData = [
+            'offensive_play_ids' => $group->plays->pluck('id')->toArray(),
+            'defensive_play_ids' => $group->defensivePlays->pluck('id')->toArray(),
+        ];
         return new BaseResponse(
             STATUS_CODE_OK,
             STATUS_CODE_OK,
             "plays synced successfully",
-            $group
+             $responseData
         );
     }
+
+    
 
 
 }

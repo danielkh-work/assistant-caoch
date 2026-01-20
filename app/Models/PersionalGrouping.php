@@ -44,5 +44,16 @@ class PersionalGrouping extends Model
             'play_id'                 // Foreign key on pivot table for related model
         );
     }
+
+    public function defensivePlays()
+    {
+            return $this->belongsToMany(
+                DefensivePlay::class,           // Related model
+                'defensive_play_personal_grouping', // Pivot table
+                'personal_grouping_id',         // Foreign key on pivot table pointing to this model (PersonalGrouping)
+                'defensive_play_id'             // Foreign key on pivot table pointing to related model (DefensivePlay)
+            );
+
+    }
     
 }

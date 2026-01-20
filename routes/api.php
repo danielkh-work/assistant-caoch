@@ -71,6 +71,7 @@ Route::prefix('qb')->group(function () {
   
     Route::get('login-with-session', [AuthController::class, 'loginWithSession']);
      Route::middleware('auth:sanctum')->post('/scoreboard/broadcast', [BroadCastScoreController::class, 'scoreBoardBroadCastQB']);
+     Route::middleware('auth:sanctum')->post('/play/scoreboard/broadcast', [BroadCastScoreController::class, 'scoreBoardBroadCastPlay']);
     //Route::post('/scoreboard/broadcast', [BroadCastScoreController::class, 'scoreBoardBroadCastQB']);
 });
 

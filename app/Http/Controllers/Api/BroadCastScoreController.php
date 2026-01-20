@@ -7,6 +7,8 @@ use Illuminate\Http\Request;
 use App\Events\PracticeScoreUpdated;
 use App\Events\ScoreUpdated;
 use App\Events\TeamScoreUpdated;
+use App\Events\PlaySuggested;
+
 use App\Models\WebsocketScoreboard;
 use App\Models\WebsocketPracticeScoreboard;
 use App\Http\Responses\BaseResponse;
@@ -184,6 +186,42 @@ class BroadCastScoreController extends Controller
 
        
          broadcast(new TeamScoreUpdated($payload, $coachGroupId))->toOthers();
+
+      
+    }
+
+    public function scoreBoardBroadCastPlay(Request $request)
+    {
+        
+         
+        $validated = $request->validate([
+            'title' => 'required|string',
+            'image' => 'required|string',
+            'type'  => 'required|in:offensive,defensive',
+
+            // Optional fields
+            'read1' => 'nullable|string',
+            'read2' => 'nullable|string',
+        ]);
+
+        // Access validated data
+        $payload['title'] = $validated['title'];
+        $payload['image'] = $validated['image'];
+        $payload['type']  = $validated['type'];
+        $payload['read1'] = $validated['read1'] ?? null;
+        $payload['read2'] = $validated['read2'] ?? null;
+
+        \Log::info(['playe suggested broad cast'=>  $payload]);
+      
+        $user = auth()->user();
+        $coachGroupId = $user->role === 'head_coach'
+            ? $user->id
+            : $user->head_coach_id;
+         
+         
+
+       
+         broadcast(new PlaySuggested($payload, $coachGroupId))->toOthers();
 
       
     }

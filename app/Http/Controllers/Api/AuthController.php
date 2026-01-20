@@ -393,7 +393,7 @@ class AuthController extends Controller
         return response()->json([
             'status'       => 201,
             'message'      => 'Login successful',
-            'user'         => $user->only(['name', 'session_id', 'code']),
+            'user'         => $user->only(['name', 'session_id', 'code','head_coach_id']),
             'access_token' => $token,
             'token_type'   => 'Bearer'
         ]);

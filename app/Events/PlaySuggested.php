@@ -10,21 +10,26 @@ use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class PlaySuggested
+class PlaySuggested implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
  
     public $play;
+    public $coachGroupId;
 
-    public function __construct($play)
+    public function __construct($play, $coachGroupId)
     {
         $this->play = $play;
+        $this->coachGroupId = $coachGroupId;
+        \Log::info(['plays'=>$this->play]);
+        \Log::info(['coachGroupId'=> $this->coachGroupId]);
     }
 
     public function broadcastOn()
     {
-        return new PrivateChannel('headcoach.' . $this->play['head_coach_id'] . '.qb');
+        return new PrivateChannel("headcoach.{$this->coachGroupId}.play");
+        
     }
 
     public function broadcastAs()

@@ -29,6 +29,12 @@ Broadcast::channel('headcoach.{headCoachId}.qb', function ($user, $headCoachId) 
    // return $user->role === 'head_coach' ;
     
 });
+Broadcast::channel('headcoach.{headCoachId}.play', function ($user, $headCoachId) {
+
+     return true;
+   // return $user->role === 'head_coach' ;
+    
+});
 
 
 
