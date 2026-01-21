@@ -28,6 +28,17 @@ class DefensivePlay extends Model
        return $this->hasMany(PlayResult::class, 'play_id', 'id');
     }
 
+
+    public function personalGroupings()
+   {
+      return $this->belongsToMany(
+         PersionalGrouping::class,                
+         'defensive_play_personal_grouping',     
+         'defensive_play_id',                    
+         'personal_grouping_id'                  
+      );
+   }
+
    // 
 
     

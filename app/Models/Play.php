@@ -31,5 +31,15 @@ class Play extends Model
     {
         return $this->morphToMany(Role::class, 'roleable');
     }
+
+    public function personalGroupings()
+    {
+        return $this->belongsToMany(
+            PersionalGrouping::class,
+            'personal_grouping_play',
+            'play_id',
+            'personal_grouping_id'
+        );
+    }
 }
  

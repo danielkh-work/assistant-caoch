@@ -132,7 +132,7 @@ class PlayController extends Controller
     public function store(Request $request)
     {
          
-       
+        \Log::info(['request for the play'=>$request->all()]);
         $request->validate([
             'image' => 'required|image|mimes:jpeg,png,jpg,gif,svg,webp',
            
@@ -203,22 +203,31 @@ class PlayController extends Controller
 }
 
 // Replace video if uploaded
-if ($request->hasFile('video')) {
-    $videoFile = $request->file('video');
+        if ($request->hasFile('video')) {
+            $videoFile = $request->file('video');
 
-    \Log::info('Video uploaded', [
-        'original_name' => $videoFile->getClientOriginalName(),
-        'mime_type'     => $videoFile->getClientMimeType(),
-        'size'          => $videoFile->getSize(),
-    ]);
+            \Log::info('Video uploaded', [
+                'original_name' => $videoFile->getClientOriginalName(),
+                'mime_type'     => $videoFile->getClientMimeType(),
+                'size'          => $videoFile->getSize(),
+            ]);
 
-    $videoPath = uploadImage($videoFile, 'public/uploads/videos');
-    $play->video_path = $videoPath;
-}
+            $videoPath = uploadImage($videoFile, 'public/uploads/videos');
+            $play->video_path = $videoPath;
+        }
             $play->save();
             
-           
-             
+            $groups = $request->input('groups', []);
+            if (!is_array($groups)) {
+                $groups = [];
+            }
+            $groups = array_filter($groups, fn($g) => !is_null($g) && $g !== '');
+
+
+                if (!empty($groups)) {
+                    $play->personalGroupings()->sync($groups);
+                }
+            
             if (is_array($request->offensive)) {
                 $offensivePositions = OffensivePosition::pluck('id', 'name')->toArray();
                 foreach ($request->offensive as $position => $value) {

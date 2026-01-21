@@ -43,6 +43,19 @@ class DefensivePlayController extends Controller
             
            
         ]);
+
+
+          $groups = $request->input('groups', []);
+            if (!is_array($groups)) {
+                $groups = [];
+            }
+            $groups = array_filter($groups, fn($g) => !is_null($g) && $g !== '');
+
+            if (!empty($groups)) {
+                    $defensivePlay->personalGroupings()->sync([1,2,3]);
+            }
+        
+       
          
          if ($request->has('opponentPlayers') && is_array($request->opponentPlayers)) {
             foreach ($request->opponentPlayers as $player) {

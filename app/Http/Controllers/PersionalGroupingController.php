@@ -56,22 +56,30 @@ class PersionalGroupingController extends Controller
 
    public function getGroupsByTeamAndGame(Request $request)
     {
+      
         $teamId = $request->query('team_id');
         $gameId = $request->query('game_id');
-        \Log::info(['data requea players'=>$teamId]);
+        $leagueId = $request->query('league_id');
+        
 
-        if (!$teamId || !$gameId) {
-            return new BaseResponse(
-                STATUS_CODE_ERROR,
-                STATUS_CODE_ERROR,
-                "team_id and game_id are required"
-            );
-        }
+         if ((!$teamId || !$gameId) && !$leagueId) {
+        return new BaseResponse(
+            STATUS_CODE_ERROR,
+            STATUS_CODE_ERROR,
+            "team_id & game_id OR league_id is required"
+        );
+    }
 
-        $groups = PersionalGrouping::where('team_id', $teamId)
-                    ->where('game_id', $gameId)
-                    ->orderBy('created_at', 'desc')
-                    ->get();
+      $groups = PersionalGrouping::query()
+        ->when($teamId && $gameId, function ($q) use ($teamId, $gameId) {
+            $q->where('team_id', $teamId)
+              ->where('game_id', $gameId);
+        })
+        ->when((!$teamId || !$gameId) && $leagueId, function ($q) use ($leagueId) {
+            $q->where('league_id', $leagueId);
+        })
+        ->orderBy('created_at', 'desc')
+        ->get();
 
         return new BaseResponse(
             STATUS_CODE_OK,
