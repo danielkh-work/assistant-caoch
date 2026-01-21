@@ -126,6 +126,7 @@ class BroadCastScoreController extends Controller
     public function scoreBoardBroadCastQB(Request $request)
     {
         
+        
         $validated = $request->validate([
             'team' => 'required|in:left,right,both',
             'points' => 'required|integer',
@@ -143,6 +144,8 @@ class BroadCastScoreController extends Controller
             : $request->teamLeftScore + $points;
 
           self::$qb[$team]['total'] =  $adjustedPoints;
+          self::$qb['right']['total'] =  $request->teamRightScore;
+          
         }
         else if($team=='right'){
             $operation = strtolower(trim($request->operation));
@@ -151,6 +154,9 @@ class BroadCastScoreController extends Controller
             : $request->teamRightScore + $points;
            // $request->teamRightScore+$points;
              self::$qb[$team]['total'] = $adjustedPoints;
+             self::$qb['left']['total'] =  $request->teamLeftScore;
+
+           
         }else{
 
             self::$qb['left']['total'] = $request->teamLeftScore;
@@ -158,26 +164,21 @@ class BroadCastScoreController extends Controller
         }
        
         $payload = [
-            'scores' => self::$qb,
-            'left'=>$request->myteam,      
-            'right'=>$request->oponentTeam,      
+            
+            'team_left_score'=>$request->teamLeftScore,
+            'team_right_score'=>$request->teamRightScore,
+            'right'=>$request->myteam,      
+            'left'=>$request->oponentTeam,      
             'points' => $points,
             'quarter_length'=>$request->quarter_length/4,
             'isStart'=>$request->isStartTime,
             'time'=>$request->time,
           
-            // 'sys_time' => now()->toDateTimeString(), 
-            // 'quarter' => $request->quarter,
-            // 'down' => $request->down,
-            // 'strategies' => $request->strategies,
-            // 'teamPosition' => $request->teamPosition,
-            // 'expectedyardgain' => $request->expectedyardgain,
-            // 'positionNumber' => $request->positionNumber,
-            // 'pkg' => $request->pkg,
-            // 'possession' => $request->possession,
         ];
+
+        
            
-      
+     
         $user = auth()->user();
         $coachGroupId = $user->role === 'head_coach'
             ? $user->id
