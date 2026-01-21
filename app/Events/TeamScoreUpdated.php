@@ -22,7 +22,7 @@ class TeamScoreUpdated implements ShouldBroadcast
     public function __construct($score, $coachGroupId)
     {
           
-          
+        \Log::info(['score'=>$score]);
          $this->score = $score;
          $this->coachGroupId = $coachGroupId;
 

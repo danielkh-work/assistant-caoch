@@ -107,7 +107,7 @@ class PersionalGroupingController extends Controller
            'type' => 'required|in:offense,defensive',
            'play_ids' => 'required|array',
         ]);
-
+        
         if($request->type=='offense'){
            $group->plays()->sync($validated['play_ids']);
         }else if($request->type=='defensive'){

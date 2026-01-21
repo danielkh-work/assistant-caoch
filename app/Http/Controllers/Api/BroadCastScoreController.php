@@ -164,6 +164,7 @@ class BroadCastScoreController extends Controller
             'points' => $points,
             'quarter_length'=>$request->quarter_length/4,
             'isStart'=>$request->isStartTime,
+            'time'=>$request->time,
           
             // 'sys_time' => now()->toDateTimeString(), 
             // 'quarter' => $request->quarter,
