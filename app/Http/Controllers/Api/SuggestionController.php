@@ -7,6 +7,7 @@ use App\Models\Play;
 use App\Models\OpponentTeamPackage;
 use App\Models\DefensivePlay;
 use Illuminate\Http\Request;
+use App\Models\BenchPlayer;
 use Illuminate\Support\Facades\Log;
 class SuggestionController extends Controller
 {
@@ -87,33 +88,48 @@ class SuggestionController extends Controller
 
      public function getSuggestedPlays($league, Request $request)
     {  
+       
+        $players = BenchPlayer::where('game_id', $request->match_id)->get();
+       
+        
+        $myTeamPlayerIds = $players
+            ->where('type', 'myteam')
+            ->pluck('player_id')
+            ->values()
+            ->toArray();
 
+        $opponentPlayerIds = $players
+            ->where('type', 'opponent')
+            ->pluck('player_id')
+            ->values()
+            ->toArray();
+      
         $possession = $request->input('possession');
-          \Log::info(['possession'=>$possession ]);
+        
         if ($possession === 'defensive') {
-           \Log::info(['possession defensive'=>$possession ]);
-           return $this->getDefensivePlays($request);
+          
+           return $this->getDefensivePlays($request,$opponentPlayerIds);
         }
-         \Log::info(['possession offensive'=>$possession ]);
-        return $this->getOffensivePlays($request);
+      
+        return $this->getOffensivePlays($request,  $myTeamPlayerIds);
      
     }
 
 
-        protected function getOffensivePlays(Request $request)
+        protected function getOffensivePlays(Request $request,$myTeamPlayerIds)
     {
            
         $leagueId=$request->league_id;
         $matchId=$request->match_id;
-              
-
-        $query = Play::with(['roles', 'playResults'])->whereHas('configuredLeagues', function ($q) use ($leagueId,$matchId) {
+        $myTeamPlayerIds = $myTeamPlayerIds ?? [];
+    
+        $query = Play::with(['roles', 'playResults','personalGroupings'])->whereHas('configuredLeagues', function ($q) use ($leagueId,$matchId) {
               $q->where('configure_plays.league_id', $leagueId)->where('configure_plays.match_id', $matchId);
                     // ->orWhereIn('configure_plays.play_id', [1, 2, 3, 4]);
         });
- 
-      
-         $id =  ['1',$request->league_id];
+         
+
+        $id =  ['1',$request->league_id];
  
         $possession = $request->input('possession');
         $zone = $request->input('zone');
@@ -140,8 +156,17 @@ class SuggestionController extends Controller
             }
         }
  
-
-    
+        if (!empty($myTeamPlayerIds)) {
+            $query->withCount([
+                'personalGroupings as matching_players_count' => function ($q) use ($myTeamPlayerIds) {
+                    foreach ($myTeamPlayerIds as $playerId) {
+                        $q->orWhereJsonContains('players', (int) $playerId);
+                    }
+                }
+            ])
+            ->orderByDesc('matching_players_count');
+        }
+        
         $plays = $query->inRandomOrder()->limit(3)->withCount([
         'playResults as win_result' => function ($q) {
             $q->where('result', 'win')->where('is_practice', 0);
@@ -178,14 +203,16 @@ class SuggestionController extends Controller
         
     ])
      ->withAvg('playResults as yardage_difference', 'yardage_difference')->get();
+
+       \Log::info(['plays'=>$plays]);
         return response()->json($plays);
     }
 
 
-public function getDefensivePlays(Request $request)
+public function getDefensivePlays(Request $request,$opponentPlayerIds)
 {
     $leagueId = $request->input('league_id');
-
+     $opponentPlayerIds = $opponentPlayerIds ?? [];
     // Step 1: Get player IDs from opponent package
     $playerIds = \DB::table('opponent_package_player')
         ->where('opponent_team_package_id', $request->input('pkg'))
@@ -280,7 +307,7 @@ public function getDefensivePlays(Request $request)
             
              ->withAvg('playResults as yardage_difference', 'yardage_difference') ->get();
 
-    return response()->json($defensivePlays);
+      return response()->json($defensivePlays);
 }
 
 
