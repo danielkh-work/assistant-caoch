@@ -300,9 +300,36 @@ public function getDefensivePlays(Request $request,$opponentPlayerIds)
                 }
             }
         }
+
+
     }
 
-    // Step 6: Fetch results
+     if (!empty($opponentPlayerIds)) {
+
+                    $query->addSelect([
+                        'best_group_match' => function ($sub) use ($opponentPlayerIds) {
+
+                            $matchExpression = collect($opponentPlayerIds)
+                                ->map(fn ($id) => "JSON_CONTAINS(personal_groupings.players, '[{$id}]')")
+                                ->implode(' + ');
+
+                            $sub->from('personal_groupings')
+                                ->join(
+                                    'defensive_play_personal_grouping',
+                                    'personal_groupings.id',
+                                    '=',
+                                    'defensive_play_personal_grouping.personal_grouping_id'
+                                )
+                                ->whereColumn(
+                                    'defensive_play_personal_grouping.defensive_play_id',
+                                    'defensive_plays.id'
+                                )
+                                ->selectRaw("MAX($matchExpression)");
+                        }
+                    ])
+                    ->orderByDesc('best_group_match');
+            }
+
     $defensivePlays = $query->withCount([
             'playResults as win_result' => function ($q) {
               $q->where('result', 'win')->where('is_practice', 0);
