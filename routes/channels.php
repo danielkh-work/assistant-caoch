@@ -40,6 +40,11 @@ Broadcast::channel('headcoach.{userId}', function ($user, $userId) {
     return true;
 });
 
+Broadcast::channel('mobile.{mobileUserId}', function ($user, $mobileUserId) {
+    return (int)$user->id === (int)$mobileUserId;
+});
+
+
 
 
 
