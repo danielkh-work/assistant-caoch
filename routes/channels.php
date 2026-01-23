@@ -36,5 +36,10 @@ Broadcast::channel('headcoach.{headCoachId}.play', function ($user, $headCoachId
     
 });
 
+Broadcast::channel('headcoach.{userId}', function ($user, $userId) {
+    return true;
+});
+
+
 
 

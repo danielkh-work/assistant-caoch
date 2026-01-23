@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Responses\BaseResponse;
 use App\Models\User;
 use Illuminate\Http\Request;
+use App\Events\UserQrGenerated;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Validator;
@@ -14,6 +15,7 @@ use Illuminate\Support\Facades\Mail;
 use App\Mail\UserLoggedIn;
 use App\Models\PendingUser;
 use App\Mail\UserApprovalRequest;
+use Illuminate\Support\Str;
 class AuthController extends Controller
 {
 
@@ -121,6 +123,11 @@ class AuthController extends Controller
         ]);
      
         $token = $user->createToken('auth_token')->plainTextToken;
+        $qrCodeString = Str::uuid()->toString(); 
+
+        $user->qr_code = $qrCodeString; 
+        
+        broadcast(new UserQrGenerated($user));
         $user->loadCount('assistants');
         $user['role']=  'head_coach';
         $expiresIn = now()->addMinutes(config('sanctum.expiration', 60))->timestamp;
@@ -386,7 +393,8 @@ class AuthController extends Controller
             $user->session_id = $request->session_id;
             $user->save();
         }
-
+       
+        
         // Generate Laravel Sanctum token
         $token = $user->createToken('QB-App-Token')->plainTextToken;
 
