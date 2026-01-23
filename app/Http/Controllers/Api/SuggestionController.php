@@ -156,16 +156,44 @@ class SuggestionController extends Controller
             }
         }
  
+        // if (!empty($myTeamPlayerIds)) {
+        //     $query->withCount([
+        //         'personalGroupings as matching_players_count' => function ($q) use ($myTeamPlayerIds) {
+        //             foreach ($myTeamPlayerIds as $playerId) {
+        //                 $q->orWhereJsonContains('players', (int) $playerId);
+        //             }
+        //         }
+        //     ])
+        //     ->orderByDesc('matching_players_count');
+        // }
+       
+        \Log::info(['my team player ids'=>$myTeamPlayerIds]);
         if (!empty($myTeamPlayerIds)) {
-            $query->withCount([
-                'personalGroupings as matching_players_count' => function ($q) use ($myTeamPlayerIds) {
-                    foreach ($myTeamPlayerIds as $playerId) {
-                        $q->orWhereJsonContains('players', (int) $playerId);
-                    }
-                }
-            ])
-            ->orderByDesc('matching_players_count');
-        }
+
+                    $query->addSelect([
+                        'best_group_match' => function ($sub) use ($myTeamPlayerIds) {
+
+                            $matchExpression = collect($myTeamPlayerIds)
+                                ->map(fn ($id) => "JSON_CONTAINS(personal_groupings.players, '[{$id}]')")
+                                ->implode(' + ');
+
+                            $sub->from('personal_groupings')
+                                ->join(
+                                    'personal_grouping_play',
+                                    'personal_groupings.id',
+                                    '=',
+                                    'personal_grouping_play.personal_grouping_id'
+                                )
+                                ->whereColumn(
+                                    'personal_grouping_play.play_id',
+                                    'plays.id'
+                                )
+                                ->selectRaw("MAX($matchExpression)");
+                        }
+                    ])
+                    ->orderByDesc('best_group_match');
+            }
+
         
         $plays = $query->inRandomOrder()->limit(3)->withCount([
         'playResults as win_result' => function ($q) {
