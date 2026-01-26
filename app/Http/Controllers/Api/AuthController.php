@@ -366,14 +366,14 @@ class AuthController extends Controller
     {
 
         
-        // Validate input
+       
         $request->validate([
             'session_id' => 'nullable|string',  // optional string
             'code'       => 'required|digits:4' // required 4-digit code
         ]);
       
         \Log::info(['code'=>$request->code]);
-        // Find the user by code and role
+       
         $user = User::where('code', $request->code)
                     ->where('role', 'qb')
                     ->first();

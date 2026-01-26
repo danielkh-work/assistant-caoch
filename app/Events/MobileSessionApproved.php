@@ -23,7 +23,7 @@ class MobileSessionApproved implements ShouldBroadcast
 
      public function broadcastOn()
     {
-        return new PrivateChannel('qb-user.' . $this->user['session_id']);
+        return new PrivateChannel('qb-user');
     }
 
     public function broadcastAs()
