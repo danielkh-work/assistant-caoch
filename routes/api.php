@@ -66,11 +66,28 @@ use App\Http\Controllers\Api\WebQrController;
   Route::post('/mobile/create-session', [WebQrController::class, 'createSession']); // mobile
 
 Route::middleware('auth:sanctum')->group(function () {
-  
-    Route::post('/web/scan-qr', [WebQrController::class, 'scanQr']); // web
+    Route::post('/web/scan-qr', [WebQrController::class, 'scanQr']); 
 });
 
 
+// use Illuminate\Support\Str;
+// use Illuminate\Support\Facades\DB;
+
+// Route::get('/api/mobile/generate-qr', function () {
+//     $sessionId = Str::uuid(); // generate unique session ID
+
+//     // Save in DB with status "pending"
+//     DB::table('login_sessions')->insert([
+//         'session_id' => $sessionId,
+//         'status' => 'pending',
+//         'created_at' => now(),
+//     ]);
+
+//     // The QR can contain a URL with session_id or just the session_id itself
+//     return response()->json([
+//         'qr_url' => url("/web-login?session_id={$sessionId}")
+//     ]);
+// });
 
 
 Route::prefix('qb')->group(function () {

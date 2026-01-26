@@ -12,18 +12,18 @@ class MobileSessionApproved implements ShouldBroadcast
 {
     use Dispatchable, SerializesModels;
 
-    public $sessionId;
-    public $mobileUserId;
+     public $user;
 
-    public function __construct(MobileSession $session)
+    public function __construct(array $user)
     {
-        $this->sessionId = $session->session_id;
-        $this->mobileUserId = $session->mobile_user_id;
+        \Log::info(['mobile data qrcode user'=>$user]);
+        $this->user = $user;
     }
 
-    public function broadcastOn()
+
+     public function broadcastOn()
     {
-        return new PrivateChannel("mobile.{$this->mobileUserId}");
+        return new PrivateChannel('qb-user.' . $this->user['session_id']);
     }
 
     public function broadcastAs()
@@ -33,8 +33,6 @@ class MobileSessionApproved implements ShouldBroadcast
 
     public function broadcastWith()
     {
-        return [
-            'session_id' => $this->sessionId,
-        ];
+        return $this->user;
     }
 }

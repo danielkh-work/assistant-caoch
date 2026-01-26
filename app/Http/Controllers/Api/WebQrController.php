@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\MobileSession;
+use App\Models\User;
 use App\Events\MobileSessionApproved;
 use Illuminate\Support\Str;
 
@@ -25,20 +26,42 @@ class WebQrController extends Controller
         ]);
     }
 
-    // Web scans QR
+  
     public function scanQr(Request $request)
     {
-        $request->validate(['session_id' => 'required|uuid']);
+        $request->validate([
+            'session_id' => 'string',  
+          
+        ]);
 
-        $session = MobileSession::where('session_id', $request->session_id)
-            ->where('status', 'pending')
-            ->firstOrFail();
+       $user = User::where('role', 'qb')
+                    ->first();
+        
+         if (!$user) {
+            return response()->json([
+                'status' => 401,
+                'message' => 'Invalid code'
+            ], 401);
+        }
 
-        $session->update(['status' => 'approved']);
+      
+        if ($request->filled('session_id')) {
+            $user->session_id = $request->session_id;
+            $user->save();
+        }
+       
+        
+       
+        $token = $user->createToken('QB-App-Token')->plainTextToken;
 
-        // Broadcast event to mobile
-        broadcast(new MobileSessionApproved($session))->toOthers();
+        $userData = $user->only(['name', 'session_id', 'code','head_coach_id']);   
+        \Log::info(['scan with the qrcode mobile user data'=> $userData]);  
+        
+        broadcast(new MobileSessionApproved($userData))->toOthers();
 
-        return response()->json(['message' => 'Session approved']);
+       
     }
+
+
+ 
 }
