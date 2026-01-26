@@ -73,6 +73,8 @@ class SportController extends Controller
            $League->league_rule_id=$request->league_rule_id;
            $League->number_of_team=$request->number_of_team;
            $League->title=$request->title;
+           $League->title=$request->title;
+           $League->practice_number_players=$request->practice_number_players;
            $League->number_of_downs=$request->number_of_downs;
            $League->length_of_field=$request->length_of_field;
            $League->number_of_timeouts=$request->number_of_timeouts;
@@ -139,6 +141,7 @@ class SportController extends Controller
            $League->length_of_field=$request->length_of_field;
            $League->number_of_timeouts=$request->number_of_timeouts;
            $League->clock_time=$request->clock_time;
+           $League->practice_number_players=$request->practice_number_players;
            $League->number_of_quarters=$request->number_of_quarters;
            $League->length_of_quarters=$request->length_of_quarters;
            $League->stop_time_reason=$request->stop_time_reason;

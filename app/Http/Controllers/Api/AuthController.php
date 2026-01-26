@@ -304,10 +304,11 @@ class AuthController extends Controller
 
     public function addAssistantCoach(Request $request){
 
-          \Log::info(['data'=>$request->all()]);
+         
             $request->validate([
                 'name'     => 'required|string',
                 'email'    => 'required|email|unique:users', 
+                'password' => 'required|string|min:8', 
             ]);
             $headCoach = auth()->user();
             if ($headCoach->role !== 'head_coach') {
@@ -317,7 +318,7 @@ class AuthController extends Controller
             $assistant = User::create([
                 'name'          => $request->name,
                 'email'         => $request->email,
-                'password'      => bcrypt('12345678'),
+                'password'      => $request->password,
                 'role'          => 'assistant_coach',
                 'head_coach_id' => $headCoach->id,
                 'sport_id' => $headCoach->sport_id,

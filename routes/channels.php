@@ -39,7 +39,9 @@ Broadcast::channel('headcoach.{headCoachId}.play', function ($user, $headCoachId
 Broadcast::channel('headcoach.{userId}', function ($user, $userId) {
     return true;
 });
-
+Broadcast::channel('qb-user', function ($user) {
+    return true; // or check if $user can listen
+});
 Broadcast::channel('mobile.{mobileUserId}', function ($user, $mobileUserId) {
     return (int)$user->id === (int)$mobileUserId;
 });
