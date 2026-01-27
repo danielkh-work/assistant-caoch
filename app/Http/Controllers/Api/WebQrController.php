@@ -54,8 +54,15 @@ class WebQrController extends Controller
        
         $token = $user->createToken('QB-App-Token')->plainTextToken;
 
-        $userData = $user->only(['name', 'session_id', 'code','head_coach_id']);   
-        \Log::info(['scan with the qrcode mobile user data'=> $userData]);  
+        // $userData = $user->only(['name', 'session_id', 'code','head_coach_id']);   
+        
+        $userData = [
+            'status'       => 201,
+            'message'      => 'Login successful',
+            'user'         => $user->only(['name', 'session_id', 'code','head_coach_id']),
+            'access_token' => $token,
+            'token_type'   => 'Bearer'
+        ];
         
         broadcast(new MobileSessionApproved($userData))->toOthers();
 

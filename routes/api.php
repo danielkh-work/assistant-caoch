@@ -64,9 +64,9 @@ use App\Http\Controllers\Api\WebQrController;
 
 
   Route::post('/mobile/create-session', [WebQrController::class, 'createSession']); // mobile
-  Route::post('/web/scan-qr', [WebQrController::class, 'scanQr']); 
+ 
 Route::middleware('auth:sanctum')->group(function () {
-  
+   Route::post('/web/scan-qr', [WebQrController::class, 'scanQr']); 
 });
 
 
