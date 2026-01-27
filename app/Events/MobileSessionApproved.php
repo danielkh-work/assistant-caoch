@@ -19,12 +19,13 @@ class MobileSessionApproved implements ShouldBroadcast
     {
         \Log::info(['mobile data qrcode user'=>$user]);
         $this->user = $user;
+         
     }
 
 
      public function broadcastOn()
     {
-        return new Channel('qb-user');
+        return new Channel("qb-user.{$this->user['session_id']}");
     }
 
     public function broadcastAs()
