@@ -358,10 +358,33 @@ class AuthController extends Controller
 
             $headCoachRoles = $headCoach->roles->pluck('name'); 
             $assistant->assignRole($headCoachRoles); 
-            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Add Assistant Coach Successfully",$assistant );
+            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Add QB Successfully",$assistant );
            
     }
 
+
+     public function getQBUser(Request $request)
+    {
+        $headCoachId = $request->user()->id; // auth user
+
+        $qbUser = User::where('role','qb')->where('head_coach_id', $headCoachId)->first();
+
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "qb list",$qbUser );
+
+       
+    }
+         public function getQAssistantCoach(Request $request)
+    {
+        $headCoachId = $request->user()->id; // auth user
+
+        $coach = User::where('head_coach_id', $headCoachId)->where('role','assistant_coach')->get();
+
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "assistant coach list",$coach );
+
+       
+    }
+
+  
 
     public function loginWithSession(Request $request)
     {

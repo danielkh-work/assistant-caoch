@@ -64,9 +64,9 @@ use App\Http\Controllers\Api\WebQrController;
 
 
   Route::post('/mobile/create-session', [WebQrController::class, 'createSession']); // mobile
-
+  Route::post('/web/scan-qr', [WebQrController::class, 'scanQr']); 
 Route::middleware('auth:sanctum')->group(function () {
-    Route::post('/web/scan-qr', [WebQrController::class, 'scanQr']); 
+  
 });
 
 
@@ -106,6 +106,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('change-password',[AuthController::class,'changePassword'])->name('password.change');
     Route::post('add-assistant-coach',[AuthController::class,'addAssistantCoach'])->name('add.assistantCoach');
     Route::post('add-qb',[AuthController::class,'addQB'])->name('add.qb');
+    Route::get('get-qb-user',[AuthController::class,'getQBUser'])->name('get.qb.user');
+    Route::get('get-assistant-coach',[AuthController::class,'getQAssistantCoach'])->name('get.assistant.coach');
+
+      
     Route::get('/sport',[SportController::class,'sport'])->name('sport');
 
     //  Leaque

@@ -195,15 +195,21 @@ class BroadCastScoreController extends Controller
     public function scoreBoardBroadCastPlay(Request $request)
     {
         
-         
+          
+
+        
         $validated = $request->validate([
             'title' => 'required|string',
             'image' => 'required|string',
             'type'  => 'required|in:offensive,defensive',
-
-            // Optional fields
             'read1' => 'nullable|string',
             'read2' => 'nullable|string',
+            'read3' => 'nullable|string',
+             'yardageGain'=> 'nullable|integer',
+             'yard'=> 'nullable|string',
+         
+           
+            
         ]);
 
         // Access validated data
@@ -212,6 +218,9 @@ class BroadCastScoreController extends Controller
         $payload['type']  = $validated['type'];
         $payload['read1'] = $validated['read1'] ?? null;
         $payload['read2'] = $validated['read2'] ?? null;
+        $payload['read3'] = $validated['read3'] ?? null;
+        $payload['yardageGain'] = $validated['yardageGain'] ?? null;
+        $payload['yard'] = $validated['yard'] ?? null;
 
         \Log::info(['playe suggested broad cast'=>  $payload]);
       
