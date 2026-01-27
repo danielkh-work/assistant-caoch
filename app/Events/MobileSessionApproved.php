@@ -7,6 +7,7 @@ use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use App\Models\MobileSession;
+use Illuminate\Broadcasting\Channel;
 
 class MobileSessionApproved implements ShouldBroadcast
 {
@@ -23,7 +24,7 @@ class MobileSessionApproved implements ShouldBroadcast
 
      public function broadcastOn()
     {
-        return new PrivateChannel('qb-user');
+        return new Channel('qb-user');
     }
 
     public function broadcastAs()
