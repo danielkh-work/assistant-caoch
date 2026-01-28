@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\MobileSession;
 use App\Models\User;
 use App\Events\MobileSessionApproved;
+use App\Events\MobileSessionLogout;
 use Illuminate\Support\Str;
 
 class WebQrController extends Controller
@@ -33,25 +34,19 @@ class WebQrController extends Controller
             'session_id' => 'string',  
           
         ]);
-
        $user = User::where('role', 'qb')
                     ->first();
-        
          if (!$user) {
             return response()->json([
                 'status' => 401,
                 'message' => 'Invalid code'
             ], 401);
         }
-
-      
         if ($request->filled('session_id')) {
             $user->session_id = $request->session_id;
             $user->save();
         }
-       
-        
-       
+    
         $token = $user->createToken('QB-App-Token')->plainTextToken;
 
         // $userData = $user->only(['name', 'session_id', 'code','head_coach_id']);   
@@ -65,8 +60,23 @@ class WebQrController extends Controller
         ];
         
         broadcast(new MobileSessionApproved($userData))->toOthers();
+    }
 
+    public function logoutQb(Request $request){
        
+
+        $user = User::find($request->id);
+        $token = $user->createToken('QB-App-Token')->plainTextToken;
+        $userData = [
+            'status'       => 201,
+            'message'      => 'logout successful',
+            'user'         => $user->only(['name', 'session_id', 'code','head_coach_id']),
+            'access_token' => $token,
+            'token_type'   => 'Bearer'
+        ];
+      
+        
+        broadcast(new MobileSessionLogout($userData))->toOthers();
     }
 
 

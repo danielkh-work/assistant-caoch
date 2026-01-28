@@ -63,10 +63,10 @@ use App\Http\Controllers\Api\WebQrController;
 //     $assistant->assignRole($headCoachRoles);
 
 
-  Route::post('/mobile/create-session', [WebQrController::class, 'createSession']); // mobile
- 
+Route::post('/mobile/create-session', [WebQrController::class, 'createSession']); // mobile 
 Route::middleware('auth:sanctum')->group(function () {
    Route::post('/web/scan-qr', [WebQrController::class, 'scanQr']); 
+   Route::post('logout-qb', [WebQrController::class, 'logoutQb']); 
 });
 
 
