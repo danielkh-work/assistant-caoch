@@ -31,11 +31,12 @@ class WebQrController extends Controller
     public function scanQr(Request $request)
     {
         $request->validate([
-            'session_id' => 'string',  
-          
+            'session_id' => 'string',   
         ]);
-       $user = User::where('role', 'qb')
+       $authId = auth()->id();
+       $user = User::where('head_coach_id', $authId)->where('role', 'qb')
                     ->first();
+       \Log::info(['qb user'=>$user]);             
          if (!$user) {
             return response()->json([
                 'status' => 401,
