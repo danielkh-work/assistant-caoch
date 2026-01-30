@@ -34,7 +34,8 @@ class User extends Authenticatable
     
     public function assistants()
     {
-        return $this->hasMany(User::class, 'head_coach_id');
+        return $this->hasMany(User::class, 'head_coach_id')->where('role', 'assistant_coach');
+      
     }
     /**
      * The attributes that should be hidden for serialization.

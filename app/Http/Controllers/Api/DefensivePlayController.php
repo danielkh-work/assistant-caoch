@@ -52,7 +52,7 @@ class DefensivePlayController extends Controller
             $groups = array_filter($groups, fn($g) => !is_null($g) && $g !== '');
 
             if (!empty($groups)) {
-                    $defensivePlay->personalGroupings()->sync([1,2,3]);
+                    $defensivePlay->personalGroupings()->sync($groups);
             }
         
        

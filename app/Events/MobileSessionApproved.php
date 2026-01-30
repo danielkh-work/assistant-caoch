@@ -20,6 +20,7 @@ class MobileSessionApproved implements ShouldBroadcast
     
         $this->user = $user;
          
+        \Log::info(['web scoket'=> $this->user]);
     }
 
 

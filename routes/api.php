@@ -117,6 +117,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/leaque',[SportController::class,'league'])->name('leaque');
     Route::get('/leaque-view/{id}',[SportController::class,'leagueView'])->name('leagueView');
     Route::post('/leaque-update/{id}',[SportController::class,'leagueUpdate'])->name('leagueUpdate');
+    Route::post('/update-leagueplayers/{id}',[SportController::class,'updateNumberOfPlayers'])->name('leagueUpdate');
     Route::post('/leaque-update-points/{id}',[SportController::class,'leagueUpdatePoints']);
 
 

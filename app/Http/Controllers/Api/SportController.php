@@ -177,6 +177,46 @@ class SportController extends Controller
         }
     }
 
+    public function updateNumberOfPlayers(Request $request, $id)
+    {
+        
+        $request->validate([
+            'number_of_players' => 'nullable|integer|min:1|max:12',
+            'practice_number_players' => 'nullable|integer|min:1|max:12',
+        ]);
+       
+
+        DB::beginTransaction();
+        try {
+            $league = League::findOrFail($id);
+            if ($request->has('number_of_players')) {
+                    $league->number_of_players = $request->number_of_players;
+                }
+
+                if ($request->has('practice_number_players')) {
+                    $league->practice_number_players = $request->practice_number_players;
+                }
+            $league->save();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Number of players updated successfully.',
+                'number_of_players' => $league->number_of_players,
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update number of players.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+
     public function leagueUpdatePoints(Request $request)
     {
         $team = LeagueTeam::where('id', $request->team_id)
