@@ -45,9 +45,10 @@ class WebQrController extends Controller
         }
         if ($request->filled('session_id')) {
             $user->session_id = $request->session_id;
-            $user->save();
+           
         }
-    
+        $user->is_loggin = true;
+        $user->save();
         $token = $user->createToken('QB-App-Token')->plainTextToken;
 
         // $userData = $user->only(['name', 'session_id', 'code','head_coach_id']);   
