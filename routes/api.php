@@ -240,6 +240,7 @@ Route::middleware('auth:sanctum')->group(function () {
       
     });
 
+   Route::post('/play/show-yardage/assistant-coach', [BroadCastScoreController::class, 'yardagePlaytoAssistant']);
    Route::post('/scoreboard/broadcast', [BroadCastScoreController::class, 'scoreBoardBroadCast']);
    Route::post('/practice/scoreboard/broadcast', [BroadCastScoreController::class, 'practiceScoreBoardBroadCast']);
    Route::get('/scoreboard', [BroadCastScoreController::class, 'getWebSocketScoreBoard']); 

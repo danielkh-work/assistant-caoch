@@ -45,6 +45,11 @@ Broadcast::channel('qb-user', function ($user) {
 Broadcast::channel('mobile.{mobileUserId}', function ($user, $mobileUserId) {
     return (int)$user->id === (int)$mobileUserId;
 });
+Broadcast::channel('coach-group.{headCoachId}', function ($user, $headCoachId) {
+    return true;
+       
+});
+
 
 
 

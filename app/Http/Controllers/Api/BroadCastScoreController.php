@@ -7,8 +7,8 @@ use Illuminate\Http\Request;
 use App\Events\PracticeScoreUpdated;
 use App\Events\ScoreUpdated;
 use App\Events\TeamScoreUpdated;
+use App\Events\YardageBroadcast;
 use App\Events\PlaySuggested;
-
 use App\Models\WebsocketScoreboard;
 use App\Models\WebsocketPracticeScoreboard;
 use App\Http\Responses\BaseResponse;
@@ -122,7 +122,25 @@ class BroadCastScoreController extends Controller
 
     }
     
+    public function yardagePlaytoAssistant(Request $request)
+    {    
+        
+       
+        $user = auth()->user();
+        $coachGroupId = $user->role === 'head_coach'
+            ? $user->id
+            : $user->head_coach_id;
 
+        $payload = [
+            'playName' => $request->input('PlayName'),
+            'yardageGain' => $request->input('playYardageGain'),
+            'sliderDirection' => $request->input('playSliderDirection'),
+           
+        ];
+        broadcast(new YardageBroadcast($payload, $coachGroupId))->toOthers();
+
+      
+    }
     public function scoreBoardBroadCastQB(Request $request)
     {
         
