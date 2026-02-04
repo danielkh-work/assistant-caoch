@@ -12,7 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
-              DB::statement("ALTER TABLE users MODIFY role ENUM('head_coach', 'assistant_coach', 'qb') NOT NULL DEFAULT 'head_coach'");
+             
+             DB::statement("ALTER TABLE `users` MODIFY `role` ENUM('head_coach', 'assistant_coach', 'qb', 'performance_coach') NOT NULL DEFAULT 'head_coach'");
         });
     }
 
@@ -22,8 +23,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('users', function (Blueprint $table) {
-
-            DB::statement("ALTER TABLE users MODIFY role ENUM('head_coach', 'assistant_coach','qb') NOT NULL DEFAULT 'head_coach'");
+           DB::statement("ALTER TABLE users MODIFY role ENUM('head_coach', 'assistant_coach','qb') NOT NULL DEFAULT 'head_coach'");
         });
     }
 };

@@ -169,6 +169,48 @@ class AuthController extends Controller
         $count = $user->assistants()->count();
         $user['assistant_count']=  $count;
         $expiresIn = now()->addMinutes(config('sanctum.expiration', 60))->timestamp;
+
+
+        $groupHeadCoachId = $user->role === 'head_coach'
+    ? $user->id
+    : $user->head_coach_id;
+
+        $rolesUnderHeadCoach = User::where('head_coach_id', $groupHeadCoachId)
+            ->pluck('role')
+            ->unique();
+
+        $hasAssistant = $rolesUnderHeadCoach->contains('assistant_coach');
+        $hasPerformance = $rolesUnderHeadCoach->contains('performance_coach');
+
+        $uiPermissions = [
+            'show_scoreboard' => false,
+            'show_performance' => false,
+        ];
+      if($user->role === 'head_coach'){
+                $uiPermissions['show_scoreboard'] = true;
+                $uiPermissions['show_performance'] = true;
+      }else{
+
+            if ($hasAssistant && $hasPerformance) {
+                if ($user->role === 'assistant_coach') {
+                    $uiPermissions['show_scoreboard'] = true;
+                }
+                if ($user->role === 'performance_coach') {
+                    $uiPermissions['show_performance'] = true;
+                }
+            } 
+            else {
+                    $uiPermissions['show_scoreboard'] = true;
+                    $uiPermissions['show_performance'] = true;
+            }
+
+      }
+        
+
+        $user['ui_permissions'] = $uiPermissions;
+        $user['roles_under_head_coach'] = $rolesUnderHeadCoach->values();
+
+        \Log::info(['data_with_per'=>$user]);
         // Mail::to('aminnoorulamin977@gmail.com')->send(new UserLoggedIn($user));
         // \Log::info(['user'=>$user]);
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Login SuccessFully", $user,$token);
@@ -319,7 +361,7 @@ class AuthController extends Controller
                 'name'          => $request->name,
                 'email'         => $request->email,
                 'password'      => $request->password,
-                'role'          => 'assistant_coach',
+                'role'          => $request->role,
                 'head_coach_id' => $headCoach->id,
                 'sport_id' => $headCoach->sport_id,
                 'is_subscribe' => $headCoach->is_subscribe,
