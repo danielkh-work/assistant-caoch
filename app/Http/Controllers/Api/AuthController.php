@@ -419,7 +419,7 @@ class AuthController extends Controller
     {
         $headCoachId = $request->user()->id; // auth user
 
-        $coach = User::where('head_coach_id', $headCoachId)->where('role','assistant_coach')->get();
+        $coach = User::where('head_coach_id', $headCoachId)->whereIn('role', ['assistant_coach', 'performance_coach'])->get();
 
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "assistant coach list",$coach );
 
