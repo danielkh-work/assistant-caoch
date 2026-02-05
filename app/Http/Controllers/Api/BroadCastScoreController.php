@@ -125,6 +125,7 @@ class BroadCastScoreController extends Controller
     public function yardagePlaytoAssistant(Request $request)
     {    
         
+        \Log::info(['data all'=>$request->all()]);
        
         $user = auth()->user();
         $coachGroupId = $user->role === 'head_coach'
@@ -135,8 +136,21 @@ class BroadCastScoreController extends Controller
             'playName' => $request->input('PlayName'),
             'yardageGain' => $request->input('playYardageGain'),
             'sliderDirection' => $request->input('playSliderDirection'),
-           
+            'sliderDirection' => $request->input('playSliderDirection'),
+            'targetTeam' => $request->input('targetTeam'),
+            'suggestionData' => $request->input('suggestionData'),
+            'selectedPlayIds' => $request->input('selectedPlayIds'),
+            'play' => $request->input('playObject'),
+            'type' => $request->input('type'),
+            'targetPlayers' => $request->input('targetPlayers'),
+            'my_team' => $request->input('my_team'),
+            'opponent_team' => $request->input('opponent_team'),
+
+        
+        
         ];
+
+          \Log::info(['payload...'=> $payload]);
         broadcast(new YardageBroadcast($payload, $coachGroupId))->toOthers();
 
       
