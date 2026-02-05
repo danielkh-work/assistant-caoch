@@ -81,6 +81,7 @@ Route::middleware(['auth'])->group(function () {
 
      Route::controller(UserController::class)->group(function () {
         Route::get('users', 'index')->name('users.index');
+        Route::delete('users/{user}', 'destroy')->name('users.destroy');
         Route::get('users/{id}/approve', 'approve')->name('users.approve');
          Route::get('users/{id}/reject', 'reject')->name('users.reject');
          Route::post('users/{id}/reset-password', [UserController::class, 'adminResetPassword'])

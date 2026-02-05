@@ -39,14 +39,14 @@ class UserController extends Controller
     $approveUrl = route('users.approve', ['id' => $row->id]);
     $rejectUrl  = route('users.reject', ['id' => $row->id]);
     $resetUrl   = route('users.reset_password', ['id' => $row->id]);
-
+    $deleteUrl  = route('users.destroy', $row->id);
     $buttons = '';
 
     // Pending user → show Approve & Reject only
      if ($row->status == 'pending') {
         $buttons .= '
             <a href="' . $approveUrl . '" class="btn btn-success btn-sm me-1">Approve</a>
-            <a href="' . $rejectUrl . '" class="btn btn-danger btn-sm me-1">Reject</a>
+            <a href="' . $rejectUrl . '" class="btn btn-secondary btn-sm me-1">Reject</a>
         ';
      }
     // Approved / non-pending → show Reset Password only
@@ -65,6 +65,17 @@ class UserController extends Controller
             </form>
         ';
     }
+
+      $buttons .= '
+        <form action="'.$deleteUrl.'" method="POST" style="display:inline;"
+              onsubmit="return confirm(\'Are you sure you want to delete this user?\')">
+            '.csrf_field().'
+            '.method_field('DELETE').'
+            <button type="submit" class="btn btn-danger btn-sm">
+                Delete
+            </button>
+        </form>
+    ';
 
     return $buttons;
 })
@@ -128,6 +139,16 @@ class UserController extends Controller
         ]);
 
         return redirect()->back()->with('success', 'All user passwords have been reset (except admin).');
+    }
+
+    public function destroy(User $user)
+    {
+
+       
+        $user->delete();
+
+        return redirect()->route('users.index')
+                        ->with('success', 'User deleted successfully.');
     }
 
     
