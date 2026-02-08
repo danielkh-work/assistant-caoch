@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Responses\BaseResponse;
 use App\Models\Play;
+use App\Models\OffensiveTargetStrength;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -29,7 +30,7 @@ class PlayController extends Controller
         $userRoleIds = auth()->user()->roles->pluck('id');
          $id =  ['1', $request->league_id];
         // $play =  Play::whereIn('league_id', $id)->get();
-        $play = Play::with(['roles', 'playResults'])
+        $play = Play::with(['roles', 'playResults','offensiveTargets'])
     ->where(function ($query) use ($id, $userRoleIds) {
         $query->orWhereIn('league_id', $id)
             ->orWhereHas('roles', function ($q) use ($userRoleIds) {
@@ -128,6 +129,9 @@ class PlayController extends Controller
 
     //     return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play Uploaded Successfully", $play);
     // }
+
+
+
 
     public function store(Request $request)
     {
@@ -270,15 +274,24 @@ class PlayController extends Controller
     }
     
 
-        public function duplicatePlay($id)
-        {
+    public function duplicatePlay($id)
+    {
+    
+        $play = Play::findOrFail($id);
+        $newPlay = $play->replicate();
+        $newPlay->play_name = $play->play_name . ' (Copy)';
+        $newPlay->save();
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play cloned successfully", $newPlay);
+    }
+
+    
+    public function getTargetOffensePosition($playId){
+      
+      
+        $play = Play::with('targetOffensivePlayers.offensivePosition')->find($playId);
         
-            $play = Play::findOrFail($id);
-            $newPlay = $play->replicate();
-            $newPlay->play_name = $play->play_name . ' (Copy)';
-            $newPlay->save();
-             return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play cloned successfully", $newPlay);
-        }
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "get target players", $play);
+    }  
 
 
     public function update(Request $request, $id)
@@ -451,4 +464,62 @@ class PlayController extends Controller
 
            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Plays Suggestion is Fetch", $playResult);
         }
+
+
+
+  public function playOffenseTargetStore(Request $request)
+    {
+        // Validate the incoming request
+        $data = $request->validate([
+            'play_id' => 'required|integer|exists:plays,id',
+            'strengths' => 'required|array',
+            'strengths.*.target_offensive_id' => 'required|integer',
+            'strengths.*.target_defensive_id' => 'required|integer',
+            'strengths.*.code' => 'required|string',
+            'strengths.*.strength' => 'required|integer',
+            'strengths.*.total_strength' => 'required|integer',
+        ]);
+
+        try {
+            DB::transaction(function () use ($data) {
+
+                foreach ($data['strengths'] as $item) {
+                    OffensiveTargetStrength::updateOrCreate(
+                        [
+                            'play_id' => $data['play_id'],
+                            'target_offensive_id' => $item['target_offensive_id'],
+                        ],
+                        [
+                            'code' => $item['code'],
+                            'strength' => $item['strength'],
+                            'target_defensive_id' => $item['target_defensive_id'],
+                            'total_strength' => $item['total_strength'],
+                        ]
+                    );
+                }
+
+            });
+
+            return response()->json(['message' => 'Offensive strengths saved successfully.']);
+
+        } catch (\Exception $e) {
+            \Log::error('Failed to save offensive strengths: '.$e->getMessage());
+            return response()->json(['message' => 'Failed to save offensive strengths.'], 500);
+        }
+    }
+    public function getByPlayId($playId)
+    {
+        $records = OffensiveTargetStrength::with(['offensivePosition', 'defensivePosition'])
+            ->where('play_id', $playId)
+            ->get();
+        return response()->json($records);
+    }
+     public function getOffensiveTargetsByPlay($playId)
+    {
+        $records = OffensiveTargetStrength::with(['offensivePosition', 'defensivePosition'])
+            ->where('play_id', $playId)
+            ->get();
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "get target", $records);
+       
+    }
 }

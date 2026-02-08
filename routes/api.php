@@ -162,8 +162,12 @@ Route::middleware('auth:sanctum')->group(function () {
   
     // upload Play
     Route::post('/uplaod-play',[PlayController::class,'store'])->name('uplaod-play');
+    Route::post('/play-offensive-target-store',[PlayController::class,'playOffenseTargetStore'])->name('uplaod-play');
+    Route::get('/get-play-offensive-target/{id}',[PlayController::class,'getOffensiveTargetsByPlay'])->name('uplaod-play');
+    
     Route::get('/upload-play-list',[PlayController::class,'index'])->name('upload-play-list');
     Route::get('/delete-play/{id}',[PlayController::class,'delete'])->name('delete-play');
+    Route::get('/get-offense-target-play/{id}',[PlayController::class,'getTargetOffensePosition'])->name('delete-play');
     Route::get('/edit-play/{id}',[PlayController::class,'editPlay'])->name('edit-play');
     Route::get('/duplicate-play/{id}',[PlayController::class,'duplicatePlay'])->name('edit-play');
     Route::get('/delete-play-results/{id}', [PlayController::class, 'deletePlayResults']);

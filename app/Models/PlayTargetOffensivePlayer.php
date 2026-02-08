@@ -28,6 +28,11 @@ class PlayTargetOffensivePlayer extends Model
         return $this->belongsTo(OffensivePosition::class, 'offensive_position_id');
     }
 
+    public function offensivePosition()
+    {
+         return $this->belongsTo(OffensivePosition::class, 'offensive_position_id');
+    }
+
     public function player()
     {
         return $this->belongsTo(Player::class);
