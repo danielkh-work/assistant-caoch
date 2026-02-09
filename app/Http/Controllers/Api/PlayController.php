@@ -339,6 +339,8 @@ class PlayController extends Controller
 
             $play->possession = $request->possession;
             $play->description = $request->description;
+            $play->read_1 = $request->read_2;
+            $play->read_2 = $request->read_3;
 
             // Replace image if uploaded
             if ($request->hasFile('image')) {
