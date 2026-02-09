@@ -469,46 +469,43 @@ class PlayController extends Controller
 
 
 
-  public function playOffenseTargetStore(Request $request)
-    {
-        // Validate the incoming request
-        $data = $request->validate([
-            'play_id' => 'required|integer|exists:plays,id',
-            'strengths' => 'required|array',
-            'strengths.*.target_offensive_id' => 'required|integer',
-            'strengths.*.target_defensive_id' => 'required|integer',
-            'strengths.*.code' => 'required|string',
-            'strengths.*.strength' => 'required|integer',
-            'strengths.*.total_strength' => 'required|integer',
-        ]);
+public function playOffenseTargetStore(Request $request)
+{
+    $data = $request->validate([
+        'play_id' => 'required|integer|exists:plays,id',
+        'strengths' => 'required|array',
+        'strengths.*.target_offensive_id' => 'required|integer|exists:offensive_positions,id',
+        'strengths.*.code' => 'required|string',
+        'strengths.*.defensive_plays' => 'required|array|min:1',
+        'strengths.*.defensive_plays.*.target_defensive_id' => 'required|integer|exists:defensive_positions,id',
+        'strengths.*.defensive_plays.*.strength' => 'required|integer|min:0|max:100',
+    ]);
 
-        try {
-            DB::transaction(function () use ($data) {
+    try {
+        DB::transaction(function () use ($data) {
+            // Delete existing records for this play_id before inserting updated ones
+            OffensiveTargetStrength::where('play_id', $data['play_id'])->delete();
 
-                foreach ($data['strengths'] as $item) {
-                    OffensiveTargetStrength::updateOrCreate(
-                        [
-                            'play_id' => $data['play_id'],
-                            'target_offensive_id' => $item['target_offensive_id'],
-                        ],
-                        [
-                            'code' => $item['code'],
-                            'strength' => $item['strength'],
-                            'target_defensive_id' => $item['target_defensive_id'],
-                            'total_strength' => $item['total_strength'],
-                        ]
-                    );
+            foreach ($data['strengths'] as $offensiveItem) {
+                foreach ($offensiveItem['defensive_plays'] as $defPlay) {
+                    OffensiveTargetStrength::create([
+                        'play_id' => $data['play_id'],
+                        'target_offensive_id' => $offensiveItem['target_offensive_id'],
+                        'code' => $offensiveItem['code'],
+                        'target_defensive_id' => $defPlay['target_defensive_id'],
+                        'strength' => $data['strength'],
+                        'total_strength' => $defPlay['strength'], // optional or remove this field if unused
+                    ]);
                 }
+            }
+        });
 
-            });
-
-            return response()->json(['message' => 'Offensive strengths saved successfully.']);
-
-        } catch (\Exception $e) {
-            \Log::error('Failed to save offensive strengths: '.$e->getMessage());
-            return response()->json(['message' => 'Failed to save offensive strengths.'], 500);
-        }
+        return response()->json(['message' => 'Offensive strengths saved successfully.']);
+    } catch (\Exception $e) {
+        \Log::error('Failed to save offensive strengths: ' . $e->getMessage());
+        return response()->json(['message' => 'Failed to save offensive strengths.'], 500);
     }
+}
     public function getByPlayId($playId)
     {
         $records = OffensiveTargetStrength::with(['offensivePosition', 'defensivePosition'])
