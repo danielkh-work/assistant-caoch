@@ -476,6 +476,7 @@ public function playOffenseTargetStore(Request $request)
         'strengths' => 'required|array',
         'strengths.*.target_offensive_id' => 'required|integer|exists:offensive_positions,id',
         'strengths.*.code' => 'required|string',
+        'strengths.*.strength' => 'required|integer',
         'strengths.*.defensive_plays' => 'required|array|min:1',
         'strengths.*.defensive_plays.*.target_defensive_id' => 'required|integer|exists:defensive_positions,id',
         'strengths.*.defensive_plays.*.strength' => 'required|integer|min:0|max:100',
@@ -493,7 +494,7 @@ public function playOffenseTargetStore(Request $request)
                         'target_offensive_id' => $offensiveItem['target_offensive_id'],
                         'code' => $offensiveItem['code'],
                         'target_defensive_id' => $defPlay['target_defensive_id'],
-                        'strength' => $data['strength'],
+                        'strength' => $offensiveItem['strength'],
                         'total_strength' => $defPlay['strength'], // optional or remove this field if unused
                     ]);
                 }
