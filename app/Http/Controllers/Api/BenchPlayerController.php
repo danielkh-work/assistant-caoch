@@ -112,7 +112,8 @@ class BenchPlayerController extends Controller
                 'team_id' => $team_id,
                 'league_id' =>  $league_id,
                 'type' => 'opponent',
-                'player_type' =>  $player_type
+                'player_type' =>  $player_type,
+                'rpp' =>  $item['rpp']
             ];
         }
          BenchPlayer::insert($savedPlayers);
@@ -120,7 +121,23 @@ class BenchPlayerController extends Controller
        
     }
 
+ public function rppUpdate(Request $request, $leagueId)
+{
+            
+            $data=$request->all();
+            $player = BenchPlayer::where('league_id', $leagueId)
+                ->where('player_id',  $data['id'])
+                ->where('team_id',$data['player']['team_id'])
+                ->firstOrFail();
 
+            \Log::info(['update rpp'=> $player]);    
+
+            $player->update([
+                'rpp' => $data['rpp']
+            ]);
+
+           return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "update rpp  Successfully", []);
+    }
    public function shufflePlayers(Request $request)
     {
         
@@ -242,8 +259,10 @@ class BenchPlayerController extends Controller
                 'league_id' =>  $league_id,
                 'type' => 'myteam',
                 'player_type' =>  $player_type,
+                'rpp' =>  $item['rpp'],
             ];
         }
+        \Log::info(['bench Data inserted'=>$savedPlayers]);
          BenchPlayer::insert($savedPlayers);
          return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Bench Player Add Successfully", $savedPlayers);
        

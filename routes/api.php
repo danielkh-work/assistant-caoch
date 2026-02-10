@@ -127,6 +127,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/add-open-player',[PlayerController::class,'addOpenPlayer']);
     
     Route::post('/bench-players', [BenchPlayerController::class, 'store']);
+    Route::put('/bench/{leagueId}/update', [BenchPlayerController::class, 'rppUpdate']);
+   
     Route::post('/shuffle-players', [BenchPlayerController::class, 'shufflePlayers']);
     Route::post('/opponent-bench-player-store', [BenchPlayerController::class, 'opponentBenchPlayerStore']);
     Route::get('/bench-players/{gameId}/{teamId}', [BenchPlayerController::class, 'index']);

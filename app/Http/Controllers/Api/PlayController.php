@@ -285,13 +285,38 @@ class PlayController extends Controller
     }
 
     
-    public function getTargetOffensePosition($playId){
-      
-      
-        $play = Play::with('targetOffensivePlayers.offensivePosition')->find($playId);
-        
-        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "get target players", $play);
-    }  
+   public function getTargetOffensePosition($playId)
+{
+    $play = Play::with([
+        'targetOffensivePlayers.offensivePosition',
+        'offensiveTargets.offensivePosition',
+        'offensiveTargets.defensivePosition'
+    ])->find($playId);
+
+    if (!$play) {
+        return new BaseResponse(STATUS_CODE_NOT_FOUND, STATUS_CODE_NOT_FOUND, "Play not found", null);
+    }
+
+    // Group offensiveTargets by offensivePosition code
+    $groupedTargets = $play->offensiveTargets->groupBy(function($target) {
+        return $target->offensivePosition->code ?? 'unknown';
+    });
+
+    // Optional: convert to array to make JSON easier to handle
+    $groupedTargetsArray = $groupedTargets->map(function($group) {
+        return $group->values(); // reset keys
+    });
+
+    return new BaseResponse(
+        STATUS_CODE_OK,
+        STATUS_CODE_OK,
+        "Get target players grouped by code",
+        [
+            'play' => $play,
+            'offensiveTargetsGrouped' => $groupedTargetsArray
+        ]
+    );
+}
 
 
     public function update(Request $request, $id)
