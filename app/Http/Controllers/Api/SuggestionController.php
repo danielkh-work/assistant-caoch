@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Play;
+use App\Models\Game;
+use App\Models\BenchPlayer;
 use App\Models\OpponentTeamPackage;
 use App\Models\DefensivePlay;
 use Illuminate\Http\Request;
@@ -88,6 +90,10 @@ class SuggestionController extends Controller
      public function getSuggestedPlays($league, Request $request)
     {  
 
+       
+
+     
+
         $possession = $request->input('possession');
           \Log::info(['possession'=>$possession ]);
         if ($possession === 'defensive') {
@@ -100,87 +106,194 @@ class SuggestionController extends Controller
     }
 
 
-        protected function getOffensivePlays(Request $request)
-    {
-           
-        $leagueId=$request->league_id;
-        $matchId=$request->match_id;
-              
+   protected function getOffensivePlays(Request $request)
+{
+    $leagueId = $request->league_id;
+    $matchId = $request->match_id;
+    $gameData=Game::find($matchId);
+    	
+	// 8	oponent_team_id
 
-        $query = Play::with(['roles', 'playResults'])->whereHas('configuredLeagues', function ($q) use ($leagueId,$matchId) {
-              $q->where('configure_plays.league_id', $leagueId)->where('configure_plays.match_id', $matchId);
-                    // ->orWhereIn('configure_plays.play_id', [1, 2, 3, 4]);
+  
+
+    // Sample offensive players
+    // $offenseByPosition = collect([
+    //     ['id'=>1,'name'=>'John Doe','number'=>'22','position'=>'RB','position_value'=>'Running Back','rpp'=>8,'ofp'=>85,'speed'=>88,'strength'=>82],
+    //     ['id'=>2,'name'=>'Mike Smith','number'=>'11','position'=>'WR','position_value'=>'Wide receiver W','rpp'=>7,'ofp'=>83,'speed'=>91,'strength'=>75],
+    //     ['id'=>3,'name'=>'Alex Brown','number'=>'9','position'=>'QB','position_value'=>'Fullback','rpp'=>9,'ofp'=>90,'speed'=>78,'strength'=>80],
+    //     ['id'=>3,'name'=>'Alex Brown','number'=>'9','position'=>'QB','position_value'=>'Center','rpp'=>9,'ofp'=>90,'speed'=>78,'strength'=>80],
+    // ])->groupBy('position_value'); 
+
+    // Fetch dynamic offensive players from the database
+$offenseByPosition = BenchPlayer::with('player.player')
+    ->where('game_id', $matchId)
+    ->where('team_id', $gameData->my_team_id)
+    ->where('type', 'myteam')
+    ->where('player_type', 'offence')
+    ->get()
+
+    ->filter(fn($benchPlayer) => $benchPlayer->player && $benchPlayer->player->player)
+    ->map(fn($benchPlayer) => [
+        'id' => $benchPlayer->player->id,
+        'name' => $benchPlayer->player->player->name,
+        'number' => $benchPlayer->player->number,
+        'size' => $benchPlayer->player->size,
+        'position_value' => $benchPlayer->player->position_value,
+        'squad' => 3,
+        'position' => $benchPlayer->player->position,
+        'speed' => $benchPlayer->player->speed,
+        'strength' => $benchPlayer->player->strength,
+        'ofp' => $benchPlayer->player->ofp,
+        'rpp' => $benchPlayer->player->rpp,
+        'weight' => $benchPlayer->player->weight,
+        'height' => $benchPlayer->player->height,
+        'dob' => $benchPlayer->player->player->dob,
+    ])
+    ->groupBy('position_value');
+
+
+    $defenseByPosition = BenchPlayer::with('player.player')
+    ->where('game_id', $matchId)
+    ->where('team_id', $gameData->oponent_team_id)
+    ->where('type', 'opponent')
+    ->where('player_type', 'deffence')
+    ->get()
+    ->filter(fn($benchPlayer) => $benchPlayer->player && $benchPlayer->player->player) // ensure nested player exists
+    ->map(fn($benchPlayer) => [
+        'id' => $benchPlayer->player->id,
+       
+        'name' => $benchPlayer->player->player->name,
+        'number' => $benchPlayer->player->number,
+        'size' => $benchPlayer->player->size,
+        'squad' => 3,
+        'position_value' => $benchPlayer->player->position_value,
+        'position' => $benchPlayer->player->position,
+        'speed' => $benchPlayer->player->speed,
+        'strength' => $benchPlayer->player->strength,
+        'ofp' => $benchPlayer->player->ofp,
+        'rpp' => $benchPlayer->player->rpp,
+        'weight' => $benchPlayer->player->weight,
+        'height' => $benchPlayer->player->height,
+        'dob' => $benchPlayer->player->player->dob,
+    ])
+    ->groupBy('position_value'); 
+
+      
+     
+
+
+    // Sample defensive players
+    // $defenseByPosition = collect([
+    //     ['id'=>4,'name'=>'Chris Wilson','number'=>'54','position'=>'LB','position_value'=>'Defensive End','rpp'=>8,'ofp'=>87,'speed'=>84,'strength'=>88],
+    //     ['id'=>5,'name'=>'David Johnson','number'=>'23','position'=>'CB','position_value'=>'Defensive Tackle','rpp'=>6,'ofp'=>80,'speed'=>92,'strength'=>70],
+    //     ['id'=>6,'name'=>'Samuel Green','number'=>'92','position'=>'DE','position_value'=>'Cornerback','rpp'=>7,'ofp'=>82,'speed'=>85,'strength'=>90],
+    //     ['id'=>6,'name'=>'Samuel Green','number'=>'92','position'=>'DE','position_value'=>'Nose Tackle','rpp'=>7,'ofp'=>82,'speed'=>85,'strength'=>90],
+    // ])->groupBy('position_value');
+
+    // Build the query for plays
+    $query = Play::with(['roles','playResults','offensiveTargets.offensivePosition','offensiveTargets.defensivePosition'])
+        ->whereHas('configuredLeagues', function ($q) use ($leagueId,$matchId) {
+            $q->where('configure_plays.league_id', $leagueId)
+              ->where('configure_plays.match_id', $matchId);
         });
- 
-      
-         $id =  ['1',$request->league_id];
- 
-        $possession = $request->input('possession');
-        $zone = $request->input('zone');
-        $down = $request->input('down');
 
-        $filters = [
-            
-            'preferred_down' => $request->input('down'),
-            'possession'     => $request->input('possession'),
-            'strategies'     => $request->input('strategy'),
-            'min_expected_yard'     => $request->input('expectedyard'),
-            // 'quarter'     => $request->input('quarter'),
-        ];
-      
-        foreach ($filters as $field => $value) {
-            if (!in_array($value, [null, '', 'null'], true)) {
-                if ($field == 'preferred_down') {
-                    $query->whereRaw("FIND_IN_SET(?, preferred_down)", [$value]);
-                }else if($field == 'strategies'){
-                    $query->whereRaw("FIND_IN_SET(?, strategies)", [$value]);
-                } else {
-                    $query->where($field, $value);
-                }
+    // Apply filters
+    $filters = [
+        'preferred_down' => $request->input('down'),
+        'possession' => $request->input('possession'),
+        'strategies' => $request->input('strategy'),
+        'min_expected_yard' => $request->input('expectedyard'),
+    ];
+
+    foreach ($filters as $field => $value) {
+        if (!in_array($value, [null, '', 'null'], true)) {
+            if ($field == 'preferred_down' || $field == 'strategies') {
+                $query->whereRaw("FIND_IN_SET(?, $field)", [$value]);
+            } else {
+                $query->where($field, $value);
             }
         }
- 
-
-    
-        $plays = $query->inRandomOrder()->limit(3)->withCount([
-        'playResults as win_result' => function ($q) {
-            $q->where('result', 'win')->where('is_practice', 0);
-        },
-        'playResults as win_result_rain' => function ($q) {
-            $q->where('result', 'win')->where('weather', 'rain');
-        },
-        'playResults as win_result_snow' => function ($q) {
-            $q->where('result', 'win')->where('weather', 'snow');
-        },
-      
-        'playResults as loss_result' => function ($q) {
-            $q->where('result', 'loss')->where('is_practice', 0);
-        },
-        'playResults as practice_win_result' => function ($q) {
-            $q->where('result', 'win')->where('is_practice', 1);
-        },
-         'playResults as practice_loss_result' => function ($q) {
-            $q->where('result', 'win')->where('is_practice', 1);
-        },
-        'playResults as total_count' => function ($q) {
-            $q->where('is_practice', 0);
-         },
-          'playResults as total_practice_count' => function ($q) {
-            $q->where('is_practice', 1);
-         },
-         'playResults as total_rain' => function ($q) {
-            $q->where('weather', 'rain');
-         },
-          'playResults as total_snow' => function ($q) {
-            $q->where('weather', 'snow');
-         },
-         
-        
-    ])
-     ->withAvg('playResults as yardage_difference', 'yardage_difference')->get();
-        return response()->json($plays);
     }
 
+    // Get plays with counts and averages
+    $plays = $query->inRandomOrder()->limit(3)->withCount([
+        'playResults as win_result' => fn($q)=>$q->where('result','win')->where('is_practice',0),
+        'playResults as win_result_rain' => fn($q)=>$q->where('result','win')->where('weather','rain'),
+        'playResults as win_result_snow' => fn($q)=>$q->where('result','win')->where('weather','snow'),
+        'playResults as loss_result' => fn($q)=>$q->where('result','loss')->where('is_practice',0),
+        'playResults as practice_win_result' => fn($q)=>$q->where('result','win')->where('is_practice',1),
+        'playResults as practice_loss_result' => fn($q)=>$q->where('result','loss')->where('is_practice',1),
+        'playResults as total_count' => fn($q)=>$q->where('is_practice',0),
+        'playResults as total_practice_count' => fn($q)=>$q->where('is_practice',1),
+        'playResults as total_rain' => fn($q)=>$q->where('weather','rain'),
+        'playResults as total_snow' => fn($q)=>$q->where('weather','snow'),
+    ])->withAvg('playResults as yardage_difference', 'yardage_difference')->get();
+
+    // Map matchups
+ $plays = $plays->map(function($play) use ($offenseByPosition, $defenseByPosition) {
+
+    // Build matchups
+    $matchups = $play->offensiveTargets->map(function($target) use ($offenseByPosition, $defenseByPosition) {
+
+        $offPosName = $target->offensivePosition->name;
+        $strength = $target->strength;
+        $defPosName = $target->defensivePosition->name;
+
+        $offPlayers = $offenseByPosition->get($offPosName, collect());
+        $defPlayers = $defenseByPosition->get($defPosName, collect());
+
+        $offRpp = $offPlayers->sum('rpp');
+        $defRpp = $defPlayers->sum('rpp');
+
+       $rpp_difference = $offRpp - $defRpp;
+
+        if ($defRpp > 0) {
+            $ratio = $rpp_difference / $defRpp;
+        } else {
+            $ratio = 0; // or 1, depending on your game logic
+        }
+
+        $rpp_difference_percentage = $rpp_difference * $ratio;
+
+
+        $strength_percentage =  $strength / 100;
+
+        return [
+            'offensive_position' => $offPosName,
+            'strength'=>$strength,
+            'defensive_position' => $defPosName,
+            'offensive_players' => $offPlayers,
+            'defensive_players' => $defPlayers,
+            'offensive_rpp' => $offRpp,
+            'defensive_rpp' => $defRpp,
+            'rpp_difference' => $rpp_difference,
+            'strength_percentage' => $strength_percentage,
+            'rpp_difference_percentage' => $rpp_difference_percentage,
+        ];
+    });
+    $sumRppPercentageByOffense = $matchups->groupBy('offensive_position')->map(function($group, $offPosName) use ($offenseByPosition) { 
+    $sum = $group->sum('rpp_difference_percentage');
+    $strength = $group->first()['strength'] ?? 100;
+    $strength_percentage = $strength / 100;
+    return $sum * $strength_percentage;
+    });
+
+    $totalRppPercentage = $sumRppPercentageByOffense->sum();
+    $play->matchups = $matchups;
+    $play->rpp_percentage_sum_by_offense = $sumRppPercentageByOffense;
+    $play->total_score = $totalRppPercentage;
+    
+   
+    return $play;
+});
+
+
+
+    $plays = $plays->sortByDesc('total_score')->values();
+
+    return response()->json($plays);
+}
+ 
 
 public function getDefensivePlays(Request $request)
 {
