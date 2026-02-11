@@ -57,7 +57,7 @@ public function updateGroup(Request $request, $id)
 {
     $request->validate([
         'group_name' => 'required|string|max:255',
-        'type'       => 'nullable|string|max:50',
+       
         'players'    => 'required|array', // must be an array
     ]);
 
@@ -67,7 +67,7 @@ public function updateGroup(Request $request, $id)
         // Update only group_name, type, players
         $group->update([
             'group_name' => $request->group_name,
-            'type'       => $request->type ?? $group->type,
+          
             'players'    => $request->players, // Laravel auto-casts to JSON if $casts is set
         ]);
 
