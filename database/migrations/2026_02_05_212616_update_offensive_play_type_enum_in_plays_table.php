@@ -14,10 +14,11 @@ return new class extends Migration
         Schema::table('plays', function (Blueprint $table) {
             DB::statement("
             ALTER TABLE plays 
-            MODIFY offensive_play_type ENUM('run','pass','rpo')
+            MODIFY offensive_play_type ENUM('run','pass','rpo','play_action')
            ");
         });
     }
+
 
     /**
      * Reverse the migrations.

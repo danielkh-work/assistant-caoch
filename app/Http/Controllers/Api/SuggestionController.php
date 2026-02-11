@@ -144,7 +144,7 @@ $offenseByPosition = BenchPlayer::with('player.player')
         'speed' => $benchPlayer->player->speed,
         'strength' => $benchPlayer->player->strength,
         'ofp' => $benchPlayer->player->ofp,
-        'rpp' => $benchPlayer->player->rpp,
+        'rpp' => $benchPlayer->rpp,
         'weight' => $benchPlayer->player->weight,
         'height' => $benchPlayer->player->height,
         'dob' => $benchPlayer->player->player->dob,
@@ -171,7 +171,7 @@ $offenseByPosition = BenchPlayer::with('player.player')
         'speed' => $benchPlayer->player->speed,
         'strength' => $benchPlayer->player->strength,
         'ofp' => $benchPlayer->player->ofp,
-        'rpp' => $benchPlayer->player->rpp,
+        'rpp' => $benchPlayer->rpp,
         'weight' => $benchPlayer->player->weight,
         'height' => $benchPlayer->player->height,
         'dob' => $benchPlayer->player->player->dob,
@@ -216,7 +216,7 @@ $offenseByPosition = BenchPlayer::with('player.player')
     }
 
     // Get plays with counts and averages
-    $plays = $query->inRandomOrder()->limit(3)->withCount([
+    $plays = $query->inRandomOrder()->limit(6)->withCount([
         'playResults as win_result' => fn($q)=>$q->where('result','win')->where('is_practice',0),
         'playResults as win_result_rain' => fn($q)=>$q->where('result','win')->where('weather','rain'),
         'playResults as win_result_snow' => fn($q)=>$q->where('result','win')->where('weather','snow'),
@@ -253,8 +253,8 @@ $offenseByPosition = BenchPlayer::with('player.player')
             $ratio = 0; // or 1, depending on your game logic
         }
 
-        $rpp_difference_percentage = $rpp_difference * $ratio;
-
+        $rpp_difference_percentage = $rpp_difference * $ratio ;
+// $ratio
 
         $strength_percentage =  $strength / 100;
 
@@ -281,7 +281,7 @@ $offenseByPosition = BenchPlayer::with('player.player')
     $totalRppPercentage = $sumRppPercentageByOffense->sum();
     $play->matchups = $matchups;
     $play->rpp_percentage_sum_by_offense = $sumRppPercentageByOffense;
-    $play->total_score = $totalRppPercentage;
+    $play->total_score = round($totalRppPercentage, 2);
     
    
     return $play;
@@ -291,7 +291,24 @@ $offenseByPosition = BenchPlayer::with('player.player')
 
     $plays = $plays->sortByDesc('total_score')->values();
 
-    return response()->json($plays);
+    $topByScore = $plays->sortByDesc('total_score')->take(3);
+
+    $remaining = $plays->diff($topByScore);
+
+   
+    $hasWins = $remaining->where('win_result', '>', 0)->count() > 0;
+
+    if ($hasWins) {
+    $topByWins = $remaining->sortByDesc('win_result')->take(3);
+    } else {
+    
+    $topByWins = $remaining->sortByDesc('total_score')->take(3);
+    }
+
+    $finalPlays = $topByScore->concat($topByWins)->values();
+
+
+    return response()->json($finalPlays);
 }
  
 

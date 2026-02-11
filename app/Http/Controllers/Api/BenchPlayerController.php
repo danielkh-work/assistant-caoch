@@ -41,7 +41,7 @@ class BenchPlayerController extends Controller
                         'speed' => $benchPlayer->player->speed,
                         'strength' => $benchPlayer->player->strength,
                         'ofp' => $benchPlayer->player->ofp,
-                        'rpp' => $benchPlayer->player->rpp,
+                        'rpp' => $benchPlayer->rpp,
                         'weight' => $benchPlayer->player->weight,
                         'height' => $benchPlayer->player->height,
                         'dob' => $benchPlayer->player->player->dob,
@@ -76,7 +76,7 @@ class BenchPlayerController extends Controller
                 'speed' => optional($benchPlayer->player)->speed ?? null,
                 'strength' => optional($benchPlayer->player)->strength ?? null,
                 'ofp' => optional($benchPlayer->player)->ofp ?? null,
-                'rpp' => optional($benchPlayer->player)->rpp ?? null,
+                'rpp' => $benchPlayer->rpp,
                 'weight' => optional($benchPlayer->player)->weight ?? null,
                 'height' => optional($benchPlayer->player)->height ?? null,
                 'dob' => optional($benchPlayer->player)->player->dob ?? null,
@@ -125,12 +125,13 @@ class BenchPlayerController extends Controller
 {
             
             $data=$request->all();
+     
             $player = BenchPlayer::where('league_id', $leagueId)
                 ->where('player_id',  $data['id'])
                 ->where('team_id',$data['player']['team_id'])
                 ->firstOrFail();
 
-            \Log::info(['update rpp'=> $player]);    
+           \Log::info(['update rpp'=> $player]);
 
             $player->update([
                 'rpp' => $data['rpp']
