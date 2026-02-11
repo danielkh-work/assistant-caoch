@@ -52,6 +52,41 @@ class PersionalGroupingController extends Controller
         );
     }
 }
+   
+public function updateGroup(Request $request, $id)
+{
+    $request->validate([
+        'group_name' => 'required|string|max:255',
+        'type'       => 'nullable|string|max:50',
+        'players'    => 'required|array', // must be an array
+    ]);
+
+    try {
+        $group = PersionalGrouping::findOrFail($id);
+
+        // Update only group_name, type, players
+        $group->update([
+            'group_name' => $request->group_name,
+            'type'       => $request->type ?? $group->type,
+            'players'    => $request->players, // Laravel auto-casts to JSON if $casts is set
+        ]);
+
+        return new BaseResponse(
+            STATUS_CODE_OK,
+            STATUS_CODE_OK,
+            "Group updated successfully",
+            $group
+        );
+
+    } catch (\Exception $e) {
+        return new BaseResponse(
+            STATUS_CODE_ERROR,
+            STATUS_CODE_ERROR,
+            "Failed to update group: " . $e->getMessage()
+        );
+    }
+}
+
 
 
    public function getGroupsByTeamAndGame(Request $request)
