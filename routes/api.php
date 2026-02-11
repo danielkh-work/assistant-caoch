@@ -258,6 +258,7 @@ Route::middleware('auth:sanctum')->group(function () {
   Route::post('/personal-groupings/{group}/plays/sync', [PersionalGroupingController::class, 'syncPlays']);
   // routes/api.php
   Route::get('/personal-groupings/{group}/plays', [PersionalGroupingController::class, 'getPlays']);
+  Route::get('/delete/{group}/group', [PersionalGroupingController::class, 'deleteGroup']);
 
   Route::get('/persional-groups-players', [PersionalGroupingController::class, 'getGroupsByTeamAndGame']);
   

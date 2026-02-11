@@ -89,7 +89,17 @@ class PersionalGroupingController extends Controller
         );
     }
 
- 
+   public function deleteGroup($id)
+{
+    // Find the group by ID
+    $group = PersionalGrouping::find($id);
+     if ($group)
+        $group->delete();
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "group Delete Successfully ");
+
+    
+
+  }
 
     public function getPlays(PersionalGrouping $group)
     {
