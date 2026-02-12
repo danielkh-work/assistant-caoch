@@ -132,7 +132,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/shuffle-players', [BenchPlayerController::class, 'shufflePlayers']);
     Route::post('/opponent-bench-player-store', [BenchPlayerController::class, 'opponentBenchPlayerStore']);
     Route::get('/bench-players/{gameId}/{teamId}', [BenchPlayerController::class, 'index']);
-     Route::get('/bench-opponent-players/{gameId}/{teamId}', [BenchPlayerController::class, 'getOpponentBenchPlayers']);
+    Route::get('/bench-players_count/{gameId}', [BenchPlayerController::class, 'getCount']);
+    Route::get('/bench-opponent-players/{gameId}/{teamId}', [BenchPlayerController::class, 'getOpponentBenchPlayers']);
     Route::post('/create-my-team-play-mode', [BenchPlayerController::class, 'createMyTeamForPlayMode']);
     Route::post('/create-opponent-team-play-mode', [BenchPlayerController::class, 'createOpponentTeamForPlayMode']);
     Route::post('/add-opponent-package', [BenchPlayerController::class, 'addOpponentPackage']);

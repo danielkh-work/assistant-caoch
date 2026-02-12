@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\PersionalGrouping;
+use App\Models\League;
+
 use Illuminate\Support\Facades\DB;
 use App\Http\Responses\BaseResponse;
 class PersionalGroupingController extends Controller
@@ -95,8 +97,12 @@ public function updateGroup(Request $request, $id)
         $teamId = $request->query('team_id');
         $gameId = $request->query('game_id');
         $leagueId = $request->query('league_id');
-        
-
+        $isPractice = $request->query('is_practice', 0);
+       
+        $League = League::find($leagueId);
+        \Log::info(['league id'=>$leagueId]);
+        \Log::info(['league data to test'=>$League]);
+        $practice_length_players = $League->practice_number_players ?? 7;
          if ((!$teamId || !$gameId) && !$leagueId) {
         return new BaseResponse(
             STATUS_CODE_ERROR,
@@ -113,6 +119,10 @@ public function updateGroup(Request $request, $id)
         ->when((!$teamId || !$gameId) && $leagueId, function ($q) use ($leagueId) {
             $q->where('league_id', $leagueId);
         })
+        ->when($isPractice, function ($q) use ($practice_length_players) {
+            $q->whereRaw('JSON_LENGTH(players) = ?', [$practice_length_players]);
+        })
+        
         ->orderBy('created_at', 'desc')
         ->get();
 

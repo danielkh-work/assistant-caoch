@@ -53,6 +53,20 @@ class BenchPlayerController extends Controller
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "bench Player List",$configure);
      
     }
+    
+    public function getCount($gameId)
+    {
+        $benchPlayerCount = BenchPlayer::where('game_id', $gameId)->count();
+
+        return new BaseResponse(
+            STATUS_CODE_OK,
+            STATUS_CODE_OK,
+            "Bench player count fetched successfully",
+            ['count' => $benchPlayerCount] // wrap count in an array/object
+        );
+    }
+
+    
 
      public function getOpponentBenchPlayers($teamId, $gameId)
     {
