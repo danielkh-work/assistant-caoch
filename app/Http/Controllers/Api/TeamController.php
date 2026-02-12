@@ -64,8 +64,8 @@ class TeamController extends Controller
     public function update(Request $request ,$id)
     {
 
-  
-
+           
+    \Log::info(['data team update records'=>$request->all()]);
         \Log::info(['image'=>$request->image]);
         DB::beginTransaction();
         try {

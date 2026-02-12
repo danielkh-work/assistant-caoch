@@ -65,7 +65,7 @@ class PracticeTeamPlayerController extends Controller
                     $t_player->dob = null;
                 }
 
-                $t_player->ofp = $sanitize($request->ofp[$key]);
+                $t_player->rpp = $sanitize($request->ofp[$key]);
                 $t_player->save();
             }
 

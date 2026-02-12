@@ -138,6 +138,8 @@ class BenchPlayerController extends Controller
  public function rppUpdate(Request $request, $leagueId)
 {
             
+
+
             $data=$request->all();
      
             $player = BenchPlayer::where('league_id', $leagueId)
