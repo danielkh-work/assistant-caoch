@@ -30,6 +30,7 @@ class BenchPlayerController extends Controller
                 })
                 ->map(function ($benchPlayer) {
                     return [
+                        'bench_id'=>$benchPlayer->id,
                         'id' => $benchPlayer->player->id,
                         'player' => $benchPlayer->player,
                         'name' => $benchPlayer->player->player->name,
@@ -41,7 +42,10 @@ class BenchPlayerController extends Controller
                         'speed' => $benchPlayer->player->speed,
                         'strength' => $benchPlayer->player->strength,
                         'ofp' => $benchPlayer->player->ofp,
-                        'rpp' => $benchPlayer->rpp,
+                        'rpp' => ($benchPlayer->rpp == 0) 
+                            ? ($benchPlayer->player?->rpp ?? 0) 
+                         : $benchPlayer->rpp,
+
                         'weight' => $benchPlayer->player->weight,
                         'height' => $benchPlayer->player->height,
                         'dob' => $benchPlayer->player->player->dob,
@@ -79,6 +83,7 @@ class BenchPlayerController extends Controller
         ->get()
         ->map(function ($benchPlayer) {
             return [
+                'bench_id'=>$benchPlayer->id,
                 'id' => optional($benchPlayer->player)->id ?? null,
                 'player' => $benchPlayer->player,
                 'name' => optional($benchPlayer->player)->player->name ?? null,
@@ -135,20 +140,10 @@ class BenchPlayerController extends Controller
        
     }
 
- public function rppUpdate(Request $request, $leagueId)
+ public function rppUpdate(Request $request, $id)
 {
-            
-
-
-            $data=$request->all();
-     
-            $player = BenchPlayer::where('league_id', $leagueId)
-                ->where('player_id',  $data['id'])
-                ->where('team_id',$data['player']['team_id'])
-                ->firstOrFail();
-
-           \Log::info(['update rpp'=> $player]);
-
+           $data=$request->all();
+           $player = BenchPlayer::findOrFail($id);
             $player->update([
                 'rpp' => $data['rpp']
             ]);

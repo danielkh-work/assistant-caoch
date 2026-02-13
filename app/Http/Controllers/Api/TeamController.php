@@ -80,27 +80,45 @@ class TeamController extends Controller
 
             TeamPlayer::where('team_id',$id)->delete();
             foreach ($request->playerid as $key => $id) {
+                
                 $t_player = new TeamPlayer();
                 $t_player->team_id = $team->id;
                 $t_player->player_id = $id;
                 $t_player->league_id = $request->league_id;
-                $t_player->type = $request->playertype[$key];
-
+                //$t_player->type = $request->playertype[$key];
+                $t_player->type = $request->playertype[$key] ?? null;
                 // Sanitize helper
                 $sanitize = function ($value) {
-    return (in_array($value, ['N/A', '', null, 'null'], true)) ? null : $value;
+    return (in_array($value, ['N/A','',"",null,NULL,'null'], true)) ? null : $value;
 };
 
+            
+                // $t_player->name = $sanitize($request->name[$key]);
+                // $t_player->position_value = $sanitize($request->position_value[$key]);
+                // $t_player->position = $sanitize($request->position[$key]);
+                // $t_player->number = $sanitize($request->number[$key]);
+                // $t_player->size = $sanitize($request->size[$key]);
+             
+                // $t_player->speed = $sanitize($request->speed[$key]) ?? 0;
 
-                $t_player->name = $sanitize($request->name[$key]);
-                $t_player->position_value = $sanitize($request->position_value[$key]);
-                $t_player->position = $sanitize($request->position[$key]);
-                $t_player->number = $sanitize($request->number[$key]);
-                $t_player->size = $sanitize($request->size[$key]);
-                $t_player->speed = $sanitize($request->speed[$key]);
-                $t_player->strength = $sanitize($request->strength[$key]);
-                $t_player->weight = $sanitize($request->weight[$key]);
-                $t_player->height = $sanitize($request->height[$key]);
+                // $t_player->strength = $sanitize($request->strength[$key]);
+                // $t_player->weight = $sanitize($request->weight[$key]);
+                // $t_player->height = $sanitize($request->height[$key]);
+
+
+               
+                $t_player->name = $sanitize($request->name[$key] ?? null);
+                $t_player->position_value = $sanitize($request->position_value[$key] ?? null);
+                $t_player->position = $sanitize($request->position[$key] ?? null);
+                $t_player->number = $sanitize($request->number[$key] ?? null);
+                $t_player->size = $sanitize($request->size[$key] ?? null);
+                $t_player->speed = $sanitize($request->speed[$key] ?? null);
+                $t_player->strength = $sanitize($request->strength[$key] ?? null);
+                $t_player->weight = $sanitize($request->weight[$key] ?? null);
+                $t_player->height = $sanitize($request->height[$key] ?? null);
+
+
+                
 
                 if (!empty($request->dob[$key]) && $request->dob[$key] !== 'N/A') {
                     try {
@@ -111,9 +129,10 @@ class TeamController extends Controller
                 } else {
                     $t_player->dob = null;
                 }
-
-                $t_player->rpp = $sanitize($request->ofp[$key]);
-                $t_player->save();
+               
+                $t_player->rpp = $sanitize($request->ofp[$key]?? null);
+                 $t_player->save();             
+     
             }
               
 

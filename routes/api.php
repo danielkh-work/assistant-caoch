@@ -127,7 +127,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/add-open-player',[PlayerController::class,'addOpenPlayer']);
     
     Route::post('/bench-players', [BenchPlayerController::class, 'store']);
-    Route::put('/bench/{leagueId}/update', [BenchPlayerController::class, 'rppUpdate']);
+    Route::put('/bench/{id}/update', [BenchPlayerController::class, 'rppUpdate']);
    
     Route::post('/shuffle-players', [BenchPlayerController::class, 'shufflePlayers']);
     Route::post('/opponent-bench-player-store', [BenchPlayerController::class, 'opponentBenchPlayerStore']);
@@ -230,6 +230,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/penalities', 'Penalities');                
             Route::get('/penalty-list', 'penaltyList'); 
             Route::get('/delete-game/{id}','delete');               
+            Route::get('/end-game-clearplayers/{id}','endMatchClearGroundPlayers');               
     });
 
     Route::controller(SubscriptionPlanController::class)->group(function () {

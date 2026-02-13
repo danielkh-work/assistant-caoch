@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Game;
+use App\Models\ConfiguredPlayingTeamPlayer;
+use App\Models\BenchPlayer;
 use Illuminate\Http\Request;
 use App\Http\Responses\BaseResponse;
 use App\Models\Penality;
@@ -24,6 +26,14 @@ class GameController extends Controller
         $game = Game::create($validated);
 
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Player Added SuccessFully ", $game);
+    }
+    
+
+    public function endMatchClearGroundPlayers($id)
+    {
+        ConfiguredPlayingTeamPlayer::where('match_id', $id)->delete();
+        BenchPlayer::where('game_id', $id)->delete();
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Players cleared successfully", null);
     }
 
     public function index() {
