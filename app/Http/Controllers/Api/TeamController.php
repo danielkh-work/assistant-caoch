@@ -53,7 +53,7 @@ class TeamController extends Controller
     }
     public function view($id)
     {
-        $team =  LeagueTeam::with(['teamplayer.player','practiceTeamplayer.TeamPlayer.player'])->find($id);
+        $team =  LeagueTeam::with(['teamplayer.player','practiceTeamplayer.TeamPlayer'])->find($id);
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Team view", $team);
     }
      public function practiceTeamList($id)
