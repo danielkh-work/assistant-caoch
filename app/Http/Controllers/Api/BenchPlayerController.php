@@ -95,7 +95,9 @@ class BenchPlayerController extends Controller
                 'speed' => optional($benchPlayer->player)->speed ?? null,
                 'strength' => optional($benchPlayer->player)->strength ?? null,
                 'ofp' => optional($benchPlayer->player)->ofp ?? null,
-                'rpp' => $benchPlayer->rpp,
+                'rpp' => ($benchPlayer->rpp == 0) 
+                            ? ($benchPlayer->player?->rpp ?? 0) 
+                         : $benchPlayer->rpp,
                 'weight' => optional($benchPlayer->player)->weight ?? null,
                 'height' => optional($benchPlayer->player)->height ?? null,
                 'dob' => optional($benchPlayer->player)->player->dob ?? null,
