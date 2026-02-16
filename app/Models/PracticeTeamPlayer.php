@@ -10,10 +10,9 @@ class PracticeTeamPlayer extends Model
     use HasFactory;
    
     protected $guarded = [];
-
-  
     public function TeamPlayer()
     {
-        return $this->belongsTo(Player::class, 'player_id');
+        return $this->belongsTo(TeamPlayer::class, 'player_id');
     }
+   
 }
