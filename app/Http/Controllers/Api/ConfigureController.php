@@ -80,7 +80,7 @@ class ConfigureController extends Controller
      
 
         // Base query (runs in all cases)
-        $query = ConfiguredPlayingTeamPlayer::with('player.player')
+        $query = ConfiguredPlayingTeamPlayer::with('player.player','practice_player')
         ->where('team_id', $request->team_id)
         ->where('match_id', $request->game_id);
 

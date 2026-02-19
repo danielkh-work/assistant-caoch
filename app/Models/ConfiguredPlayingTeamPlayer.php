@@ -13,5 +13,9 @@ class ConfiguredPlayingTeamPlayer extends Model
     {
         return $this->belongsTo(TeamPlayer::class,'player_id');
     }
+     public function practice_player()
+    {
+        return $this->belongsTo(PracticeTeamPlayer::class,'player_id');
+    }
 
 }
