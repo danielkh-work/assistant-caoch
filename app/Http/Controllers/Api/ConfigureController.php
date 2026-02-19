@@ -25,20 +25,32 @@ class ConfigureController extends Controller
             ConfiguredPlayingTeamPlayer::where('team_id', $request->team_id)
                 ->whereIn('type', $types)
                 ->where('match_id', $request->match_id)
+                ->where('game_type', $request->game_type)
                 ->delete();
     
          
             foreach ($request->player_id as $index => $playerId) {
-                ConfiguredPlayingTeamPlayer::updateOrCreate(
-                    [
+                // ConfiguredPlayingTeamPlayer::updateOrCreate(
+                //     [
+                //         'team_id' => $request->team_id,
+                //         'match_id' => $request->match_id,
+                //         'player_id' => $playerId,
+                //         'type' => $request->type[$index],
+                //         'team_type'=>1
+                //     ],
+                //     [] 
+                // );
+
+
+                    ConfiguredPlayingTeamPlayer::create([
                         'team_id' => $request->team_id,
                         'match_id' => $request->match_id,
-                        'player_id' => $playerId,
                         'type' => $request->type[$index],
-                        'team_type'=>1
-                    ],
-                    [] 
-                );
+                        'team_type' => 1,
+                        'game_type' => $request->game_type,
+                        'player_id' => $request->game_type == 1 ? $playerId : null,
+                        'practice_player_id' => $request->game_type != 1 ? $playerId : null,
+                    ],[] );
             }
           
            DB::commit();
@@ -55,18 +67,29 @@ class ConfigureController extends Controller
             $types = collect($request->type)->unique();
             ConfiguredPlayingTeamPlayer::where('team_id', $request->team_id)
                 ->whereIn('type', $types) ->where('match_id', $request->match_id)
+                ->where('game_type', $request->game_type)
                 ->delete();
             foreach ($request->player_id as $index => $playerId) {
-                ConfiguredPlayingTeamPlayer::updateOrCreate(
-                    [
+
+                    ConfiguredPlayingTeamPlayer::create([
                         'team_id' => $request->team_id,
                         'match_id' => $request->match_id,
-                        'player_id' => $playerId,
                         'type' => $request->type[$index],
-                        'team_type'=>2
-                    ],
-                    [] 
-                );
+                        'team_type' => 2,
+                        'game_type' => $request->game_type,
+                        'player_id' => $request->game_type == 1 ? $playerId : null,
+                        'practice_player_id' => $request->game_type != 1 ? $playerId : null,
+                    ],[]);
+                // ConfiguredPlayingTeamPlayer::updateOrCreate(
+                //     [
+                //         'team_id' => $request->team_id,
+                //         'match_id' => $request->match_id,
+                //         'player_id' => $playerId,
+                //         'type' => $request->type[$index],
+                //         'team_type'=>2
+                //     ],
+                //     [] 
+                // );
             }
            DB::commit();
            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "configure Player successFully");
@@ -78,7 +101,7 @@ class ConfigureController extends Controller
     public function view(Request $request)
     {
      
-
+          
         // Base query (runs in all cases)
         $query = ConfiguredPlayingTeamPlayer::with('player.player','practice_player')
         ->where('team_id', $request->team_id)
