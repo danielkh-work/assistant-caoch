@@ -10,19 +10,22 @@ class PersionalGrouping extends Model
     use HasFactory;
 
     protected $table = 'personal_groupings';
-    protected $appends = ['players_data'];
+    protected $appends = ['players_data','practice_players_data'];
     protected $fillable = [
         'game_id',
         'league_id',
         'team_id',
         'group_name',
         'type',
-        'players'
+        'players',
+        'practice_players'
     ];
 
-    protected $casts = [
-        'players' => 'array', 
-    ];
+   protected $casts = [
+    'players' => 'array',
+    'practice_players' => 'array',
+];
+
 
 
 
@@ -34,7 +37,16 @@ class PersionalGrouping extends Model
 
         return TeamPlayer::whereIn('id', $this->players)->get();
     }
+   
 
+   public function getPracticePlayersDataAttribute()
+    {
+        if (empty($this->practice_players)) {
+            return [];
+        }
+
+        return PracticeTeamPlayer::whereIn('id', $this->practice_players)->get();
+    }
    public function plays()
     {
         return $this->belongsToMany(

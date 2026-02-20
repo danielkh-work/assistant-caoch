@@ -206,6 +206,8 @@ public function index(Request $request, $teamId, $gameId)
         })
         ->values(); // reindex
 
+        \Log::info(['configure players index',$configure]);
+
     return new BaseResponse(
         STATUS_CODE_OK,
         STATUS_CODE_OK,

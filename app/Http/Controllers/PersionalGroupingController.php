@@ -11,9 +11,11 @@ use Illuminate\Support\Facades\DB;
 use App\Http\Responses\BaseResponse;
 class PersionalGroupingController extends Controller
 {
-    public function storeAllGroups(Request $request)
+
+
+public function storeAllGroups(Request $request)
 {
-    $groupsData = $request->all(); // array of groups
+    $groupsData = $request->all();
 
     DB::beginTransaction();
 
@@ -21,30 +23,39 @@ class PersionalGroupingController extends Controller
         $insertData = [];
 
         foreach ($groupsData as $groupData) {
+
+            $isPractice = filter_var($groupData['is_practice'] ?? false, FILTER_VALIDATE_BOOLEAN);
+            \Log::info(['is_practice'=> $isPractice ]);
+
             $insertData[] = [
                 'game_id' => $groupData['game_id'],
                 'league_id' => $groupData['league_id'],
                 'team_id' => $groupData['team_id'],
                 'group_name' => $groupData['group_name'],
                 'type' => $groupData['type'] ?? 'Offense',
-                'players' => json_encode($groupData['players']), // convert array to JSON
+
+                // ✅ If practice → store in practice_players
+                'players' => $isPractice ? null : json_encode($groupData['players']),
+                'practice_players' => $isPractice ? json_encode($groupData['players']) : null,
+
                 'created_at' => now(),
                 'updated_at' => now(),
             ];
         }
+      
+        PersionalGrouping::insert($insertData);
 
-        PersionalGrouping::insert($insertData); // bulk insert
-        
         DB::commit();
 
         return new BaseResponse(
             STATUS_CODE_OK,
             STATUS_CODE_OK,
             "Groups saved successfully",
-            $groupsData // you can return original data if needed
+            $groupsData
         );
 
     } catch (\Exception $e) {
+
         DB::rollBack();
 
         return new BaseResponse(
@@ -54,54 +65,139 @@ class PersionalGroupingController extends Controller
         );
     }
 }
-   
-public function updateGroup(Request $request, $id)
-{
-    $request->validate([
-        'group_name' => 'required|string|max:255',
+
+//     public function storeAllGroups(Request $request)
+// {
+//     $groupsData = $request->all(); // array of groups
+
+//     DB::beginTransaction();
+
+//     try {
+//         $insertData = [];
        
-        'players'    => 'required|array', // must be an array
-    ]);
+//         foreach ($groupsData as $groupData) {
+//             $insertData[] = [
+//                 'game_id' => $groupData['game_id'],
+//                 'league_id' => $groupData['league_id'],
+//                 'team_id' => $groupData['team_id'],
+//                 'group_name' => $groupData['group_name'],
+//                 'type' => $groupData['type'] ?? 'Offense',
+//                 'players' => json_encode($groupData['players']), // convert array to JSON
+//                 'created_at' => now(),
+//                 'updated_at' => now(),
+//             ];
+//         }
 
-    try {
-        $group = PersionalGrouping::findOrFail($id);
+//         PersionalGrouping::insert($insertData); // bulk insert
+        
+//         DB::commit();
 
-        // Update only group_name, type, players
-        $group->update([
-            'group_name' => $request->group_name,
+//         return new BaseResponse(
+//             STATUS_CODE_OK,
+//             STATUS_CODE_OK,
+//             "Groups saved successfully",
+//             $groupsData // you can return original data if needed
+//         );
+
+//     } catch (\Exception $e) {
+//         DB::rollBack();
+
+//         return new BaseResponse(
+//             STATUS_CODE_ERROR,
+//             STATUS_CODE_ERROR,
+//             "Failed to save groups: " . $e->getMessage()
+//         );
+//     }
+// }
+   
+// public function updateGroup(Request $request, $id)
+// {
+//     $request->validate([
+//         'group_name' => 'required|string|max:255',
+       
+//         'players'    => 'required|array', 
+//     ]);
+
+//     try {
+//         $group = PersionalGrouping::findOrFail($id);
+
+        
+//         $group->update([
+//             'group_name' => $request->group_name,
           
-            'players'    => $request->players, // Laravel auto-casts to JSON if $casts is set
-        ]);
+//             'players'    => $request->players, 
+//         ]);
 
-        return new BaseResponse(
-            STATUS_CODE_OK,
-            STATUS_CODE_OK,
-            "Group updated successfully",
-            $group
-        );
+//         return new BaseResponse(
+//             STATUS_CODE_OK,
+//             STATUS_CODE_OK,
+//             "Group updated successfully",
+//             $group
+//         );
 
-    } catch (\Exception $e) {
-        return new BaseResponse(
-            STATUS_CODE_ERROR,
-            STATUS_CODE_ERROR,
-            "Failed to update group: " . $e->getMessage()
-        );
-    }
-}
+//     } catch (\Exception $e) {
+//         return new BaseResponse(
+//             STATUS_CODE_ERROR,
+//             STATUS_CODE_ERROR,
+//             "Failed to update group: " . $e->getMessage()
+//         );
+//     }
+// }
 
+        public function updateGroup(Request $request, $id)
+        {
+            $request->validate([
+                'group_name'  => 'required|string|max:255',
+                'players'     => 'required|array',
+                'is_practice' => 'nullable'
+            ]);
 
+            try {
+                $group = PersionalGrouping::findOrFail($id);
+
+                $isPractice = filter_var($request->is_practice ?? false, FILTER_VALIDATE_BOOLEAN);
+
+                $updateData = [
+                    'group_name' => $request->group_name,
+                ];
+
+                if ($isPractice) {
+                    $updateData['players'] = null;
+                    $updateData['practice_players'] = $request->players;
+                } else {
+                    $updateData['players'] = $request->players;
+                    $updateData['practice_players'] = null;
+                }
+
+                $group->update($updateData);
+
+                return new BaseResponse(
+                    STATUS_CODE_OK,
+                    STATUS_CODE_OK,
+                    "Group updated successfully",
+                    $group
+                );
+
+            } catch (\Exception $e) {
+
+                return new BaseResponse(
+                    STATUS_CODE_ERROR,
+                    STATUS_CODE_ERROR,
+                    "Failed to update group: " . $e->getMessage()
+                );
+            }
+        }
 
    public function getGroupsByTeamAndGame(Request $request)
     {
-      
+       $forPracticeMode = filter_var($request->query('for_practice_mode', false), FILTER_VALIDATE_BOOLEAN);
         $teamId = $request->query('team_id');
         $gameId = $request->query('game_id');
         $leagueId = $request->query('league_id');
         $isPractice = $request->query('is_practice', 0);
        
         $League = League::find($leagueId);
-        \Log::info(['league id'=>$leagueId]);
-        \Log::info(['league data to test'=>$League]);
+       
         $practice_length_players = $League->practice_number_players ?? 7;
          if ((!$teamId || !$gameId) && !$leagueId) {
         return new BaseResponse(
@@ -119,12 +215,14 @@ public function updateGroup(Request $request, $id)
         ->when((!$teamId || !$gameId) && $leagueId, function ($q) use ($leagueId) {
             $q->where('league_id', $leagueId);
         })
-        ->when($isPractice, function ($q) use ($practice_length_players) {
-            $q->whereRaw('JSON_LENGTH(players) = ?', [$practice_length_players]);
+        ->when($isPractice && $forPracticeMode, function ($q) use ($practice_length_players) {
+            $q->whereRaw('JSON_LENGTH(practice_players) = ?', [$practice_length_players]);
         })
         
         ->orderBy('created_at', 'desc')
         ->get();
+
+        \Log::info(['data'=>$groups]);
 
         return new BaseResponse(
             STATUS_CODE_OK,
