@@ -12,11 +12,15 @@ class LogController extends Controller
 {
  public function index(League $league, $match)
 {
+
+    $isPractice = request()->boolean('is_practice', false); // safely cast to boole
+
+
     $logs = PlayGameLog::where('league_id', $league->id)
         ->where('game_id', $match)
         ->with(['myTeam', 'opponentTeam'])
         ->get()
-        ->map(function ($log) {
+        ->map(function ($log) use ($isPractice){
             
                 if ($log->target == $log->my_team_id) {
                     $targetData = $log->myTeam; // full myTeam object
@@ -28,7 +32,9 @@ class LogController extends Controller
             return [
 
                 'id' => $log->id,
-                'players' => $log->players,
+                'players' => $isPractice
+                ? $log->practice_players
+                : $log->players,
                 'weather_status' => $log->weather_status,
                 'play_yardage_gain' => $log->play_yardage_gain,
                 'quater' => $log->quater,

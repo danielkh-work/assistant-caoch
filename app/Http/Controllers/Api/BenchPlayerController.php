@@ -205,8 +205,7 @@ public function index(Request $request, $teamId, $gameId)
             ];
         })
         ->values(); // reindex
-
-        \Log::info(['configure players index',$configure]);
+        
 
     return new BaseResponse(
         STATUS_CODE_OK,
@@ -583,6 +582,9 @@ public function index(Request $request, $teamId, $gameId)
             $team_id=$request->get('teamId');
             $league_id=(int) $request->get('leagueId');
             $game_id=(int) $request->get('gameId');
+            $isPractice = $request->get('is_practice');
+            $playerColumn = $isPractice ? 'practice_player_id' : 'player_id';
+           
             $savedPlayers=[];
             $benchPlayers=[];
             foreach ($configurePlayers as $index => $item) {
@@ -591,7 +593,7 @@ public function index(Request $request, $teamId, $gameId)
                
                 ->delete();
                 $savedPlayers[] = [
-                    'player_id' => $item['id'],
+                    $playerColumn => $item['id'],
                     'match_id' =>   $game_id,
                     'team_id' => $team_id,
                     'team_type' => 1,
@@ -604,7 +606,7 @@ public function index(Request $request, $teamId, $gameId)
                
                 ->delete();
                 $benchPlayers[] = [
-                    'player_id' => $item['id'],
+                    $playerColumn => $item['id'],
                     'game_id' =>   $game_id,
                     'team_id' => $team_id,
                     'league_id' =>  $league_id,
@@ -638,6 +640,8 @@ public function index(Request $request, $teamId, $gameId)
             $team_id=$request->get('teamId');
             $league_id=(int) $request->get('leagueId');
             $game_id=(int) $request->get('gameId');
+            $isPractice = $request->get('is_practice');
+            $playerColumn = $isPractice ? 'practice_player_id' : 'player_id';
             $savedPlayers=[];
             $benchPlayers=[];
             foreach ($configurePlayers as $index => $item) {
@@ -646,7 +650,7 @@ public function index(Request $request, $teamId, $gameId)
                
                 ->delete();
                 $savedPlayers[] = [
-                    'player_id' => $item['id'],
+                     $playerColumn => $item['id'],
                     'match_id' =>   $game_id,
                     'team_id' => $team_id,
                     'team_type' => 2,
@@ -659,7 +663,7 @@ public function index(Request $request, $teamId, $gameId)
                
                 ->delete();
                 $benchPlayers[] = [
-                    'player_id' => $item['id'],
+                     $playerColumn => $item['id'],
                     'game_id' =>   $game_id,
                     'team_id' => $team_id,
                     'league_id' =>  $league_id,
