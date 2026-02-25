@@ -431,6 +431,7 @@ public function index(Request $request, $teamId, $gameId)
         
       
         $offensePlayers = $request->input('offensePlayers', []);
+        
         $benchPlayers   = $request->input('benchPlayers', []);
         $teamId         = $request->input('teamId');
         $gameId         = $request->input('gameId');
@@ -438,21 +439,26 @@ public function index(Request $request, $teamId, $gameId)
         $team_type     = $request->input('team_type'); 
         $leagueId     = $request->input('leagueId'); 
         $type     = $request->input('type'); 
+
+        $isPractice = $request->input('is_practice', false);
+        $playerColumn = $isPractice ? 'practice_player_id' : 'player_id';
         // $group_id     = $request->input('group_id'); 
 
+       
+       
+       
         
         $offenseIds = array_map(fn($player) => $player['id'], $offensePlayers);
         $benchIds   = array_map(fn($player) => $player['id'], $benchPlayers);
-
- 
-        DB::transaction(function() use ($offenseIds, $benchIds, $teamId,$leagueId,$type, $gameId, $playerType,$team_type) {
+       
+        DB::transaction(function() use ($offenseIds, $benchIds, $teamId,$leagueId,$type, $gameId, $playerType,$team_type,$playerColumn) {
 
 
         if (!empty($offenseIds)) {
             BenchPlayer::where('team_id', $teamId)
                 ->where('game_id', $gameId)
                 ->where('player_type', $playerType)
-                ->whereIn('player_id', $offenseIds)
+                ->whereIn($playerColumn, $offenseIds)
                 ->delete();
         }
 
@@ -463,7 +469,7 @@ public function index(Request $request, $teamId, $gameId)
                         $insertData[] = [
                             'team_id'   => $teamId,
                             'game_id'   => $gameId,
-                            'player_id' => $playerId,
+                             $playerColumn => $playerId,
                             'league_id' => $leagueId,
                             'player_type' => $playerType,
                             'type' => $type,
@@ -477,7 +483,7 @@ public function index(Request $request, $teamId, $gameId)
                     if (!empty($benchIds)) {
                         ConfiguredPlayingTeamPlayer::where('team_id', $teamId)
                             ->where('match_id', $gameId)
-                            ->whereIn('player_id', $benchIds)
+                            ->whereIn($playerColumn, $benchIds)
                            
                             ->delete();
                     }
@@ -489,7 +495,7 @@ public function index(Request $request, $teamId, $gameId)
                                 $insertDataa[] = [
                                     'team_id'   => $teamId,
                                     'match_id'   => $gameId,
-                                    'player_id' => $playerId,
+                                    $playerColumn => $playerId,
                                     'team_type' => $team_type
                                    
                                 ];
@@ -497,27 +503,9 @@ public function index(Request $request, $teamId, $gameId)
 
                             ConfiguredPlayingTeamPlayer::insert($insertDataa);
                         }
-
-
-                         
-
-                        
-                        // $group_type = ($playerType === 'offence') ? 'offense' : 'defensive';
-
-                       
-                        // PersionalGrouping::where('game_id', $gameId)
-                        //     ->where('team_id', $teamId)
-                        //     ->where('type', $group_type)
-                        //     ->where('id', '<>', $group_id) 
-                        //     ->update(['status' => 'substituted']);
-
-                       
-                        // PersionalGrouping::where('team_id', $teamId)->where('type', $group_type)->update(['status' => null]);
-
-                
                 });
   
-         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, " Player Shuffle  Successfully", []);
+         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Player Shuffle  Successfully", []);
        
     }
 
@@ -694,7 +682,8 @@ public function index(Request $request, $teamId, $gameId)
     }
 
     public function addOpponentPackage(Request $request)
-    {
+    {  
+      
          $package = OpponentTeamPackage::createPackage($request->all());
         if (isset($package['grouping_count'])) {
             $package['count'] = $package['grouping_count'];
