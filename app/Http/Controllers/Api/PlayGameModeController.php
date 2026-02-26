@@ -65,7 +65,18 @@ class PlayGameModeController extends Controller
         $log->league_id = $value['league_id'];
 
         // ✅ new columns
-        $log->players = json_encode($value['players']) ?? null;          // array
+        //$log->players = json_encode($value['players']) ?? null; 
+
+        if ($value['is_practice']) {
+            $log->practice_players = !empty($value['players'])
+                ? json_encode($value['players'])
+                : null;
+        } else {
+            $log->players = !empty($value['players'])
+                ? json_encode($value['players'])
+                : null;
+        }
+
         $log->confirmed = $value['is_confirmed'] ?? null;   // true / false / null
                         
         $log->my_team_id = $value['my_team_id'];

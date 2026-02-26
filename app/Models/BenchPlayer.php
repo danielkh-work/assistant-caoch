@@ -38,5 +38,10 @@ class BenchPlayer extends Model
     {
         return $this->belongsTo(TeamPlayer::class,'player_id');
     }
+    public function practice_player()
+    {
+        return $this->belongsTo(PracticeTeamPlayer::class, 'practice_player_id');
+    }
+
 
 }

@@ -12,6 +12,7 @@ class OpponentTeamPackage extends Model
       protected $fillable = [
         'game_id',
         'opponent_team_id',
+        'is_practice',
         'name',
         'grouping_count',
     ];
@@ -42,7 +43,20 @@ class OpponentTeamPackage extends Model
                 'opponent_package_player',        // Pivot table
                 'opponent_team_package_id',       // Foreign key on pivot table (for this model)
                 'player_id'                  // Foreign key on pivot table (for TeamPlayer)
-            )->withTimestamps();
+            )->withTimestamps()
+            ->wherePivot('is_practice', 0);   
+    }
+
+    public function practicePlayers()
+    {
+        return $this->belongsToMany(
+            PracticeTeamPlayer::class,              
+            'opponent_package_player',          
+            'opponent_team_package_id',         // Foreign key on pivot table (for this model)
+            'player_id'                         // Foreign key on pivot table (for PracticePlayer)
+        )
+        ->withTimestamps()
+        ->wherePivot('is_practice', 1);       // Only practice players
     }
    
        public static function createPackage(array $data)
@@ -50,11 +64,20 @@ class OpponentTeamPackage extends Model
         
         $playerIds = $data['player_ids'] ?? [];
         unset($data['player_ids']);
+         $isPractice = $data['is_practice'] ?? 0;  // 0 or 1
+         unset($data['player_ids'], $data['is_practice']); 
         $package = self::create($data);
         if (!empty($playerIds)) {
-            $package->players()->attach($playerIds);
+
+            $attachData = [];
+            foreach ($playerIds as $id) {
+                $attachData[$id] = ['is_practice' => $isPractice];
+            }
+            $package->players()->attach($attachData);
+            
+            //$package->players()->attach($playerIds);
         }
-        return $package->load('players.player');
+        return $package->load('players','practicePlayers');
     }
 
     /**
@@ -63,7 +86,7 @@ class OpponentTeamPackage extends Model
     public static function getPackagesForOpponent($gameId,$teamId)
     {
       
-        return self::with('players.player')->where('game_id',$teamId )
+        return self::with('players','practicePlayers')->where('game_id',$teamId )
                    ->where('opponent_team_id', $gameId)
                    ->get();
                    

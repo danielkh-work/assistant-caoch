@@ -112,10 +112,6 @@ class SuggestionController extends Controller
     $matchId = $request->match_id;
     $gameData=Game::find($matchId);
     	
-	// 8	oponent_team_id
-
-  
-
     // Sample offensive players
     // $offenseByPosition = collect([
     //     ['id'=>1,'name'=>'John Doe','number'=>'22','position'=>'RB','position_value'=>'Running Back','rpp'=>8,'ofp'=>85,'speed'=>88,'strength'=>82],
@@ -125,61 +121,174 @@ class SuggestionController extends Controller
     // ])->groupBy('position_value'); 
 
     // Fetch dynamic offensive players from the database
-$offenseByPosition = BenchPlayer::with('player.player')
+// $offenseByPosition = BenchPlayer::with('player.player','practice_player')
+//     ->where('game_id', $matchId)
+//     ->where('team_id', $gameData->my_team_id)
+//     ->where('type', 'myteam')
+//     ->where('player_type', 'offence')
+//     ->get()
+
+//     ->filter(fn($benchPlayer) => $benchPlayer->player && $benchPlayer->player->player)
+//     ->map(fn($benchPlayer) => [
+//         'id' => $benchPlayer->player->id,
+//         'name' => $benchPlayer->player->player->name,
+//         'number' => $benchPlayer->player->number,
+//         'size' => $benchPlayer->player->size,
+//         'position_value' => $benchPlayer->player->position_value,
+//         'squad' => 3,
+//         'position' => $benchPlayer->player->position,
+//         'speed' => $benchPlayer->player->speed,
+//         'strength' => $benchPlayer->player->strength,
+//         'ofp' => $benchPlayer->player->ofp,
+//         'rpp' => $benchPlayer->rpp,
+//         'weight' => $benchPlayer->player->weight,
+//         'height' => $benchPlayer->player->height,
+//         'dob' => $benchPlayer->player->player->dob,
+//     ])
+//     ->groupBy('position_value');
+
+//     \Log::info(['offenseByPosition23234234'=>$offenseByPosition]);
+
+   
+    $isPractice = filter_var($request->is_practice, FILTER_VALIDATE_BOOLEAN);
+    
+    $offenseByPosition = BenchPlayer::with([
+        'player.player',
+        'practice_player'
+    ])
     ->where('game_id', $matchId)
     ->where('team_id', $gameData->my_team_id)
     ->where('type', 'myteam')
     ->where('player_type', 'offence')
     ->get()
+   
+    ->filter(function ($benchPlayer) use ($isPractice) {
 
-    ->filter(fn($benchPlayer) => $benchPlayer->player && $benchPlayer->player->player)
-    ->map(fn($benchPlayer) => [
-        'id' => $benchPlayer->player->id,
-        'name' => $benchPlayer->player->player->name,
-        'number' => $benchPlayer->player->number,
-        'size' => $benchPlayer->player->size,
-        'position_value' => $benchPlayer->player->position_value,
-        'squad' => 3,
-        'position' => $benchPlayer->player->position,
-        'speed' => $benchPlayer->player->speed,
-        'strength' => $benchPlayer->player->strength,
-        'ofp' => $benchPlayer->player->ofp,
-        'rpp' => $benchPlayer->rpp,
-        'weight' => $benchPlayer->player->weight,
-        'height' => $benchPlayer->player->height,
-        'dob' => $benchPlayer->player->player->dob,
-    ])
+        if ($isPractice) {
+           
+            return $benchPlayer->practice_player;
+        }
+       
+        return $benchPlayer->player 
+            && $benchPlayer->player->player;
+    })
+
+    ->map(function ($benchPlayer) use ($isPractice) {
+       
+      
+        $source = $isPractice
+            ? $benchPlayer->practice_player
+            : $benchPlayer->player;
+
+        $basePlayer = $source->player ?? $source->practice_player;
+
+        return [
+            'id' => $source->id ?? null,
+            'name' => $basePlayer->name ?? null,
+            'number' => $source->number ?? null,
+            'size' => $source->size ?? null,
+            'position_value' => $source->position_value ?? null,
+            'squad' => 3,
+            'position' => $source->position ?? null,
+            'speed' => $source->speed ?? null,
+            'strength' => $source->strength ?? null,
+            'ofp' => $source->ofp ?? null,
+            'rpp' => $benchPlayer->rpp,
+            'weight' => $source->weight ?? null,
+            'height' => $source->height ?? null,
+            'dob' => $basePlayer->dob ?? null,
+        ];
+    })
+
     ->groupBy('position_value');
 
+   
+    \Log::info(['offenseByPosition'=>$offenseByPosition]); 
+  
 
-    $defenseByPosition = BenchPlayer::with('player.player')
+
+    // $defenseByPosition = BenchPlayer::with('player.player')
+    // ->where('game_id', $matchId)
+    // ->where('team_id', $gameData->oponent_team_id)
+    // ->where('type', 'opponent')
+    // ->where('player_type', 'deffence')
+    // ->get()
+    // ->filter(fn($benchPlayer) => $benchPlayer->player && $benchPlayer->player->player) // ensure nested player exists
+    // ->map(fn($benchPlayer) => [
+    //     'id' => $benchPlayer->player->id,
+       
+    //     'name' => $benchPlayer->player->player->name,
+    //     'number' => $benchPlayer->player->number,
+    //     'size' => $benchPlayer->player->size,
+    //     'squad' => 3,
+    //     'position_value' => $benchPlayer->player->position_value,
+    //     'position' => $benchPlayer->player->position,
+    //     'speed' => $benchPlayer->player->speed,
+    //     'strength' => $benchPlayer->player->strength,
+    //     'ofp' => $benchPlayer->player->ofp,
+    //     'rpp' => $benchPlayer->rpp,
+    //     'weight' => $benchPlayer->player->weight,
+    //     'height' => $benchPlayer->player->height,
+    //     'dob' => $benchPlayer->player->player->dob,
+    // ])
+    // ->groupBy('position_value'); 
+
+
+
+    
+    $defenseByPosition = BenchPlayer::with([
+        'player.player',
+        'practice_player'
+    ])
     ->where('game_id', $matchId)
     ->where('team_id', $gameData->oponent_team_id)
     ->where('type', 'opponent')
     ->where('player_type', 'deffence')
     ->get()
-    ->filter(fn($benchPlayer) => $benchPlayer->player && $benchPlayer->player->player) // ensure nested player exists
-    ->map(fn($benchPlayer) => [
-        'id' => $benchPlayer->player->id,
-       
-        'name' => $benchPlayer->player->player->name,
-        'number' => $benchPlayer->player->number,
-        'size' => $benchPlayer->player->size,
-        'squad' => 3,
-        'position_value' => $benchPlayer->player->position_value,
-        'position' => $benchPlayer->player->position,
-        'speed' => $benchPlayer->player->speed,
-        'strength' => $benchPlayer->player->strength,
-        'ofp' => $benchPlayer->player->ofp,
-        'rpp' => $benchPlayer->rpp,
-        'weight' => $benchPlayer->player->weight,
-        'height' => $benchPlayer->player->height,
-        'dob' => $benchPlayer->player->player->dob,
-    ])
-    ->groupBy('position_value'); 
+   
+    ->filter(function ($benchPlayer) use ($isPractice) {
 
+        if ($isPractice) {
+           
+            return $benchPlayer->practice_player;
+        }
+       
+        return $benchPlayer->player 
+            && $benchPlayer->player->player;
+    })
+
+    ->map(function ($benchPlayer) use ($isPractice) {
+       
       
-     
+        $source = $isPractice
+            ? $benchPlayer->practice_player
+            : $benchPlayer->player;
+
+        $basePlayer = $source->player ?? $source->practice_player;
+
+        return [
+            'id' => $source->id ?? null,
+            'name' => $basePlayer->name ?? null,
+            'number' => $source->number ?? null,
+            'size' => $source->size ?? null,
+            'position_value' => $source->position_value ?? null,
+            'squad' => 3,
+            'position' => $source->position ?? null,
+            'speed' => $source->speed ?? null,
+            'strength' => $source->strength ?? null,
+            'ofp' => $source->ofp ?? null,
+            'rpp' => $benchPlayer->rpp,
+            'weight' => $source->weight ?? null,
+            'height' => $source->height ?? null,
+            'dob' => $basePlayer->dob ?? null,
+        ];
+    })
+
+    ->groupBy('position_value');
+
+
+   
+    \Log::info(['defenseByPosition'=>$defenseByPosition]); 
 
 
     // Sample defensive players
