@@ -126,7 +126,7 @@ class BenchPlayerController extends Controller
 public function index(Request $request, $teamId, $gameId)
 {
     $isPractice = filter_var($request->get('isPractice', false), FILTER_VALIDATE_BOOLEAN);
-    \Log::info(['isPractice' => $isPractice]);
+    
 
 
     // Fetch all bench players for this team and game
@@ -135,7 +135,7 @@ public function index(Request $request, $teamId, $gameId)
         ->where('type', 'myteam')
         ->get();
 
-        \Log::info(['data becnh players data to feth records'=>$benchPlayers]);
+       
 
     $configure = $benchPlayers
         ->filter(function ($benchPlayer) use ($isPractice) {
