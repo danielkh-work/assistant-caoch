@@ -7,6 +7,8 @@ use App\Http\Responses\BaseResponse;
 use App\Models\League;
 use App\Models\PlayGameMode;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class MatchController extends Controller
 {
@@ -52,4 +54,56 @@ class MatchController extends Controller
 
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Match update successfully", $match);
     }
+    public function liveMatches(Request $request)
+    {
+        $user = auth()->user();
+        $coachId = in_array($user->role, ['assistant_coach', 'performance_coach'])
+            ? $user->head_coach_id
+            : $user->id;
+        $matches = DB::table('websocket_scoreboards as ws')
+        ->join('games as g', 'g.id', '=', 'ws.game_id')
+        ->join('leagues as l', 'l.id', '=', 'g.league_id')
+        ->where('ws.user_id', $coachId)
+        ->where('ws.is_start', 1)
+        ->select(
+            'ws.game_id as id',
+        
+            'l.title as league_name',
+            DB::raw('MIN(ws.time) as created_at')
+        )
+    ->groupBy('ws.game_id', 'l.title')
+    ->get()
+    ->map(function ($match) {
+        return [
+            'id' => $match->id,                    // ✅ use alias
+            'name' => $match->league_name,         // ✅ use league title
+            'type' => 'Match',
+            'start_time' => Carbon::parse($match->created_at)->format('h:i A'),
+            
+        ];
+    });
+        $practices = DB::table('websocket_practice_scoreboards as ws')
+    ->join('games as g', 'g.id', '=', 'ws.game_id')
+    ->join('leagues as l', 'l.id', '=', 'g.league_id')
+    ->where('ws.user_id', $coachId)
+    ->where('ws.is_start', 1)
+    ->select(
+        'ws.game_id as id',
+        'l.title as league_name',
+        DB::raw('MIN(ws.created_at) as created_at')
+    )
+    ->groupBy('ws.game_id', 'l.title') // ✅ REQUIRED
+    ->get()
+    ->map(function ($practice) {
+        return [
+            'id' => $practice->id,
+            'name' => $practice->league_name, // cleaner
+            'type' => 'Practice',
+            'start_time' => Carbon::parse($practice->created_at)->format('h:i A'),
+        ];
+    });
+    
+    return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Matches List", $matches->merge($practices));    
+    }
+  
 }

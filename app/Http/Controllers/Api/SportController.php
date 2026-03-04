@@ -63,6 +63,8 @@ class SportController extends Controller
     }
     public function store(Request $request)
     {
+
+       \Log::info(['league data store'=>$request->all()]);
         DB::beginTransaction();
         try {
  
