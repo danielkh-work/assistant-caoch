@@ -396,7 +396,7 @@ class SuggestionController extends Controller
     return $play;
 });
 
-
+    $winField = $isPractice ? 'practice_win_result' : 'win_result';
 
     $plays = $plays->sortByDesc('total_score')->values();
 
@@ -405,10 +405,10 @@ class SuggestionController extends Controller
     $remaining = $plays->diff($topByScore);
 
    
-    $hasWins = $remaining->where('win_result', '>', 0)->count() > 0;
+    $hasWins = $remaining->where($winField, '>', 0)->count() > 0;
 
     if ($hasWins) {
-    $topByWins = $remaining->sortByDesc('win_result')->take(3);
+    $topByWins = $remaining->sortByDesc($winField)->take(3);
     } else {
     
     $topByWins = $remaining->sortByDesc('total_score')->take(3);
