@@ -53,18 +53,20 @@ class TeamController extends Controller
     }
     public function view($id)
     {
-        $team =  LeagueTeam::with(['teamplayer.player','practiceTeamplayer.TeamPlayer.player'])->find($id);
+        $team =  LeagueTeam::with(['teamplayer.teamPlayerPosition','teamplayer.player.playerPosition','practiceTeamplayer.TeamPlayer.player','practiceTeamplayer.TeamPlayer.teamPlayerPosition'])->find($id);
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Team view", $team);
     }
      public function practiceTeamList($id)
     {
-        $team =  LeagueTeam::with('teamplayer.player')->where('type',1)->where('league_id',$id)->first();
+        $team =  LeagueTeam::with('teamplayer.player','teamplayer.teamPlayerPosition')->where('type',1)->where('league_id',$id)->first();
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Team view", $team);
     }
 
 
     public function update(Request $request, $id)
     {
+
+
         DB::beginTransaction();
         try {
 
@@ -79,6 +81,8 @@ class TeamController extends Controller
             $team->save();
 
             $players = json_decode($request->players, true) ?? [];
+
+            
 
             $existingPlayerIds = [];
 
