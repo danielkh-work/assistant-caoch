@@ -239,7 +239,7 @@ class PlayerController extends Controller
                 'weight' => $request->weight,
                 'height' => $request->height,
                 'rpp' => $request->ofp,
-                'position_value' => $request->positionValue,
+             
                 'updated_at' => now()
             ];
 

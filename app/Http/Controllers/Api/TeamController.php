@@ -53,7 +53,7 @@ class TeamController extends Controller
     }
     public function view($id)
     {
-        $team =  LeagueTeam::with(['teamplayer.teamPlayerPosition','teamplayer.player.playerPosition','practiceTeamplayer.TeamPlayer.player','practiceTeamplayer.TeamPlayer.teamPlayerPosition'])->find($id);
+        $team =  LeagueTeam::with(['teamplayer.teamPlayerPosition','teamplayer.player.playerPosition','practiceTeamplayer.TeamPlayer.player','practiceTeamplayer.TeamPlayer.teamPlayerPosition','practiceTeamplayer.positions'])->find($id);
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Team view", $team);
     }
      public function practiceTeamList($id)
@@ -65,7 +65,9 @@ class TeamController extends Controller
 
     public function update(Request $request, $id)
     {
-
+        
+      $players = json_decode($request->players, true) ?? [];
+     
 
         DB::beginTransaction();
         try {
@@ -125,6 +127,26 @@ class TeamController extends Controller
                     ],
                     $data
                 );
+                if (!empty($player['positions']) && is_array($player['positions'])) {
+
+                // Delete old positions
+                \DB::table('team_player_positions')
+                    ->where('teamplayer_id', $record->id)
+                    ->delete();
+
+                // Insert new positions
+                foreach ($player['positions'] as $index => $pos) {
+                    \DB::table('team_player_positions')->insert([
+                        'teamplayer_id' => $record->id,
+                        'position_name' => $pos['position_name'] , // handle string or {text,value} format
+                        'meta' => null,
+                        'sort' => $index + 1,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
+                
 
                 $existingPlayerIds[] = $record->player_id;
             }

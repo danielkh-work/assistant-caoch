@@ -29,15 +29,45 @@ class PersionalGrouping extends Model
 
 
 
+    // public function getPlayersDataAttribute()
+    // {
+    //     if (empty($this->players)) {
+    //         return [];
+    //     }
+
+    //     return TeamPlayer::whereIn('id', $this->players)->get();
+    // }
+
     public function getPlayersDataAttribute()
     {
-        if (empty($this->players)) {
-            return [];
+        if (!$this->players) {
+            return collect();
         }
 
-        return TeamPlayer::whereIn('id', $this->players)->get();
+        $players = is_array($this->players) ? $this->players : json_decode($this->players, true);
+
+        $ids = collect($players)->pluck('id');
+
+        $teamPlayers = TeamPlayer::whereIn('id', $ids)->get()->keyBy('id');
+
+        return collect($players)->map(function ($player) use ($teamPlayers) {
+
+            $teamPlayer = $teamPlayers->get($player['id']);
+
+            if (!$teamPlayer) {
+                return null;
+            }
+
+            return [
+                'id' => $teamPlayer->id,
+                'name' => $teamPlayer->name,
+                // 'number' => $teamPlayer->number,
+                // 'position_type' => $teamPlayer->position,
+                'selected_position' => $player['positions'], // position from JSON
+            ];
+        })->filter()->values();
     }
-   
+    
 
    public function getPracticePlayersDataAttribute()
     {
