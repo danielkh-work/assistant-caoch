@@ -190,6 +190,7 @@ public function storeAllGroups(Request $request)
 
    public function getGroupsByTeamAndGame(Request $request)
     {
+       
        $forPracticeMode = filter_var($request->query('for_practice_mode', false), FILTER_VALIDATE_BOOLEAN);
         $teamId = $request->query('team_id');
         $gameId = $request->query('game_id');
@@ -222,7 +223,7 @@ public function storeAllGroups(Request $request)
         ->orderBy('created_at', 'desc')
         ->get();
 
-        \Log::info(['data'=>$groups]);
+        \Log::info(['data request all'=>$groups]);
 
         return new BaseResponse(
             STATUS_CODE_OK,
