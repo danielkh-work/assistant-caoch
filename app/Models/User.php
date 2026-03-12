@@ -27,7 +27,8 @@ class User extends Authenticatable
         'role',
         'subscription_id',
         'image','is_subscribed',
-        'code'
+        'code',
+        'encrypted_password'
     ];
  
       

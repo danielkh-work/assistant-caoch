@@ -44,6 +44,7 @@
                         <th>Name</th>
                         <th>Email</th>
                         <th>Status</th>
+                        <th>Password</th>
                      
                       
                         <th width="100px">Action</th>
@@ -81,6 +82,7 @@
                     {data: 'name', name: 'name'},
                     {data: 'email', name: 'email'},
                     {data: 'status', name: 'status'},
+                    {data: 'password', name: 'Password'},
                    
                  
                     {data: 'action', name: 'action', orderable: false, searchable: false},

@@ -81,6 +81,9 @@ Route::middleware(['auth'])->group(function () {
 
      Route::controller(UserController::class)->group(function () {
         Route::get('users', 'index')->name('users.index');
+        Route::get('users/change-password/{user}', 'changePassword')->name('users.change-password');
+        Route::post('users/{user}/update-password', [UserController::class, 'updatePassword'])
+    ->name('users.update-password');
         Route::delete('users/{user}', 'destroy')->name('users.destroy');
         Route::get('users/{id}/approve', 'approve')->name('users.approve');
          Route::get('users/{id}/reject', 'reject')->name('users.reject');

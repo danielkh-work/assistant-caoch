@@ -11,6 +11,9 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\PasswordResetByAdmin;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Validation\Rules\Password;
+
 class UserController extends Controller
 {
        public function index(Request $request)
@@ -35,6 +38,16 @@ class UserController extends Controller
                 //    ->addColumn('created_by', function($row) {
                 //             return $row->user->name ?? 'admin';
                 //     })
+
+                 ->addColumn('password', function ($row) {
+        try {
+            return $row->encrypted_password 
+                ? Crypt::decryptString($row->encrypted_password) 
+                : '-';
+        } catch (\Exception $e) {
+            return '-';
+        }
+    })
             ->addColumn('action', function ($row) {
     $approveUrl = route('users.approve', ['id' => $row->id]);
     $rejectUrl  = route('users.reject', ['id' => $row->id]);
@@ -51,7 +64,8 @@ class UserController extends Controller
      }
     // Approved / non-pending → show Reset Password only
     if ($row->status !== 'pending') {
-
+        
+         $changePasswordUrl = route('users.change-password', $row->id);
         //  $buttons .= '
         //     <a href="' . $approveUrl . '" class="btn btn-success btn-sm me-1">Approve</a>
         //     <a href="' . $rejectUrl . '" class="btn btn-danger btn-sm me-1">Reject</a>
@@ -63,6 +77,10 @@ class UserController extends Controller
                     Reset Password
                 </button>
             </form>
+
+        <a href="' . $changePasswordUrl . '" class="btn btn-primary btn-sm">
+            Change Password
+        </a>
         ';
     }
 
@@ -97,6 +115,45 @@ class UserController extends Controller
         $user = User::findOrFail($id);
         return view('admin.users.reset-password', compact('user'));
     }
+
+   public function changePassword(User $user)
+    {
+        return view('users.change-password', compact('user'));
+    }
+    public function updatePassword(Request $request, User $user)
+    {
+
+          
+            $request->validate([
+                'password' => 'required|min:6|confirmed',
+            ], [
+                'password.confirmed' => 'Password and Confirm Password do not match.'
+            ]);
+
+            // Find user
+            $user = User::findOrFail($user->id);
+
+            // Update password
+            $user->encrypted_password = Crypt::encryptString($request->password);
+            $user->password = Hash::make($request->password);
+            
+            $user->save();
+
+            return redirect()->back()->with('success', 'Password updated successfully.');
+       
+        // $validated = $request->validate([
+        //     'password' => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
+        // ]);
+        //  dd(132);
+
+        // $user->password = Hash::make($request->password);
+       
+        // $user->save();
+
+        // return redirect()->back()->with('success', 'Password updated successfully.');
+    }
+        
+
      public function approve($id)
     {
         $user = User::findOrFail($id);
