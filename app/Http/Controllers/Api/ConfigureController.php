@@ -101,9 +101,9 @@ class ConfigureController extends Controller
     public function view(Request $request)
     {
      
-          
+
         // Base query (runs in all cases)
-        $query = ConfiguredPlayingTeamPlayer::with('player.player','practice_player')
+        $query = ConfiguredPlayingTeamPlayer::with('player.player','player.teamPlayerPosition','practice_player.positions')
         ->where('team_id', $request->team_id)
         ->where('match_id', $request->game_id);
 

@@ -73,7 +73,7 @@ class PlayerController extends Controller
             $player->number=  $request->number;
             $player->position = $request->position;
             $player->size= $request->size;
-            $player->speed= $request->speed;
+            $player->speed= 4;
             $player->weight= $request->weight;
             $player->height= $request->height;
             $player->dob= $request->dob;
