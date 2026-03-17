@@ -53,18 +53,22 @@ class TeamController extends Controller
     }
     public function view($id)
     {
-        $team =  LeagueTeam::with(['teamplayer.player','practiceTeamplayer.TeamPlayer.player'])->find($id);
+        $team =  LeagueTeam::with(['teamplayer.teamPlayerPosition','teamplayer.player.playerPosition','practiceTeamplayer.TeamPlayer.player','practiceTeamplayer.TeamPlayer.teamPlayerPosition','practiceTeamplayer.positions'])->find($id);
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Team view", $team);
     }
      public function practiceTeamList($id)
     {
-        $team =  LeagueTeam::with('teamplayer.player')->where('type',1)->where('league_id',$id)->first();
+        $team =  LeagueTeam::with('teamplayer.player','teamplayer.teamPlayerPosition')->where('type',1)->where('league_id',$id)->first();
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Team view", $team);
     }
 
 
     public function update(Request $request, $id)
     {
+        
+      $players = json_decode($request->players, true) ?? [];
+     
+
         DB::beginTransaction();
         try {
 
@@ -79,6 +83,8 @@ class TeamController extends Controller
             $team->save();
 
             $players = json_decode($request->players, true) ?? [];
+
+            
 
             $existingPlayerIds = [];
 
@@ -121,6 +127,26 @@ class TeamController extends Controller
                     ],
                     $data
                 );
+                if (!empty($player['positions']) && is_array($player['positions'])) {
+
+                // Delete old positions
+                \DB::table('team_player_positions')
+                    ->where('teamplayer_id', $record->id)
+                    ->delete();
+
+                // Insert new positions
+                foreach ($player['positions'] as $index => $pos) {
+                    \DB::table('team_player_positions')->insert([
+                        'teamplayer_id' => $record->id,
+                        'position_name' => $pos['position_name'] , // handle string or {text,value} format
+                        'meta' => null,
+                        'sort' => $index + 1,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
+                
 
                 $existingPlayerIds[] = $record->player_id;
             }

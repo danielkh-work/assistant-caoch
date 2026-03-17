@@ -29,6 +29,7 @@ class PracticeTeamPlayerController extends Controller
             $team->save();
 
             $players = json_decode($request->players, true) ?? [];
+            \Log::info(['all request data'=>$players]);
 
             $incomingPlayerIds = [];
 
@@ -42,7 +43,8 @@ class PracticeTeamPlayerController extends Controller
                 'league_id' => $request->league_id ?? null,
                 'type' => $player['playertype'] ?? $player['target'] ?? null,
                 'name' => $sanitize($player['name'] ?? null),
-                'position_value' => $sanitize($player['position'] ?? null),
+                'position_value' => null,
+                //$sanitize($player['position'] ?? null),
                 'position' => $sanitize($player['target'] ?? null),
                 'number' => $sanitize($player['number'] ?? null),
                 'size' => $sanitize($player['size'] ?? null),
@@ -64,13 +66,33 @@ class PracticeTeamPlayerController extends Controller
                 $data['dob'] = null;
             }
 
-            PracticeTeamPlayer::updateOrCreate(
+          $practicePlayer =   PracticeTeamPlayer::updateOrCreate(
                 [
                     'team_id' => $team->id,
                     'player_id' => $player['player_id'] ?? null,
                 ],
                 $data
             );
+
+            if (!empty($player['position']) && is_array($player['position'])) {
+
+       
+                DB::table('practice_team_player_positions')
+                    ->where('practice_team_player_id', $practicePlayer->id)
+                    ->delete();
+
+                foreach ($player['position'] as $index => $pos) {
+
+                    DB::table('practice_team_player_positions')->insert([
+                        'practice_team_player_id' => $practicePlayer->id,
+                        'position_name' => $pos['position_name'],
+                        'sort' => $index + 1,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
+
 
             $incomingPlayerIds[] = $player['player_id'];
             }

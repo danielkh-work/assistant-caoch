@@ -16,7 +16,8 @@ class BenchPlayer extends Model
         'league_id',
         'game_id',
         'player_id',
-        'rpp'
+        'rpp',
+        'position'
     ];
 
     // Relationships (optional but useful)

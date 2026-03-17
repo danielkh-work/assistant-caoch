@@ -20,4 +20,8 @@ class TeamPlayer extends Model
     {
         return $this->belongsTo(Player::class,'player_id');
     }
+      public function teamPlayerPosition()
+    {
+        return $this->hasMany(TeamPlayerPosition::class, 'teamplayer_id');
+    }
 }

@@ -29,24 +29,79 @@ class PersionalGrouping extends Model
 
 
 
+    // public function getPlayersDataAttribute()
+    // {
+    //     if (empty($this->players)) {
+    //         return [];
+    //     }
+
+    //     return TeamPlayer::whereIn('id', $this->players)->get();
+    // }
+
     public function getPlayersDataAttribute()
     {
-        if (empty($this->players)) {
-            return [];
+        if (!$this->players) {
+            return collect();
         }
 
-        return TeamPlayer::whereIn('id', $this->players)->get();
-    }
-   
+        $players = is_array($this->players) ? $this->players : json_decode($this->players, true);
 
-   public function getPracticePlayersDataAttribute()
+        $ids = collect($players)->pluck('id');
+
+        $teamPlayers = TeamPlayer::whereIn('id', $ids)->get()->keyBy('id');
+
+        return collect($players)->map(function ($player) use ($teamPlayers) {
+
+            $teamPlayer = $teamPlayers->get($player['id']);
+
+            if (!$teamPlayer) {
+                return null;
+            }
+
+            return [
+                'id' => $teamPlayer->id,
+                'name' => $teamPlayer->name,
+                // 'number' => $teamPlayer->number,
+                // 'position_type' => $teamPlayer->position,
+                'selected_position' => $player['positions'], // position from JSON
+            ];
+        })->filter()->values();
+    }
+
+
+
+    public function getPracticePlayersDataAttribute()
     {
         if (empty($this->practice_players)) {
-            return [];
+            return collect();
         }
+        $players = is_array($this->practice_players) ? $this->practice_players : json_decode($this->practice_players, true);
+        $ids = collect($players)->pluck('id');
+        $practicePlayers = PracticeTeamPlayer::whereIn('id', $ids)->get()->keyBy('id');
+        return collect($players)->map(function ($player) use ($practicePlayers) {
+            $practicePlayer = $practicePlayers->get($player['id']);
 
-        return PracticeTeamPlayer::whereIn('id', $this->practice_players)->get();
+            if (!$practicePlayer) {
+                return null;
+            }
+            return [
+                'id' => $practicePlayer->id,
+                'name' => $practicePlayer->name,
+           
+                'selected_position' => $player['positions'], // positions from JSON
+            ];
+        })->filter()->values();
     }
+    
+
+//    public function getPracticePlayersDataAttribute()
+//     {
+//         if (empty($this->practice_players)) {
+//             return [];
+//         }
+
+//         return PracticeTeamPlayer::whereIn('id', $this->practice_players)->get();
+//     }
    public function plays()
     {
         return $this->belongsToMany(
