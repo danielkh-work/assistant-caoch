@@ -61,6 +61,7 @@ class PersionalGrouping extends Model
             return [
                 'id' => $teamPlayer->id,
                 'name' => $teamPlayer->name,
+                'rpp' => $teamPlayer->rpp,
                 // 'number' => $teamPlayer->number,
                 // 'position_type' => $teamPlayer->position,
                 'selected_position' => $player['positions'], // position from JSON
@@ -87,7 +88,7 @@ class PersionalGrouping extends Model
             return [
                 'id' => $practicePlayer->id,
                 'name' => $practicePlayer->name,
-           
+                'rpp' => $practicePlayer->rpp,
                 'selected_position' => $player['positions'], // positions from JSON
             ];
         })->filter()->values();

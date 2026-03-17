@@ -451,8 +451,9 @@ public function index(Request $request, $teamId, $gameId)
         
         $offenseIds = array_map(fn($player) => $player['id'], $offensePlayers);
         $benchIds   = array_map(fn($player) => $player['id'], $benchPlayers);
-       
-        DB::transaction(function() use ($offenseIds, $benchIds, $teamId,$leagueId,$type, $gameId, $playerType,$team_type,$playerColumn) {
+        
+      
+        DB::transaction(function() use ($offenseIds, $benchPlayers, $benchIds, $teamId,$leagueId,$type, $gameId, $playerType,$team_type,$playerColumn) {
 
 
         if (!empty($offenseIds)) {
@@ -467,6 +468,8 @@ public function index(Request $request, $teamId, $gameId)
             if (!empty($benchIds)) {
                     $insertData = [];
                     foreach ($benchIds as $playerId) {
+                        $player = collect($benchPlayers)->firstWhere('id', $playerId);
+                        
                         $insertData[] = [
                             'team_id'   => $teamId,
                             'game_id'   => $gameId,
@@ -474,6 +477,7 @@ public function index(Request $request, $teamId, $gameId)
                             'league_id' => $leagueId,
                             'player_type' => $playerType,
                             'type' => $type,
+                            'position'=>$player['selected_position'] ?? null,
                            
                         ];
                     }
