@@ -57,7 +57,7 @@ class PlayerPositionsSeeder extends Seeder
             'Halfback Strong Side',
         ];
 
-        $players = Player::all();
+        $players = DB::table('players')->get();
 
         foreach ($players as $player) {
 
