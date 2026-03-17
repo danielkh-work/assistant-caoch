@@ -57,7 +57,7 @@ class TeamPlayerPositionsSeeder extends Seeder
             'Halfback Strong Side',
         ];
         
-       // DB::statement('USE dkseugik_humandashboard');
+        DB::statement('USE dkseugik_humandashboard');
         $players = DB::table('team_players')->get();
        
         // DB::connection('mysql')->table('players')->get();
@@ -82,7 +82,7 @@ class TeamPlayerPositionsSeeder extends Seeder
             $selectedPositions = array_slice($positionsPool, 0, $numPositions);
 
             foreach ($selectedPositions as $index => $positionName) {
-               // DB::statement('USE dkseugik_humandashboard');
+               DB::statement('USE dkseugik_humandashboard');
                 DB::table('team_player_positions')->insert([
                     'teamplayer_id' => $player->id,
                     'position_name' => $positionName,
