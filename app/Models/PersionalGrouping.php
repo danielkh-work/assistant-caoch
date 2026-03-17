@@ -50,23 +50,57 @@ class PersionalGrouping extends Model
 
         $teamPlayers = TeamPlayer::whereIn('id', $ids)->get()->keyBy('id');
 
+        // return collect($players)->map(function ($player) use ($teamPlayers) {
+
+        //     $teamPlayer = $teamPlayers->get($player['id']);
+
+        //     if (!$teamPlayer) {
+        //         return null;
+        //     }
+
+        //     return [
+        //         'id' => $teamPlayer->id,
+        //         'name' => $teamPlayer->name,
+        //         'rpp' => $teamPlayer->rpp,
+                
+        //         'selected_position' => $player['positions'], // position from JSON
+        //     ];
+        // })->filter()->values();
+
+
         return collect($players)->map(function ($player) use ($teamPlayers) {
 
-            $teamPlayer = $teamPlayers->get($player['id']);
+    // ✅ handle integer case
+                    if (is_int($player)) {
+                        $teamPlayer = $teamPlayers->get($player);
 
-            if (!$teamPlayer) {
-                return null;
-            }
+                        if (!$teamPlayer) return null;
 
-            return [
-                'id' => $teamPlayer->id,
-                'name' => $teamPlayer->name,
-                'rpp' => $teamPlayer->rpp,
-                // 'number' => $teamPlayer->number,
-                // 'position_type' => $teamPlayer->position,
-                'selected_position' => $player['positions'], // position from JSON
-            ];
-        })->filter()->values();
+                        return [
+                            'id' => $teamPlayer->id,
+                            'name' => $teamPlayer->name,
+                            'rpp' => $teamPlayer->rpp,
+                            'selected_position' => null,
+                        ];
+                    }
+
+                    // ✅ handle array case
+                    if (is_array($player)) {
+                        $teamPlayer = $teamPlayers->get($player['id'] ?? null);
+
+                        if (!$teamPlayer) return null;
+
+                        return [
+                            'id' => $teamPlayer->id,
+                            'name' => $teamPlayer->name,
+                            'rpp' => $teamPlayer->rpp,
+                            'selected_position' => $player['positions'] ?? null,
+                        ];
+                    }
+
+                    return null;
+
+                })->filter()->values();
     }
 
 
