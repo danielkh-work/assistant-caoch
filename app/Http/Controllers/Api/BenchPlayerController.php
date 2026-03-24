@@ -516,6 +516,7 @@ public function index(Request $request, $teamId, $gameId)
 
     public function store(Request $request)
     {
+       
 
        
         $benchData=$request->get('benchPlayers');
@@ -529,6 +530,7 @@ public function index(Request $request, $teamId, $gameId)
       
         $savedPlayers=[];
         foreach ($benchData as $index => $item) {
+
       
         if ($isPractice) {
                 ConfiguredPlayingTeamPlayer::where('match_id', $game_id)
@@ -558,6 +560,7 @@ public function index(Request $request, $teamId, $gameId)
                 'rpp' =>  $item['rpp'],
             ];
         }
+
         \Log::info(['bench Data inserted'=>$savedPlayers]);
          BenchPlayer::insert($savedPlayers);
          return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Bench Player Add Successfully", $savedPlayers);

@@ -50,6 +50,8 @@ class PersionalGrouping extends Model
 
         $teamPlayers = TeamPlayer::whereIn('id', $ids)->get()->keyBy('id');
 
+        
+
         // return collect($players)->map(function ($player) use ($teamPlayers) {
 
         //     $teamPlayer = $teamPlayers->get($player['id']);
@@ -74,12 +76,18 @@ class PersionalGrouping extends Model
                     if (is_int($player)) {
                         $teamPlayer = $teamPlayers->get($player);
 
+                          \Log::info('Integer Player:', [
+            'input' => $player,
+            'team_player' => $teamPlayer
+        ]);
+
                         if (!$teamPlayer) return null;
 
                         return [
                             'id' => $teamPlayer->id,
                             'name' => $teamPlayer->name,
-                            'rpp' => $teamPlayer->rpp,
+                            'rpp' => $teamPlayer->rpp ?? 0,
+                            'type' => $teamPlayer->type ?? 0,
                             'selected_position' => null,
                         ];
                     }
@@ -87,13 +95,16 @@ class PersionalGrouping extends Model
                     // ✅ handle array case
                     if (is_array($player)) {
                         $teamPlayer = $teamPlayers->get($player['id'] ?? null);
+           
 
                         if (!$teamPlayer) return null;
+                        
 
                         return [
                             'id' => $teamPlayer->id,
                             'name' => $teamPlayer->name,
-                            'rpp' => $teamPlayer->rpp,
+                            'rpp' => $teamPlayer->rpp ?? 0,
+                            'type' => $teamPlayer->type ?? 0,
                             'selected_position' => $player['positions'] ?? null,
                         ];
                     }
