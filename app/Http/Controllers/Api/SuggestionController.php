@@ -88,11 +88,11 @@ class SuggestionController extends Controller
     // }
 
      public function getSuggestedPlays($league, Request $request)
-    {  
+    {
 
-       
 
-     
+
+
 
         $possession = $request->input('possession');
           \Log::info(['possession'=>$possession ]);
@@ -102,7 +102,7 @@ class SuggestionController extends Controller
         }
          \Log::info(['possession offensive'=>$possession ]);
         return $this->getOffensivePlays($request);
-     
+
     }
 
 
@@ -111,14 +111,14 @@ class SuggestionController extends Controller
     $leagueId = $request->league_id;
     $matchId = $request->match_id;
     $gameData=Game::find($matchId);
-    	
+
     // Sample offensive players
     // $offenseByPosition = collect([
     //     ['id'=>1,'name'=>'John Doe','number'=>'22','position'=>'RB','position_value'=>'Running Back','rpp'=>8,'ofp'=>85,'speed'=>88,'strength'=>82],
     //     ['id'=>2,'name'=>'Mike Smith','number'=>'11','position'=>'WR','position_value'=>'Wide receiver W','rpp'=>7,'ofp'=>83,'speed'=>91,'strength'=>75],
     //     ['id'=>3,'name'=>'Alex Brown','number'=>'9','position'=>'QB','position_value'=>'Fullback','rpp'=>9,'ofp'=>90,'speed'=>78,'strength'=>80],
     //     ['id'=>3,'name'=>'Alex Brown','number'=>'9','position'=>'QB','position_value'=>'Center','rpp'=>9,'ofp'=>90,'speed'=>78,'strength'=>80],
-    // ])->groupBy('position_value'); 
+    // ])->groupBy('position_value');
 
     // Fetch dynamic offensive players from the database
 // $offenseByPosition = BenchPlayer::with('player.player','practice_player')
@@ -149,9 +149,9 @@ class SuggestionController extends Controller
 
 //     \Log::info(['offenseByPosition23234234'=>$offenseByPosition]);
 
-   
+
     $isPractice = filter_var($request->is_practice, FILTER_VALIDATE_BOOLEAN);
-    
+
     $offenseByPosition = BenchPlayer::with([
         'player.player',
         'practice_player'
@@ -161,21 +161,21 @@ class SuggestionController extends Controller
     ->where('type', 'myteam')
     ->where('player_type', 'offence')
     ->get()
-   
+
     ->filter(function ($benchPlayer) use ($isPractice) {
 
         if ($isPractice) {
-           
+
             return $benchPlayer->practice_player;
         }
-       
-        return $benchPlayer->player 
+
+        return $benchPlayer->player
             && $benchPlayer->player->player;
     })
 
     ->map(function ($benchPlayer) use ($isPractice) {
-       
-      
+
+
         $source = $isPractice
             ? $benchPlayer->practice_player
             : $benchPlayer->player;
@@ -202,9 +202,9 @@ class SuggestionController extends Controller
 
     ->groupBy('position_value');
 
-   
-    \Log::info(['offenseByPosition'=>$offenseByPosition]); 
-  
+
+    \Log::info(['offenseByPosition'=>$offenseByPosition]);
+
 
 
     // $defenseByPosition = BenchPlayer::with('player.player')
@@ -216,7 +216,7 @@ class SuggestionController extends Controller
     // ->filter(fn($benchPlayer) => $benchPlayer->player && $benchPlayer->player->player) // ensure nested player exists
     // ->map(fn($benchPlayer) => [
     //     'id' => $benchPlayer->player->id,
-       
+
     //     'name' => $benchPlayer->player->player->name,
     //     'number' => $benchPlayer->player->number,
     //     'size' => $benchPlayer->player->size,
@@ -231,11 +231,11 @@ class SuggestionController extends Controller
     //     'height' => $benchPlayer->player->height,
     //     'dob' => $benchPlayer->player->player->dob,
     // ])
-    // ->groupBy('position_value'); 
+    // ->groupBy('position_value');
 
 
 
-    
+
     $defenseByPosition = BenchPlayer::with([
         'player.player',
         'practice_player'
@@ -245,21 +245,21 @@ class SuggestionController extends Controller
     ->where('type', 'opponent')
     ->where('player_type', 'deffence')
     ->get()
-   
+
     ->filter(function ($benchPlayer) use ($isPractice) {
 
         if ($isPractice) {
-           
+
             return $benchPlayer->practice_player;
         }
-       
-        return $benchPlayer->player 
+
+        return $benchPlayer->player
             && $benchPlayer->player->player;
     })
 
     ->map(function ($benchPlayer) use ($isPractice) {
-       
-      
+
+
         $source = $isPractice
             ? $benchPlayer->practice_player
             : $benchPlayer->player;
@@ -287,8 +287,8 @@ class SuggestionController extends Controller
     ->groupBy('position_value');
 
 
-   
-    \Log::info(['defenseByPosition'=>$defenseByPosition]); 
+
+    \Log::info(['defenseByPosition'=>$defenseByPosition]);
 
 
     // Sample defensive players
@@ -380,7 +380,7 @@ class SuggestionController extends Controller
             'rpp_difference_percentage' => $rpp_difference_percentage,
         ];
     });
-    $sumRppPercentageByOffense = $matchups->groupBy('offensive_position')->map(function($group, $offPosName) use ($offenseByPosition) { 
+    $sumRppPercentageByOffense = $matchups->groupBy('offensive_position')->map(function($group, $offPosName) use ($offenseByPosition) {
     $sum = $group->sum('rpp_difference_percentage');
     $strength = $group->first()['strength'] ?? 100;
     $strength_percentage = $strength / 100;
@@ -391,8 +391,8 @@ class SuggestionController extends Controller
     $play->matchups = $matchups;
     $play->rpp_percentage_sum_by_offense = $sumRppPercentageByOffense;
     $play->total_score = round($totalRppPercentage, 2);
-    
-   
+
+
     return $play;
 });
 
@@ -402,24 +402,51 @@ class SuggestionController extends Controller
 
     $topByScore = $plays->sortByDesc('total_score')->take(3);
 
-    $remaining = $plays->diff($topByScore);
+    $topByScore = $plays->where('total_score', '>', 0)->sortByDesc('total_score')
+                    ->take(3)
+                    ->values();
 
-   
-    $hasWins = $remaining->where($winField, '>', 0)->count() > 0;
-
-    if ($hasWins) {
-    $topByWins = $remaining->sortByDesc($winField)->take(3);
-    } else {
-    
-    $topByWins = $remaining->sortByDesc('total_score')->take(3);
+// Top by success (wins only)
+    $winningPlays = $plays->where($winField, '>', 0)->shuffle();
+    $nonWinningPlays = $plays->where($winField, '<=', 0)->shuffle();
+    $topByWins = $winningPlays->take(3);
+    if ($topByWins->count() < 3) {
+        $needed = 3 - $topByWins->count();
+        $topByWins = $topByWins->concat($nonWinningPlays->take($needed));
     }
+   $topByWins = $topByWins->values();
 
-    $finalPlays = $topByScore->concat($topByWins)->values();
+
+    return response()->json([
+            'top_by_score' => $topByScore,
+            'top_by_success' => $topByWins,
+    ]);
+    // $remaining = $plays->diff($topByScore);
+
+    // $hasWins = $remaining->where($winField, '>', 0)->count() > 0;
+    // $topByWins = $remaining->sortByDesc('total_score')->take(3);
+    // if ($hasWins) {
+    // $topByWins = $remaining->sortByDesc($winField)->take(3);
+    // } else {
+
+    // $topByWins = $remaining->sortByDesc('total_score')->take(3);
+    // }
+
+   // $finalPlays = $topByScore->concat($topByWins)->values();
 
 
-    return response()->json($finalPlays);
+    // return response()->json([
+    //     'top_by_score' => $topByScore->values(),
+    //     'top_by_wins'  => $topByWins->values(),
+    // ]);
+    return response()->json($topByScore);
+
+
+
+
+
 }
- 
+
 
 public function getDefensivePlays(Request $request)
 {
@@ -464,7 +491,7 @@ public function getDefensivePlays(Request $request)
         // Step 5: Fallback to parameter-based filters
         $filters = [
             'preferred_down'      => $request->input('down'),
-          
+
             'strategies'          => $request->input('strategy'),
             'min_expected_yard'      => $request->input('expectedyard'), // actual column name
         ];
@@ -516,7 +543,7 @@ public function getDefensivePlays(Request $request)
                $q->where('is_practice', 1);
              },
             ])
-            
+
              ->withAvg('playResults as yardage_difference', 'yardage_difference') ->get();
 
     return response()->json($defensivePlays);
