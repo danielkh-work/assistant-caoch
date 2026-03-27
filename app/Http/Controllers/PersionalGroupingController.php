@@ -37,12 +37,12 @@ public function storeAllGroups(Request $request)
                 // ✅ If practice → store in practice_players
                 'players' => $isPractice ? null : json_encode($groupData['players']),
                 'practice_players' => $isPractice ? json_encode($groupData['players']) : null,
-
+                'group_level' => $isPractice ? 2 : 1, // 2 = Practice Mode, 1 = Play Mode
                 'created_at' => now(),
                 'updated_at' => now(),
             ];
         }
-      
+
         PersionalGrouping::insert($insertData);
 
         DB::commit();
@@ -74,7 +74,7 @@ public function storeAllGroups(Request $request)
 
 //     try {
 //         $insertData = [];
-       
+
 //         foreach ($groupsData as $groupData) {
 //             $insertData[] = [
 //                 'game_id' => $groupData['game_id'],
@@ -89,7 +89,7 @@ public function storeAllGroups(Request $request)
 //         }
 
 //         PersionalGrouping::insert($insertData); // bulk insert
-        
+
 //         DB::commit();
 
 //         return new BaseResponse(
@@ -109,23 +109,23 @@ public function storeAllGroups(Request $request)
 //         );
 //     }
 // }
-   
+
 // public function updateGroup(Request $request, $id)
 // {
 //     $request->validate([
 //         'group_name' => 'required|string|max:255',
-       
-//         'players'    => 'required|array', 
+
+//         'players'    => 'required|array',
 //     ]);
 
 //     try {
 //         $group = PersionalGrouping::findOrFail($id);
 
-        
+
 //         $group->update([
 //             'group_name' => $request->group_name,
-          
-//             'players'    => $request->players, 
+
+//             'players'    => $request->players,
 //         ]);
 
 //         return new BaseResponse(
@@ -190,15 +190,15 @@ public function storeAllGroups(Request $request)
 
    public function getGroupsByTeamAndGame(Request $request)
     {
-       
+
        $forPracticeMode = filter_var($request->query('for_practice_mode', false), FILTER_VALIDATE_BOOLEAN);
         $teamId = $request->query('team_id');
         $gameId = $request->query('game_id');
         $leagueId = $request->query('league_id');
         $isPractice = $request->query('is_practice', 0);
-       
+
         $League = League::find($leagueId);
-       
+
         $practice_length_players = $League->practice_number_players ?? 7;
          if ((!$teamId || !$gameId) && !$leagueId) {
         return new BaseResponse(
@@ -219,7 +219,7 @@ public function storeAllGroups(Request $request)
         ->when($isPractice && $forPracticeMode, function ($q) use ($practice_length_players) {
             $q->whereRaw('JSON_LENGTH(practice_players) = ?', [$practice_length_players]);
         })
-        
+
         ->orderBy('created_at', 'desc')
         ->get();
 
@@ -241,13 +241,13 @@ public function storeAllGroups(Request $request)
         $group->delete();
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "group Delete Successfully ");
 
-    
+
 
   }
 
     public function getPlays(PersionalGrouping $group)
     {
-      
+
 
         $attachedPlayIds = $group->plays()->pluck('play_id')->toArray();
          $attachedDefPlayIds = $group->defensivePlays()->pluck('defensive_play_id')->toArray();
@@ -269,7 +269,7 @@ public function storeAllGroups(Request $request)
            'type' => 'required|in:offense,defensive',
            'play_ids' => 'required|array',
         ]);
-        
+
         if($request->type=='offense'){
            $group->plays()->sync($validated['play_ids']);
         }else if($request->type=='defensive'){
@@ -277,7 +277,7 @@ public function storeAllGroups(Request $request)
         }
        $group->load(['plays', 'defensivePlays']);
 
-       
+
         $responseData = [
             'offensive_play_ids' => $group->plays->pluck('id')->toArray(),
             'defensive_play_ids' => $group->defensivePlays->pluck('id')->toArray(),
@@ -290,7 +290,7 @@ public function storeAllGroups(Request $request)
         );
     }
 
-    
+
 
 
 }
