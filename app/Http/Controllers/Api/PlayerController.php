@@ -40,9 +40,9 @@ class PlayerController extends Controller
     // }
     public  function store(Request $request)
     {
-       
 
-  
+
+
         DB::beginTransaction();
         try {
 
@@ -54,21 +54,21 @@ class PlayerController extends Controller
            }
            $player = new Player();
            $type= $request->type;
-          
+
             if ($type === 'player') {
                  $player->user_id = auth()->id();
 
             } elseif ($type === 'league') {
-                 
+
                 $player->league_id = $request->league_id;
-                
+
             } elseif ($type === 'team') {
-               
+
                 $player->user_id = auth()->id();
             }else{
 
             }
-           
+
             $player->name = $request->name;
             $player->number=  $request->number;
             $player->position = $request->position;
@@ -78,7 +78,7 @@ class PlayerController extends Controller
             $player->height= $request->height;
             $player->dob= $request->dob;
             $player->rpp= $request->ofp;
-            
+
             $player->strength =  $request->strength;
             $player->position_value =  null;
             if($request->hasFile('image'))
@@ -87,14 +87,14 @@ class PlayerController extends Controller
                 $player->image =$path;
             }
             $player->save();
-           
+
             if($request->has('positionValue') && is_array($request->positionValue)) {
                 foreach($request->positionValue as $index => $pos) {
                     DB::table('player_positions')->insert([
                         'player_id' => $player->id,
-                        'position_name' => $pos['text'],  
-                        'meta' => null,                  
-                        'sort' => $index + 1,             
+                        'position_name' => $pos['text'],
+                        'meta' => null,
+                        'sort' => $index + 1,
                         'created_at' => now(),
                         'updated_at' => now(),
                     ]);
@@ -143,39 +143,51 @@ class PlayerController extends Controller
            }
            $player = new Player();
            $type= $request->type;
-          
+
             if ($type === 'player') {
                  $player->user_id = auth()->id();
 
             } elseif ($type === 'league') {
-                 
+
                 $player->league_id = $request->league_id;
-                
+
             } elseif ($type === 'team') {
-               
+
                 $player->user_id = auth()->id();
             }else{
 
             }
-           
+
             $player->name = $request->name;
             $player->number=  $request->number;
             $player->position = $request->position;
             $player->size= $request->size;
-            $player->speed= $request->speed;
+            $player->speed= 3;
             $player->weight= $request->weight;
             $player->height= $request->height;
             $player->dob= $request->dob;
             $player->rpp= $request->ofp;
-            
+
             $player->strength =  $request->strength;
-            $player->position_value =  $request->positionValue;
+            $player->position_value =  '';
             if($request->hasFile('image'))
             {
                 $path =  uploadImage($request->image,'player');
                 $player->image =$path;
             }
             $player->save();
+            if($request->has('positionValue') && is_array($request->positionValue)) {
+                foreach($request->positionValue as $index => $pos) {
+                    DB::table('player_positions')->insert([
+                        'player_id' => $player->id,
+                        'position_name' => $pos['text'],
+                        'meta' => null,
+                        'sort' => $index + 1,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
            if($type === 'team'){
                     DB::table('team_players')->insert([
                         'player_id' => $player->id,
@@ -212,23 +224,23 @@ class PlayerController extends Controller
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Player List  ", $players);
     }
     public function update(Request $request,$id)
-    { 
+    {
 
         DB::beginTransaction();
         try {
 
-          
+
            $type = $request->type;
            if ($type == 'team_player') {
-           
+
             $player = DB::table('team_players')->where('player_id', $request->player_id)->where('team_id', $id)->first();
-            
+
 
             if (!$player) {
                 return new BaseResponse(404, 404, "Team Player not found.");
             }
 
-           
+
             $updateData = [
                 'name' => $request->name,
                 'number' => $request->number,
@@ -239,7 +251,7 @@ class PlayerController extends Controller
                 'weight' => $request->weight,
                 'height' => $request->height,
                 'rpp' => $request->ofp,
-             
+
                 'updated_at' => now()
             ];
 
@@ -267,7 +279,7 @@ class PlayerController extends Controller
                 foreach ($request->positionValue as $index => $pos) {
                     DB::table('team_player_positions')->insert([
                         'teamplayer_id' => $player->id,
-                        'position_name' => $pos['text'], 
+                        'position_name' => $pos['text'],
                         'meta' => null,
                         'sort' => $index + 1,
                         'created_at' => now(),
@@ -279,9 +291,9 @@ class PlayerController extends Controller
             DB::commit();
 
         } else {
-          
-         
-      
+
+
+
             $player =  Player::find($id);
             $player->name = $request->name;
             $player->number=  $request->number;
@@ -307,7 +319,7 @@ class PlayerController extends Controller
             }
             $player->save();
             $player->playerPosition()->delete();
-        
+
             if ($request->has('positionValue') && is_array($request->positionValue)) {
                 foreach ($request->positionValue as $index => $pos) {
                     $player->playerPosition()->create([
@@ -329,27 +341,27 @@ class PlayerController extends Controller
     }
 
        public function updatePracticePlayer(Request $request,$id)
-    { 
-          
+    {
+
         //  \Log::info(['id'=>$id]);
         // \Log::info(['data'=>$request->all()]);
 
         // return;
-     
+
         DB::beginTransaction();
         try {
 
-          
+
            $type = $request->type;
            if ($type == 'team_player') {
-            
+
             $player = DB::table('practice_team_players')->where('player_id', $id)->where('team_id', $request->team_id)->first();
 
             if (!$player) {
                 return new BaseResponse(404, 404, "Team Player not found.");
             }
 
-           
+
             $updateData = [
                 'name' => $request->name,
                 'number' => $request->number,
@@ -389,23 +401,23 @@ class PlayerController extends Controller
 
             DB::commit();
            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Player Updated SuccessFully ", $updatedPracticePlayer );
-        } 
-           
-            
+        }
+
+
         } catch (\Throwable $th) {
             DB::rollBack();
             return new BaseResponse(STATUS_CODE_BADREQUEST, STATUS_CODE_BADREQUEST, $th->getMessage());
         }
     }
-    
-    
+
+
     public function updateOFP(Request $request, $id)
     {
-        
+
         $request->validate([
             'rpp' => 'required|integer|min:0|max:100',
         ]);
-     
+
         $teamPlayer = TeamPlayer::findOrFail($id);
         $teamPlayer->rpp = $request->input('rpp');
         $teamPlayer->save();
@@ -420,7 +432,7 @@ class PlayerController extends Controller
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Player is  Deleted from the team SuccessFully ");
     }
      public function deletePlayer($id,$team_id)
-    {   
+    {
         $player =  Player::find($id);
         $player->teams()->detach($team_id);
         $player->delete();
