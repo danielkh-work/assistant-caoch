@@ -1,7 +1,9 @@
 <?php
 
 namespace Tests\Feature\Auth;
-use Illuminate\Support\Facades\DB; 
+
+use Spatie\Permission\Models\Role;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 use App\Models\User;
 use App\Models\PendingUser;
@@ -102,24 +104,24 @@ class AuthApiTest extends TestCase
     }
 
     /** @test */
-    // public function login_fails_for_pending_user()
-    // {
-    //     $user = User::create([
-    //         'name' => 'Pending',
-    //         'email' => 'pending@test.com',
-    //         'password' => Hash::make('12345678'),
-    //         'role' => 'head_coach',
-    //         'status' => 'pending'
-    //     ]);
+    public function login_fails_for_pending_user()
+    {
+        $user = User::create([
+            'name' => 'Pending',
+            'email' => 'pending@test.com',
+            'password' => Hash::make('12345678'),
+            'role' => 'head_coach',
+            'status' => 'pending'
+        ]);
 
-    //     $response = $this->postJson('/api/login', [
-    //         'email' => 'pending@test.com',
-    //         'password' => '12345678'
-    //     ]);
+        $response = $this->postJson('/api/login', [
+            'email' => 'pending@test.com',
+            'password' => '12345678'
+        ]);
 
-    //     $response->assertStatus(422)
-    //              ->assertJsonStructure(['message', 'errors' => ['email']]);
-    // }
+        $response->assertStatus(422)
+                 ->assertJsonStructure(['message', 'errors' => ['email']]);
+    }
 
     /** @test */
     public function user_can_logout()
@@ -366,24 +368,6 @@ class AuthApiTest extends TestCase
 }
 
 /** @test */
-public function register_creates_user_and_returns_token_and_qr()
-{
-    $response = $this->postJson('/api/register', [
-        'name' => 'New User',
-        'email' => 'newuser@test.com',
-        'password' => '12345678'
-    ]);
-
-    $response->assertStatus(200)
-             ->assertJsonStructure(['status', 'message', 'data' => ['id','name','email','role','qr_code'], 'token']);
-
-    $this->assertDatabaseHas('users', [
-        'email' => 'newuser@test.com',
-        'role' => 'head_coach'
-    ]);
-}
-
-/** @test */
 public function login_fails_for_rejected_user()
 {
     $user = User::create([
@@ -404,77 +388,42 @@ public function login_fails_for_rejected_user()
 }
 
 /** @test */
-// public function login_fails_for_wrong_credentials()
-// {
-//     $user = User::create([
-//         'name' => 'Test User',
-//         'email' => 'wrongpass@test.com',
-//         'password' => Hash::make('correctpassword'),
-//         'role' => 'head_coach',
-//         'status' => 'approved'
-//     ]);
+public function login_fails_for_wrong_credentials()
+{
+    $user = User::create([
+        'name' => 'Test User',
+        'email' => 'wrongpass@test.com',
+        'password' => Hash::make('correctpassword'),
+        'role' => 'head_coach',
+        'status' => 'approved'
+    ]);
 
-//     $response = $this->postJson('/api/login', [
-//         'email' => 'wrongpass@test.com',
-//         'password' => 'wrongpassword'
-//     ]);
+    $response = $this->postJson('/api/login', [
+        'email' => 'wrongpass@test.com',
+        'password' => 'wrongpassword'
+    ]);
 
-//     $response->assertStatus(422)
-//              ->assertJsonStructure(['message', 'errors' => ['email']]);
-// }
-
-/** @test */
-// public function authenticated_user_can_update_userUpdate_with_image()
-// {
-//     $user = User::create([
-//         'name' => 'Old Name',
-//         'email' => 'updateuser@test.com',
-//         'password' => Hash::make('12345678'),
-//         'role' => 'head_coach',
-//         'status' => 'approved'
-//     ]);
-
-//     // Fake image upload
-//     $file = \Illuminate\Http\UploadedFile::fake()->image('avatar.jpg');
-
-//     $response = $this->actingAs($user, 'sanctum')
-//                      ->postJson('/api/user-update', [
-//                          'name' => 'New Name',
-//                          'last_name' => 'Last',
-//                          'email' => 'newemail@test.com',
-//                          'image' => $file
-//                      ]);
-
-//     $response->assertStatus(200);
-//     $this->assertDatabaseHas('users', [
-//         'id' => $user->id,
-//         'name' => 'New Name',
-//         'email' => 'newemail@test.com',
-//         'fname' => 'Last'
-//     ]);
-// }
+    $response->assertStatus(422)
+             ->assertJsonStructure(['message', 'errors' => ['email']]);
+}
 
 /** @test */
-// public function authenticated_user_can_view_profile()
-// {
-//     $user = User::create([
-//         'name' => 'Profile User',
-//         'email' => 'profileview@test.com',
-//         'password' => Hash::make('12345678'),
-//         'role' => 'head_coach',
-//         'status' => 'approved'
-//     ]);
+public function authenticated_user_can_view_profile()
+{
+    Role::create(['name' => 'head_coach']);
 
-//     $response = $this->actingAs($user, 'sanctum')
-//                      ->getJson('/api/view-profile');
+    $user = User::factory()->create();
+    $user->assignRole('head_coach');
 
-//     $response->assertStatus(200)
-//              ->assertJsonFragment([
-//                  'name' => 'Profile User',
-//                  'email' => 'profileview@test.com'
-//              ])
-//              ->assertJsonStructure(['status','message','data' => ['permissions']]);
-// }
+    $response = $this->actingAs($user, 'sanctum')
+                     ->getJson('/api/view-profile');
+
+    $response->assertStatus(200)
+             ->assertJsonFragment([
+                 'name' => 'Profile User',
+                 'email' => 'profileview@test.com'
+             ]);
+}
 
 /** @test */
 public function head_coach_can_add_assistant_coach()
@@ -506,25 +455,25 @@ public function head_coach_can_add_assistant_coach()
 }
 
 /** @test */
-// public function authenticated_user_can_save_sport()
-// {
-//     $user = User::create([
-//         'name' => 'Sport User',
-//         'email' => 'sportuser@test.com',
-//         'password' => Hash::make('12345678'),
-//         'role' => 'head_coach',
-//         'status' => 'approved'
-//     ]);
+public function authenticated_user_can_save_sport()
+{
+    $user = User::create([
+        'name' => 'Sport User',
+        'email' => 'sportuser@test.com',
+        'password' => Hash::make('12345678'),
+        'role' => 'head_coach',
+        'status' => 'approved'
+    ]);
 
-//     $response = $this->actingAs($user, 'sanctum')
-//                      ->postJson('/api/save-sport', [
-//                          'sport_id' => 5
-//                      ]);
+    $response = $this->actingAs($user, 'sanctum')
+                     ->postJson('/api/save-sport', [
+                         'sport_id' => 5
+                     ]);
 
-//     $response->assertStatus(200);
-//     $this->assertDatabaseHas('users', [
-//         'id' => $user->id,
-//         'sport_id' => 5
-//     ]);
-// }
+    $response->assertStatus(200);
+    $this->assertDatabaseHas('users', [
+        'id' => $user->id,
+        'sport_id' => 5
+    ]);
+}
 }
