@@ -10,6 +10,7 @@ use App\Models\Sport;
 use App\Models\LeagueTeam;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 
 class LeagueApiTest extends TestCase
@@ -18,11 +19,13 @@ class LeagueApiTest extends TestCase
     {
         parent::setUp();
 
-        League::truncate();
+        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
         LeagueTeam::truncate();
+        League::truncate();
         User::truncate();
         LeagueRule::truncate();
         Sport::truncate();
+        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
     }
 
     protected function createHeadCoachUser(string $email = 'coach@test.com'): User

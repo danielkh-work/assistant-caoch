@@ -17,8 +17,11 @@ class AuthApiTest extends TestCase
     {
         parent::setUp();
 
+        DB::statement('SET FOREIGN_KEY_CHECKS=0');
         User::truncate();
         PendingUser::truncate();
+        DB::statement('SET FOREIGN_KEY_CHECKS=1');
+
         Mail::fake();
     }
 
