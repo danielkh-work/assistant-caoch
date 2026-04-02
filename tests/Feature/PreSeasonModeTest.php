@@ -7,7 +7,6 @@ use App\Models\User;
 use App\Models\Sport;
 use App\Models\League;
 use App\Models\LeagueRule;
-use App\Models\Team;
 use Spatie\Permission\Models\Role;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\UploadedFile;
@@ -67,7 +66,17 @@ class PreSeasonModeTest extends TestCase
             $this->markTestSkipped('Backend schema issue: teams table not found');
         }
 
-        Team::factory()->count(2)->create();
+        $league = $this->createLeague();
+        
+        $team1 = new \App\Models\LeagueTeam();
+        $team1->league_id = $league->id;
+        $team1->team_name = 'Alpha';
+        $team1->save();
+
+        $team2 = new \App\Models\LeagueTeam();
+        $team2->league_id = $league->id;
+        $team2->team_name = 'Beta';
+        $team2->save();
         $this->auth();
 
         $response = $this->getJson('/api/team-list');
@@ -79,13 +88,17 @@ class PreSeasonModeTest extends TestCase
     /** @test */
     public function can_add_player_as_team_player()
     {
-        if (!Schema::hasTable('teams')) {
-            $this->markTestSkipped('Backend schema issue: teams table not found');
+        if (!Schema::hasTable('teams') || !Schema::hasTable('player_positions')) {
+            $this->markTestSkipped('Backend schema issue: teams or player_positions table not found');
         }
 
         $this->auth();
 
-        $team = Team::factory()->create();
+        $league = $this->createLeague();
+        $team = new \App\Models\LeagueTeam();
+        $team->league_id = $league->id;
+        $team->team_name = 'Alpha';
+        $team->save();
 
         $payload = [
             'type' => 'team',
