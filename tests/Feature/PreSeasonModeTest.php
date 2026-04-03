@@ -62,8 +62,8 @@ class PreSeasonModeTest extends TestCase
     /** @test */
     public function can_view_team_list()
     {
-        if (!Schema::hasTable('teams')) {
-            $this->markTestSkipped('Backend schema issue: teams table not found');
+        if (!Schema::hasTable('league_teams')) {
+            $this->markTestSkipped('Backend schema issue: league_teams table not found');
         }
 
         $league = $this->createLeague();
@@ -88,8 +88,8 @@ class PreSeasonModeTest extends TestCase
     /** @test */
     public function can_add_player_as_team_player()
     {
-        if (!Schema::hasTable('teams') || !Schema::hasTable('player_positions')) {
-            $this->markTestSkipped('Backend schema issue: teams or player_positions table not found');
+        if (!Schema::hasTable('league_teams')) {
+            $this->markTestSkipped('Backend schema issue: league_teams table not found');
         }
 
         $this->auth();

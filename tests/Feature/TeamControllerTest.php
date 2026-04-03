@@ -51,8 +51,8 @@ class TeamControllerTest extends TestCase
 
     public function test_can_create_team()
     {
-        if (!\Illuminate\Support\Facades\Schema::hasTable('teams')) {
-            $this->markTestSkipped('Backend schema issue: teams table not found');
+        if (!\Illuminate\Support\Facades\Schema::hasTable('league_teams')) {
+            $this->markTestSkipped('Backend schema issue: league_teams table not found');
         }
 
         $this->auth();
@@ -67,13 +67,13 @@ class TeamControllerTest extends TestCase
         ]);
 
         $response->assertStatus(200);
-        $this->assertDatabaseHas('teams', ['name' => 'Demo Team']);
+        $this->assertDatabaseHas('league_teams', ['team_name' => 'Demo Team']);
     }
 
     public function test_can_list_teams()
     {
-        if (!\Illuminate\Support\Facades\Schema::hasTable('teams')) {
-            $this->markTestSkipped('Backend schema issue: teams table not found');
+        if (!\Illuminate\Support\Facades\Schema::hasTable('league_teams')) {
+            $this->markTestSkipped('Backend schema issue: league_teams table not found');
         }
 
         $this->auth();

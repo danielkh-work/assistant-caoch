@@ -21,8 +21,8 @@ class PlayerControllerTest extends TestCase
     {
         parent::setUp();
         
-        if (!Schema::hasTable('players') || !Schema::hasTable('player_positions')) {
-            $this->markTestSkipped('Backend schema issue: players or player_positions table not found');
+        if (!Schema::hasTable('players')) {
+            $this->markTestSkipped('Backend schema issue: players table not found');
         }
 
         $this->user = User::factory()->create([
@@ -137,8 +137,8 @@ class PlayerControllerTest extends TestCase
 
     public function test_can_update_team_player_profile()
     {
-        if (!Schema::hasTable('teams')) {
-            $this->markTestSkipped('Backend schema issue: teams table not found');
+        if (!Schema::hasTable('league_teams')) {
+            $this->markTestSkipped('Backend schema issue: league_teams table not found');
         }
 
         $this->auth();
@@ -176,8 +176,8 @@ class PlayerControllerTest extends TestCase
 
     public function test_can_update_ofp()
     {
-        if (!Schema::hasTable('teams')) {
-            $this->markTestSkipped('Backend schema issue: teams table not found');
+        if (!Schema::hasTable('league_teams')) {
+            $this->markTestSkipped('Backend schema issue: league_teams table not found');
         }
 
         $this->auth();
