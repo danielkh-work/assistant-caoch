@@ -224,4 +224,77 @@ class PracticeModeTest extends TestCase
         
         $response->assertStatus(204);
     }
+
+    public function test_can_substitute_practice_player_and_rpp()
+    {
+        $user = $this->authAsCoach();
+        [$league, $team1, $team2] = $this->createLeagueWithTeams($user);
+
+        // Create Play Game Mode (Match)
+        $mode = new PlayGameMode();
+        $mode->sport_id = $user->sport_id;
+        $mode->league_id = $league->id;
+        $mode->my_team_id = $team1->id;
+        $mode->oponent_team_id = $team2->id;
+        $mode->save();
+
+        // Let's create two practice players directly in DB for testing
+        $offensePlayerId = 1111;
+        $benchPlayerId = 2222;
+
+        DB::table('practice_team_players')->insert([
+            ['id' => $offensePlayerId, 'team_id' => $team1->id, 'name' => 'Offense Player', 'number' => 10, 'rpp' => 80, 'speed' => 90, 'strength' => 90, 'ofp' => 100],
+            ['id' => $benchPlayerId, 'team_id' => $team1->id, 'name' => 'Bench Player', 'number' => 20, 'rpp' => 60, 'speed' => 90, 'strength' => 90, 'ofp' => 100],
+        ]);
+
+        // Put one on the field (ConfiguredPlayingTeamPlayer)
+        DB::table('configured_playing_team_players')->insert([
+            'match_id' => $mode->id,
+            'team_id' => $team1->id,
+            'practice_player_id' => $offensePlayerId,
+            'player_id' => 0,
+            'team_type' => 1,
+        ]);
+
+        // Put one on the bench (BenchPlayer)
+        DB::table('offense_defense_players')->insert([
+            'game_id' => $mode->id,
+            'team_id' => $team1->id,
+            'league_id' => $league->id,
+            'practice_player_id' => $benchPlayerId,
+            'player_id' => 0,
+            'type' => 'myteam',
+            'position' => 'WR',
+            'rpp' => 60, // Original RPP of bench player
+        ]);
+
+        // Perform substitution
+        $response = $this->postJson('/api/create-my-team-play-mode', [
+            'offenseData' => ['id' => $offensePlayerId],
+            'benchData' => ['id' => $benchPlayerId],
+            'teamId' => $team1->id,
+            'leagueId' => $league->id,
+            'gameId' => $mode->id,
+            'position' => 'QB',
+            'is_practice' => true,
+        ]);
+
+        $response->assertStatus(200);
+
+        // Verify substitution happened (IDs swapped)
+        $this->assertDatabaseHas('configured_playing_team_players', [
+            'match_id' => $mode->id,
+            'practice_player_id' => $benchPlayerId,
+        ]);
+
+        $this->assertDatabaseHas('offense_defense_players', [
+            'game_id' => $mode->id,
+            'practice_player_id' => $offensePlayerId,
+            'position' => 'QB',
+            // It substitutes the player, but RPP should ideally be updated to the new bench player's RPP.
+            // If the bug exists where RPP is not substituted, this assertion will fail and expose the issue, 
+            // per user request "created a test cases for it that it substitute a test cases or not"
+            'rpp' => 80, 
+        ]);
+    }
 }
