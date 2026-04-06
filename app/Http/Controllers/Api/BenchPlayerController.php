@@ -570,6 +570,8 @@ public function index(Request $request, $teamId, $gameId)
 
        public function createMyTeamForPlayMode(Request $request)
 {
+
+
     DB::beginTransaction();
 
     try {
@@ -581,6 +583,7 @@ public function index(Request $request, $teamId, $gameId)
         $league_id = (int) $request->get('leagueId');
         $game_id = (int) $request->get('gameId');
         $position = $request->get('position');
+        $rpp = $request->get('rpp');
 
         $isPractice = $request->get('is_practice');
         $playerColumn = $isPractice ? 'practice_player_id' : 'player_id';
@@ -610,7 +613,8 @@ public function index(Request $request, $teamId, $gameId)
             ->where($playerColumn, $benchData['id'] ) // player moved to field
             ->update([
                 $playerColumn => $offenseData['id'],
-                'position' => $position
+                'position' => $position,
+                'rpp'=> $rpp
 
             ]);
 
@@ -764,6 +768,7 @@ public function index(Request $request, $teamId, $gameId)
 
         $isPractice = $request->get('is_practice');
         $playerColumn = $isPractice ? 'practice_player_id' : 'player_id';
+        $rpp = $request->get('rpp');
 
         /*
         |-----------------------------------------
@@ -790,7 +795,8 @@ public function index(Request $request, $teamId, $gameId)
             ->where($playerColumn, $benchData['id'] ) // player moved to field
             ->update([
                 $playerColumn => $offenseData['id'],
-                'position' => $position
+                'position' => $position,
+                'rpp'=> $rpp
 
             ]);
 
