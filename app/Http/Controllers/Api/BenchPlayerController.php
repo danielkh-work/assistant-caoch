@@ -20,7 +20,7 @@ class BenchPlayerController extends Controller
     // {
     //        $isPractice = (bool) $request->get('isPractice', false);
 
-       
+
     //         $configure = BenchPlayer::with('player.player')
     //             ->where('game_id', $gameId)
     //             ->where('team_id', $teamId)
@@ -44,8 +44,8 @@ class BenchPlayerController extends Controller
     //                     'speed' => $benchPlayer->player->speed,
     //                     'strength' => $benchPlayer->player->strength,
     //                     'ofp' => $benchPlayer->player->ofp,
-    //                     'rpp' => ($benchPlayer->rpp == 0) 
-    //                         ? ($benchPlayer->player?->rpp ?? 0) 
+    //                     'rpp' => ($benchPlayer->rpp == 0)
+    //                         ? ($benchPlayer->player?->rpp ?? 0)
     //                      : $benchPlayer->rpp,
 
     //                     'weight' => $benchPlayer->player->weight,
@@ -53,18 +53,18 @@ class BenchPlayerController extends Controller
     //                     'dob' => $benchPlayer->player->player->dob,
     //                 ];
     //             })
-    //             ->values(); 
+    //             ->values();
 
-       
+
     //     return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "bench Player List",$configure);
-     
+
     // }
 
 //     public function index($teamId, $gameId, Request $request)
 // {
 //     $isPractice = (bool) $request->get('isPractice');
 
-   
+
 //     $benchPlayers = BenchPlayer::get()
 //         ->where('game_id', $gameId)
 //         ->where('team_id', $teamId)
@@ -73,19 +73,19 @@ class BenchPlayerController extends Controller
 //     $configure = $benchPlayers
 //         ->filter(function ($benchPlayer) use ($isPractice) {
 //             if ($isPractice) {
-               
+
 //                 return !empty($benchPlayer->practice_player_id);
 //             } else {
-                
+
 //                 return !empty($benchPlayer->player_id);
 //             }
 //         })
 //         ->map(function ($benchPlayer) use ($isPractice) {
 
-           
+
 //             $id = $isPractice ? $benchPlayer->practice_player_id : $benchPlayer->player_id;
-//             $name = $isPractice 
-//                 ? $benchPlayer->practice_player->name ?? 'Unknown' 
+//             $name = $isPractice
+//                 ? $benchPlayer->practice_player->name ?? 'Unknown'
 //                 : $benchPlayer->player->player->name ?? 'Unknown';
 
 //             $number = $isPractice
@@ -112,7 +112,7 @@ class BenchPlayerController extends Controller
 //                 'dob' => $isPractice ? ($benchPlayer->practice_player->dob ?? null) : $benchPlayer->player->player->dob,
 //             ];
 //         })
-//         ->values(); 
+//         ->values();
 
 //     return new BaseResponse(
 //         STATUS_CODE_OK,
@@ -126,7 +126,7 @@ class BenchPlayerController extends Controller
 public function index(Request $request, $teamId, $gameId)
 {
     $isPractice = filter_var($request->get('isPractice', false), FILTER_VALIDATE_BOOLEAN);
-    
+
 
 
     // Fetch all bench players for this team and game
@@ -135,7 +135,7 @@ public function index(Request $request, $teamId, $gameId)
         ->where('type', 'myteam')
         ->get();
 
-       
+
 
     $configure = $benchPlayers
         ->filter(function ($benchPlayer) use ($isPractice) {
@@ -183,7 +183,7 @@ public function index(Request $request, $teamId, $gameId)
                 $dob = $benchPlayer->player->player->dob;
                 $rpp = ($benchPlayer->rpp == 0) ? ($benchPlayer->player?->rpp ?? 0) : $benchPlayer->rpp;
             }
-  
+
 
             return [
                 'bench_id' => $benchPlayer->id,
@@ -205,7 +205,7 @@ public function index(Request $request, $teamId, $gameId)
             ];
         })
         ->values(); // reindex
-        
+
 
     return new BaseResponse(
         STATUS_CODE_OK,
@@ -216,7 +216,7 @@ public function index(Request $request, $teamId, $gameId)
 }
 
 
-    
+
     public function getCount($gameId)
     {
         $benchPlayerCount = BenchPlayer::where('game_id', $gameId)->count();
@@ -320,8 +320,8 @@ public function index(Request $request, $teamId, $gameId)
 
     //  public function getOpponentBenchPlayers($teamId, $gameId)
     // {
-        
-      
+
+
     //    $configure = BenchPlayer::with('player.player','practice_player')
     //     ->where('game_id', $gameId)
     //     ->where('team_id', $teamId)
@@ -341,27 +341,27 @@ public function index(Request $request, $teamId, $gameId)
     //             'speed' => optional($benchPlayer->player)->speed ?? null,
     //             'strength' => optional($benchPlayer->player)->strength ?? null,
     //             'ofp' => optional($benchPlayer->player)->ofp ?? null,
-    //             'rpp' => ($benchPlayer->rpp == 0) 
-    //                         ? ($benchPlayer->player?->rpp ?? 0) 
+    //             'rpp' => ($benchPlayer->rpp == 0)
+    //                         ? ($benchPlayer->player?->rpp ?? 0)
     //                      : $benchPlayer->rpp,
     //             'weight' => optional($benchPlayer->player)->weight ?? null,
     //             'height' => optional($benchPlayer->player)->height ?? null,
     //             'dob' => optional($benchPlayer->player)->player->dob ?? null,
-                
+
     //             // Add other fields as needed
     //         ];
     //     });
-     
+
     //      \Log::info(['opponent becnh'=>  $configure]);
     //     return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "bench Player List",$configure);
-     
+
     // }
 
 
       public function opponentBenchPlayerStore(Request $request)
     {
 
-       
+
         $benchData=$request->get('benchPlayers');
         $team_id=$request->get('teamId');
         $league_id=(int) $request->get('leagueId');
@@ -413,7 +413,7 @@ public function index(Request $request, $teamId, $gameId)
         }
          BenchPlayer::insert($savedPlayers);
          return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Bench Player Add Successfully", $savedPlayers);
-       
+
     }
 
  public function rppUpdate(Request $request, $id)
@@ -428,31 +428,31 @@ public function index(Request $request, $teamId, $gameId)
     }
    public function shufflePlayers(Request $request)
     {
-        
-        
-      
+
+
+
         $offensePlayers = $request->input('offensePlayers', []);
-        
+
         $benchPlayers   = $request->input('benchPlayers', []);
         $teamId         = $request->input('teamId');
         $gameId         = $request->input('gameId');
-        $playerType     = $request->input('playerType'); 
-        $team_type     = $request->input('team_type'); 
-        $leagueId     = $request->input('leagueId'); 
-        $type     = $request->input('type'); 
+        $playerType     = $request->input('playerType');
+        $team_type     = $request->input('team_type');
+        $leagueId     = $request->input('leagueId');
+        $type     = $request->input('type');
 
         $isPractice = $request->input('is_practice', false);
         $playerColumn = $isPractice ? 'practice_player_id' : 'player_id';
-        // $group_id     = $request->input('group_id'); 
+        // $group_id     = $request->input('group_id');
 
-       
-       
-       
-        
+
+
+
+
         $offenseIds = array_map(fn($player) => $player['id'], $offensePlayers);
         $benchIds   = array_map(fn($player) => $player['id'], $benchPlayers);
-        
-      
+
+
         DB::transaction(function() use ($offenseIds, $benchPlayers, $benchIds, $teamId,$leagueId,$type, $gameId, $playerType,$team_type,$playerColumn) {
 
 
@@ -464,12 +464,12 @@ public function index(Request $request, $teamId, $gameId)
                 ->delete();
         }
 
-        
+
             if (!empty($benchIds)) {
                     $insertData = [];
                     foreach ($benchIds as $playerId) {
                         $player = collect($benchPlayers)->firstWhere('id', $playerId);
-                        
+                        \Log::info(['player6745'=>$player]);
                         $insertData[] = [
                             'team_id'   => $teamId,
                             'game_id'   => $gameId,
@@ -477,24 +477,25 @@ public function index(Request $request, $teamId, $gameId)
                             'league_id' => $leagueId,
                             'player_type' => $playerType,
                             'type' => $type,
+                            'rpp' => $player['rpp'] ?? 0,
                             'position'=>$player['selected_position'] ?? null,
-                           
+
                         ];
                     }
 
                     BenchPlayer::insert($insertData);
                     }
-                
+
                     if (!empty($benchIds)) {
                         ConfiguredPlayingTeamPlayer::where('team_id', $teamId)
                             ->where('match_id', $gameId)
                             ->whereIn($playerColumn, $benchIds)
-                           
+
                             ->delete();
                     }
 
                     if (!empty($offenseIds)) {
-                        
+
                             $insertDataa = [];
                             foreach ($offenseIds as $playerId) {
                                 $insertDataa[] = [
@@ -502,23 +503,23 @@ public function index(Request $request, $teamId, $gameId)
                                     'match_id'   => $gameId,
                                     $playerColumn => $playerId,
                                     'team_type' => $team_type
-                                   
+
                                 ];
                             }
 
                             ConfiguredPlayingTeamPlayer::insert($insertDataa);
                         }
                 });
-  
+
          return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Player Shuffle  Successfully", []);
-       
+
     }
 
     public function store(Request $request)
     {
-       
 
-       
+
+
         $benchData=$request->get('benchPlayers');
         $team_id=$request->get('teamId');
         $player_type=$request->get('playerType');
@@ -526,12 +527,12 @@ public function index(Request $request, $teamId, $gameId)
         $game_id=(int) $request->get('gameId');
         $isPractice = (bool) $request->get('isPractice');
 
-        
-      
+
+
         $savedPlayers=[];
         foreach ($benchData as $index => $item) {
 
-      
+
         if ($isPractice) {
                 ConfiguredPlayingTeamPlayer::where('match_id', $game_id)
                     ->where('team_id', $team_id)
@@ -544,7 +545,7 @@ public function index(Request $request, $teamId, $gameId)
                     ->delete();
             }
 
-            
+
 
             $savedPlayers[] = [
                 'player_id' => $isPractice ? null : $item['id'],
@@ -564,9 +565,9 @@ public function index(Request $request, $teamId, $gameId)
         \Log::info(['bench Data inserted'=>$savedPlayers]);
          BenchPlayer::insert($savedPlayers);
          return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Bench Player Add Successfully", $savedPlayers);
-       
+
     }
-         
+
        public function createMyTeamForPlayMode(Request $request)
 {
     DB::beginTransaction();
@@ -595,7 +596,7 @@ public function index(Request $request, $teamId, $gameId)
             ->where($playerColumn, $offenseData['id'] ) // old player
             ->update([
                 $playerColumn => $benchData['id'], // new player
-                
+
             ]);
 
         /*
@@ -610,7 +611,7 @@ public function index(Request $request, $teamId, $gameId)
             ->update([
                 $playerColumn => $offenseData['id'],
                 'position' => $position
-                
+
             ]);
 
         DB::commit();
@@ -632,26 +633,26 @@ public function index(Request $request, $teamId, $gameId)
 
         // public function createMyTeamForPlayMode(Request $request)
         // {
-           
+
         // DB::beginTransaction();
 
         // try {
-                                     
+
         //     $configurePlayers =$request->get('configurePlayers');
         //     $benchData=$request->get('benchPlayers');
-        
+
         //     $team_id=$request->get('teamId');
         //     $league_id=(int) $request->get('leagueId');
         //     $game_id=(int) $request->get('gameId');
         //     $isPractice = $request->get('is_practice');
         //     $playerColumn = $isPractice ? 'practice_player_id' : 'player_id';
-           
+
         //     $savedPlayers=[];
         //     $benchPlayers=[];
         //     foreach ($configurePlayers as $index => $item) {
         //         ConfiguredPlayingTeamPlayer::where('match_id', $game_id)
         //         ->where('team_id', $team_id)
-               
+
         //         ->delete();
         //         $savedPlayers[] = [
         //             $playerColumn => $item['id'],
@@ -664,7 +665,7 @@ public function index(Request $request, $teamId, $gameId)
         //     foreach ($benchData as $index => $item) {
         //         BenchPlayer::where('game_id', $game_id)
         //         ->where('team_id', $team_id)
-               
+
         //         ->delete();
         //         $benchPlayers[] = [
         //             $playerColumn => $item['id'],
@@ -691,11 +692,11 @@ public function index(Request $request, $teamId, $gameId)
 
         // public function createOpponentTeamForPlayMode(Request $request)
         // {
-           
+
         // DB::beginTransaction();
 
         // try {
-                                     
+
         //     $configurePlayers =$request->get('configurePlayers');
         //     $benchData=$request->get('benchPlayers');
         //     $team_id=$request->get('teamId');
@@ -708,7 +709,7 @@ public function index(Request $request, $teamId, $gameId)
         //     foreach ($configurePlayers as $index => $item) {
         //         ConfiguredPlayingTeamPlayer::where('match_id', $game_id)
         //         ->where('team_id', $team_id)
-               
+
         //         ->delete();
         //         $savedPlayers[] = [
         //              $playerColumn => $item['id'],
@@ -721,7 +722,7 @@ public function index(Request $request, $teamId, $gameId)
         //     foreach ($benchData as $index => $item) {
         //         BenchPlayer::where('game_id', $game_id)
         //         ->where('team_id', $team_id)
-               
+
         //         ->delete();
         //         $benchPlayers[] = [
         //              $playerColumn => $item['id'],
@@ -775,7 +776,7 @@ public function index(Request $request, $teamId, $gameId)
             ->where($playerColumn, $offenseData['id'] ) // old player
             ->update([
                 $playerColumn => $benchData['id'], // new player
-                
+
             ]);
 
         /*
@@ -790,7 +791,7 @@ public function index(Request $request, $teamId, $gameId)
             ->update([
                 $playerColumn => $offenseData['id'],
                 'position' => $position
-                
+
             ]);
 
         DB::commit();
@@ -821,8 +822,8 @@ public function index(Request $request, $teamId, $gameId)
     }
 
     public function addOpponentPackage(Request $request)
-    {  
-      
+    {
+
          $package = OpponentTeamPackage::createPackage($request->all());
         if (isset($package['grouping_count'])) {
             $package['count'] = $package['grouping_count'];
@@ -835,13 +836,13 @@ public function index(Request $request, $teamId, $gameId)
 
       public function getOpponentTeamPackages($gameId ,$teamId)
      {
-           
-           
+
+
             $packages = OpponentTeamPackage::getPackagesForOpponent($gameId,$teamId);
             return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "package lists",  $packages );
         }
 
 
-    
+
 
 }
