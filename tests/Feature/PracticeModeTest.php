@@ -238,6 +238,9 @@ class PracticeModeTest extends TestCase
         $mode->oponent_team_id = $team2->id;
         $mode->save();
 
+        // Foreign key bypass for testing
+        \Illuminate\Support\Facades\Schema::disableForeignKeyConstraints();
+
         // Let's create two practice players directly in DB for testing
         $offensePlayerId = 1111;
         $benchPlayerId = 2222;
@@ -295,6 +298,81 @@ class PracticeModeTest extends TestCase
             // If the bug exists where RPP is not substituted, this assertion will fail and expose the issue, 
             // per user request "created a test cases for it that it substitute a test cases or not"
             'rpp' => 80, 
+        ]);
+    }
+
+    public function test_can_shuffle_personal_group_players_in_practice_mode()
+    {
+        $user = $this->authAsCoach();
+        [$league, $team1, $team2] = $this->createLeagueWithTeams($user);
+
+        $mode = new PlayGameMode();
+        $mode->sport_id = $user->sport_id;
+        $mode->league_id = $league->id;
+        $mode->my_team_id = $team1->id;
+        $mode->oponent_team_id = $team2->id;
+        $mode->save();
+
+        \Illuminate\Support\Facades\Schema::disableForeignKeyConstraints();
+
+        $offensePlayerId = 3333;
+        $benchPlayerId = 4444;
+
+        DB::table('practice_team_players')->insert([
+            ['id' => $offensePlayerId, 'team_id' => $team1->id, 'name' => 'Group Offense Player', 'number' => 11, 'rpp' => 85, 'speed' => 90, 'strength' => 90, 'ofp' => 100],
+            ['id' => $benchPlayerId, 'team_id' => $team1->id, 'name' => 'Group Bench Player', 'number' => 22, 'rpp' => 65, 'speed' => 90, 'strength' => 90, 'ofp' => 100],
+        ]);
+
+        DB::table('configured_playing_team_players')->insert([
+            'match_id' => $mode->id,
+            'team_id' => $team1->id,
+            'practice_player_id' => $offensePlayerId,
+            'player_id' => 0,
+            'team_type' => 1,
+        ]);
+
+        DB::table('offense_defense_players')->insert([
+            'game_id' => $mode->id,
+            'team_id' => $team1->id,
+            'league_id' => $league->id,
+            'practice_player_id' => $benchPlayerId,
+            'player_id' => 0,
+            'type' => 'myteam',
+            'position' => 'RB',
+            'rpp' => 65, 
+            'player_type' => 'offense',
+        ]);
+
+        $response = $this->postJson('/api/shuffle-players', [
+            'offensePlayers' => [ // Will be moved to Configured (Field)
+                ['id' => $benchPlayerId, 'rpp' => 65]
+            ],
+            'benchPlayers' => [   // Will be moved to Bench
+                ['id' => $offensePlayerId, 'rpp' => 85, 'selected_position' => 'TE']
+            ],
+            'teamId' => $team1->id,
+            'gameId' => $mode->id,
+            'playerType' => 'offense',
+            'team_type' => 1,
+            'leagueId' => $league->id,
+            'type' => 'myteam',
+            'is_practice' => true,
+        ]);
+
+        $response->assertStatus(200);
+
+        // Verify offensePlayerId is now on the bench
+        $this->assertDatabaseHas('offense_defense_players', [
+            'game_id' => $mode->id,
+            'practice_player_id' => $offensePlayerId,
+            'rpp' => 85, // Ensuring RPP is properly added/substituted during Group shuffle
+            'position' => 'TE'
+        ]);
+
+        // Verify benchPlayerId is now on the field
+        $this->assertDatabaseHas('configured_playing_team_players', [
+            'match_id' => $mode->id,
+            'practice_player_id' => $benchPlayerId,
         ]);
     }
 }
