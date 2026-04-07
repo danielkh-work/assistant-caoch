@@ -6,8 +6,10 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 use App\Models\User;
 use App\Models\Player;
-use App\Models\Team;
+use App\Models\TeamPlayer;
+use App\Models\LeagueTeam;
 use App\Models\League;
+use App\Models\Game;
 use App\Models\BenchPlayer;
 use Laravel\Sanctum\Sanctum;
 use Illuminate\Support\Facades\Schema;
@@ -19,14 +21,20 @@ class BenchPlayerControllerTest extends TestCase
 
     protected User $user;
     protected League $league;
-    protected Team $team;
+    protected LeagueTeam $team;
+    protected Game $game;
 
     protected function setUp(): void
     {
         parent::setUp();
         
-        if (!Schema::hasTable('teams') || !Schema::hasTable('players') || !Schema::hasTable('bench_players')) {
-            $this->markTestSkipped('Backend schema issue: required tables for bench testing not found');
+        $missingTables = [];
+        if (!Schema::hasTable('league_teams')) $missingTables[] = 'league_teams';
+        if (!Schema::hasTable('players')) $missingTables[] = 'players';
+        if (!Schema::hasTable('offense_defense_players')) $missingTables[] = 'offense_defense_players';
+        
+        if (!empty($missingTables)) {
+            $this->markTestSkipped('Backend schema issue: required tables not found: ' . implode(', ', $missingTables));
         }
 
         $this->user = User::factory()->create([
@@ -39,13 +47,24 @@ class BenchPlayerControllerTest extends TestCase
         $this->league = new League();
         $this->league->user_id = $this->user->id;
         $this->league->sport_id = $sportId;
+        $this->league->league_rule_id = \Illuminate\Support\Facades\DB::table('league_rules')->value('id') ?? 1;
         $this->league->title = 'Test League';
         $this->league->number_of_team = 2;
         $this->league->save();
 
-        $this->team = new Team();
-        $this->team->name = 'Test Team';
+        $this->team = new LeagueTeam();
+        $this->team->team_name = 'Test Team';
+        $this->team->league_id = $this->league->id;
         $this->team->save();
+
+        $this->game = new Game();
+        $this->game->league_id = $this->league->id;
+        $this->game->creator_id = $this->user->id;
+        $this->game->my_team_id = $this->team->id;
+        $this->game->oponent_team_id = $this->team->id;
+        $this->game->date = now()->toDateString();
+        $this->game->location_type = 'home';
+        $this->game->save();
     }
 
     protected function auth()
@@ -56,9 +75,21 @@ class BenchPlayerControllerTest extends TestCase
 
     protected function createPlayer($name)
     {
-        $player = new Player();
-        $player->name = $name;
-        $player->user_id = $this->user->id;
+        $basePlayer = new Player();
+        $basePlayer->name = $name;
+        $basePlayer->user_id = $this->user->id;
+        $basePlayer->number = 10;
+        $basePlayer->position = 'QB';
+        $basePlayer->size = 70;
+        $basePlayer->speed = 80;
+        $basePlayer->strength = 80;
+        $basePlayer->weight = 200;
+        $basePlayer->height = 180;
+        $basePlayer->save();
+
+        $player = new TeamPlayer();
+        $player->player_id = $basePlayer->id;
+        $player->team_id = $this->team->id;
         $player->number = 10;
         $player->position = 'QB';
         $player->size = 70;
@@ -67,6 +98,7 @@ class BenchPlayerControllerTest extends TestCase
         $player->weight = 200;
         $player->height = 180;
         $player->save();
+
         return $player;
     }
 
@@ -87,15 +119,15 @@ class BenchPlayerControllerTest extends TestCase
             'teamId' => $this->team->id,
             'playerType' => 'offense',
             'leagueId' => $this->league->id,
-            'gameId' => 1,
+            'gameId' => $this->game->id,
             'isPractice' => false
         ]);
 
         $response->assertStatus(200);
-        $this->assertDatabaseHas('bench_players', [
+        $this->assertDatabaseHas('offense_defense_players', [
             'player_id' => $player->id,
             'team_id' => $this->team->id,
-            'game_id' => 1
+            'game_id' => $this->game->id
         ]);
     }
 
@@ -103,10 +135,13 @@ class BenchPlayerControllerTest extends TestCase
     {
         $this->auth();
 
+        $player = $this->createPlayer('Player 99');
+
         $benchPlayer = new BenchPlayer();
-        $benchPlayer->game_id = 1;
+        $benchPlayer->league_id = $this->league->id;
+        $benchPlayer->game_id = $this->game->id;
         $benchPlayer->team_id = $this->team->id;
-        $benchPlayer->player_id = 99;
+        $benchPlayer->player_id = $player->id;
         $benchPlayer->rpp = 50;
         $benchPlayer->save();
 
@@ -115,7 +150,7 @@ class BenchPlayerControllerTest extends TestCase
         ]);
 
         $response->assertStatus(200);
-        $this->assertDatabaseHas('bench_players', [
+        $this->assertDatabaseHas('offense_defense_players', [
             'id' => $benchPlayer->id,
             'rpp' => 88
         ]);
@@ -125,14 +160,17 @@ class BenchPlayerControllerTest extends TestCase
     {
         $this->auth();
 
+        $player = $this->createPlayer('Player 99');
+
         $benchPlayer = new BenchPlayer();
-        $benchPlayer->game_id = 2;
+        $benchPlayer->league_id = $this->league->id;
+        $benchPlayer->game_id = $this->game->id;
         $benchPlayer->team_id = $this->team->id;
-        $benchPlayer->player_id = 99;
+        $benchPlayer->player_id = $player->id;
         $benchPlayer->rpp = 50;
         $benchPlayer->save();
 
-        $response = $this->getJson('/api/bench-players_count/2');
+        $response = $this->getJson('/api/bench-players_count/' . $this->game->id);
 
         $response->assertStatus(200)
                  ->assertJsonFragment(['count' => 1]);
