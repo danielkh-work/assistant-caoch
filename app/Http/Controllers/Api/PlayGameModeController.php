@@ -12,9 +12,20 @@ use Illuminate\Support\Facades\DB;
 class PlayGameModeController extends Controller
 {
     public function startGameGode(Request $request)
-    {   
-         $user = auth()->user(); 
-       
+    {
+        $user = auth()->user();
+
+        $isPractice = filter_var($request->is_practice, FILTER_VALIDATE_BOOLEAN);
+        if ($isPractice) {
+            DB::table('websocket_scoreboards')
+                ->where('user_id', $user->id)
+                ->delete();
+        } else {
+            DB::table('websocket_practice_scoreboards')
+                ->where('user_id', $user->id)
+                ->delete();
+        }
+
         DB::beginTransaction();
         try {
             $game = new PlayGameMode();
@@ -35,14 +46,14 @@ class PlayGameModeController extends Controller
 
         }
     }
-    
+
 
     public function addPointsObject(Request $request)
     {
 
         \Log::info(['data'=>$request->all()]);
 
-        
+
         $value = $request->all();
 
         \Log::info(['value... log data'=>$value]);
@@ -65,7 +76,7 @@ class PlayGameModeController extends Controller
         $log->league_id = $value['league_id'];
 
         // ✅ new columns
-        //$log->players = json_encode($value['players']) ?? null; 
+        //$log->players = json_encode($value['players']) ?? null;
 
         if ($value['is_practice']) {
             $log->practice_players = !empty($value['players'])
@@ -78,7 +89,7 @@ class PlayGameModeController extends Controller
         }
 
         $log->confirmed = $value['is_confirmed'] ?? null;   // true / false / null
-                        
+
         $log->my_team_id = $value['my_team_id'];
         $log->oponent_team_id = $value['oponent_team_id'];
         $log->quater = $value['quater'];
@@ -118,7 +129,7 @@ class PlayGameModeController extends Controller
 
     public function addPoints(Request $request)
     {
-       
+
      $data = $request->all();
 
    if (empty($data) || !is_array($data)) {
@@ -126,11 +137,11 @@ class PlayGameModeController extends Controller
     }
     $logs = [];
 
-   
+
     DB::beginTransaction();
 
     try {
-      
+
         foreach ($data as $value) {
             // Update the game record
             $game = PlayGameMode::find($value['game_id']);
