@@ -95,6 +95,7 @@ class PlayGameModeController extends Controller
         $log->quater = $value['quater'];
         $log->play_id = $value['play_id'];
         $log->downs = $value['downs'];
+        $log->note = $value['note'] ?? null;
         $log->play_yardage_gain = isset($value['play_yardage_gain']) ? $value['play_yardage_gain'] : null;
         $log->weather_status = $value['weather_status'];
         $log->current_position = $value['current_position'];
