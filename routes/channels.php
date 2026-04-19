@@ -27,13 +27,13 @@ Broadcast::channel('headcoach.{headCoachId}.qb', function ($user, $headCoachId) 
 
      return true;
    // return $user->role === 'head_coach' ;
-    
+
 });
 Broadcast::channel('headcoach.{headCoachId}.play', function ($user, $headCoachId) {
 
      return true;
    // return $user->role === 'head_coach' ;
-    
+
 });
 
 Broadcast::channel('headcoach.{userId}', function ($user, $userId) {
@@ -47,8 +47,19 @@ Broadcast::channel('mobile.{mobileUserId}', function ($user, $mobileUserId) {
 });
 Broadcast::channel('coach-group.{headCoachId}', function ($user, $headCoachId) {
     return true;
-       
+
 });
+
+Broadcast::channel('league.{leagueId}', function ($user, $leagueId) {
+    return [
+        'id' => $user->id,
+        'name' => $user->name,
+        'role' => $user->role,
+        'head_coach_id' => $user->head_coach_id,
+    ];
+});
+
+
 
 
 
