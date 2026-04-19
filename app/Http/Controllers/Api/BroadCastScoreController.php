@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Events\PracticeScoreUpdated;
 use App\Events\ScoreUpdated;
+use App\Events\MatchStarted;
 use App\Events\TeamScoreUpdated;
 use App\Events\YardageBroadcast;
 use App\Events\PlaySuggested;
@@ -20,7 +21,7 @@ class BroadCastScoreController extends Controller
             'total' => 0
         ],
         'right' => [
-            'total' => 0 
+            'total' => 0
         ]
     ];
 
@@ -29,20 +30,20 @@ class BroadCastScoreController extends Controller
             'total' => 0
         ],
         'right' => [
-            'total' => 0 
+            'total' => 0
         ]
     ];
 
      public function practiceScoreBoardBroadCast(Request $request)
     {
- 
-      
+
+
         $validated = $request->validate([
             'team' => 'required|in:left,right,both',
             'points' => 'required|integer',
             'action' => 'required|string'
         ]);
-       
+
         $team = $validated['team'];
         $points = $validated['points'];
         $action = $validated['action'];
@@ -56,18 +57,18 @@ class BroadCastScoreController extends Controller
             self::$scores['left']['total'] = $request->teamLeftScore;
             self::$scores['right']['total'] = $request->teamRightScore;
         }
-       
+
         $record = WebsocketPracticeScoreboard::firstOrNew(
             [
              'user_id' => auth()->id(),
              'game_id' => $request->game_id,
-             
+
             ] // lookup condition
-             
+
         );
 
 
-       
+
         if (!$record->exists) {
         $record->time = \Carbon\Carbon::now('America/New_York')->toDateTimeString();
         }
@@ -77,7 +78,7 @@ class BroadCastScoreController extends Controller
         $record->right_score = self::$scores['right']['total'];
         $record->action = $action;
         $record->game_id = $request->game_id;
-      
+
         $record->quarter = $request->quarter;
         $record->is_start = $request->isStartTime;
         $record->down = $request->down;
@@ -91,7 +92,7 @@ class BroadCastScoreController extends Controller
         // Save (creates or updates)
         $record->save();
 
-   
+
         $payload = [
             'scores' => self::$scores,
             'team' => $team,
@@ -101,7 +102,7 @@ class BroadCastScoreController extends Controller
             'action' => $action,
             'isStart'=>$request->isStartTime,
             'time'=>$request->time,
-            'sys_time' => now()->toDateTimeString(), 
+            'sys_time' => now()->toDateTimeString(),
             'quarter' => $request->quarter,
             'down' => $request->down,
             'strategies' => $request->strategies,
@@ -116,17 +117,22 @@ class BroadCastScoreController extends Controller
         $coachGroupId = $user->role === 'head_coach'
             ? $user->id
             : $user->head_coach_id;
-        \Log::info('Before broadcast');
+        $scope = $request->is_play_mode ? 'real' : 'practice';
+        if ($request->isStartTime) {
+            broadcast(new MatchStarted($request->league_id, 'started',  $scope))->toOthers();
+        } else {
+            broadcast(new MatchStarted($request->league_id, 'ended', $scope))->toOthers();
+        }
         broadcast(new PracticeScoreUpdated($payload, $coachGroupId, $request->game_id))->toOthers();
         \Log::info('After broadcast');
 
     }
-    
+
     public function yardagePlaytoAssistant(Request $request)
-    {    
-        
+    {
+
         \Log::info(['data all'=>$request->all()]);
-       
+
         $user = auth()->user();
         $coachGroupId = $user->role === 'head_coach'
             ? $user->id
@@ -146,29 +152,29 @@ class BroadCastScoreController extends Controller
             'my_team' => $request->input('my_team'),
             'opponent_team' => $request->input('opponent_team'),
 
-        
-        
+
+
         ];
 
           \Log::info(['payload...'=> $payload]);
         broadcast(new YardageBroadcast($payload, $coachGroupId))->toOthers();
 
-      
+
     }
     public function scoreBoardBroadCastQB(Request $request)
     {
-        
-        
+
+
         $validated = $request->validate([
             'team' => 'required|in:left,right,both',
             'points' => 'required|integer',
             'action' => 'required|string'
         ]);
-       
+
         $team = $validated['team'];
         $points = $validated['points'];
         $action = $validated['action'];
-       
+
         if($team=='left'){
             $operation = strtolower(trim($request->operation));
             $adjustedPoints = ($operation == 'subtract')
@@ -177,7 +183,7 @@ class BroadCastScoreController extends Controller
 
           self::$qb[$team]['total'] =  $adjustedPoints;
           self::$qb['right']['total'] =  $request->teamRightScore;
-          
+
         }
         else if($team=='right'){
             $operation = strtolower(trim($request->operation));
@@ -188,48 +194,48 @@ class BroadCastScoreController extends Controller
              self::$qb[$team]['total'] = $adjustedPoints;
              self::$qb['left']['total'] =  $request->teamLeftScore;
 
-           
+
         }else{
 
             self::$qb['left']['total'] = $request->teamLeftScore;
             self::$qb['right']['total'] = $request->teamRightScore;
         }
-       
+
         $payload = [
-            
+
             'team_left_score'=>$request->teamLeftScore,
             'team_right_score'=>$request->teamRightScore,
-            'right'=>$request->myteam,      
-            'left'=>$request->oponentTeam,      
+            'right'=>$request->myteam,
+            'left'=>$request->oponentTeam,
             'points' => $points,
             'quarter_length'=>$request->quarter_length/4,
             'isStart'=>$request->isStartTime,
             'time'=>$request->time,
-          
+
         ];
 
-        
-           
-     
+
+
+
         $user = auth()->user();
         $coachGroupId = $user->role === 'head_coach'
             ? $user->id
             : $user->head_coach_id;
-         
-         
 
-       
+
+
+
          broadcast(new TeamScoreUpdated($payload, $coachGroupId))->toOthers();
 
-      
+
     }
 
     public function scoreBoardBroadCastPlay(Request $request)
     {
-        
-          
 
-        
+
+
+
         $validated = $request->validate([
             'title' => 'required|string',
             'image' => 'required|string',
@@ -239,9 +245,9 @@ class BroadCastScoreController extends Controller
             'read3' => 'nullable|string',
              'yardageGain'=> 'nullable|integer',
              'yard'=> 'nullable|string',
-         
-           
-            
+
+
+
         ]);
 
         // Access validated data
@@ -255,46 +261,48 @@ class BroadCastScoreController extends Controller
         $payload['yard'] = $validated['yard'] ?? null;
 
         \Log::info(['playe suggested broad cast'=>  $payload]);
-      
+
         $user = auth()->user();
         $coachGroupId = $user->role === 'head_coach'
             ? $user->id
             : $user->head_coach_id;
-         
-         
 
-       
+
+
+
          broadcast(new PlaySuggested($payload, $coachGroupId))->toOthers();
 
-      
+
     }
 
-   
+
     public function scoreBoardBroadCast(Request $request)
     {
- 
-         
-        
+
+
+
+
+
         $validated = $request->validate([
             'team' => 'required|in:left,right,both',
             'points' => 'required|integer',
             'action' => 'required|string'
         ]);
-       
+
         $team = $validated['team'];
         $points = $validated['points'];
         $action = $validated['action'];
-        \Log::info(['operation'=>$request->operation]);
+
         if($team=='left'){
 
-         
+
 
             $operation = strtolower(trim($request->operation));
             $adjustedPoints = ($operation == 'subtract')
             ? $request->teamLeftScore - $points
             : $request->teamLeftScore + $points;
 
-  
+
 
 
           self::$scores[$team]['total'] =  $adjustedPoints;
@@ -311,25 +319,25 @@ class BroadCastScoreController extends Controller
             self::$scores['left']['total'] = $request->teamLeftScore;
             self::$scores['right']['total'] = $request->teamRightScore;
         }
-       
+
         $record = WebsocketScoreboard::firstOrNew(
             [
              'user_id' =>  auth()->user()->role === 'head_coach'
         ? auth()->id()
         : auth()->user()->head_coach_id,
-           
+
              'game_id' => $request->game_id,
             ] // lookup condition
-            
+
         );
 
-       
+
         // if (!$record->exists ) {
         // $record->time = \Carbon\Carbon::now('America/New_York')->toDateTimeString();
         // }
-       
+
 if (
-    !$record->exists || 
+    !$record->exists ||
     ($record->exists && $record->quarter != $request->quarter)
 ) {
     $record->time = \Carbon\Carbon::now('America/New_York')->toDateTimeString();
@@ -353,7 +361,7 @@ if (
         // Save (creates or updates)
         $record->save();
 
-   
+
         $payload = [
             'scores' => self::$scores,
             'team' => $team,
@@ -367,7 +375,7 @@ if (
             'sync_time' => $request->sync_time,
             'isStart'=>$request->isStartTime,
             'time'=>$request->time,
-            'sys_time' => now()->toDateTimeString(), 
+            'sys_time' => now()->toDateTimeString(),
             'quarter' => $request->quarter,
             'down' => $request->down,
             'strategies' => $request->strategies,
@@ -382,17 +390,26 @@ if (
         $coachGroupId = $user->role === 'head_coach'
             ? $user->id
             : $user->head_coach_id;
+        \Log::info(['play_mode'=>$request->is_play_mode]);
+        $scope = $request->is_play_mode ? 'real' : 'practice';
+        if ($request->isStartTime) {
+                broadcast(new MatchStarted($request->league_id, 'started',  $scope))->toOthers();
+            } else {
+                broadcast(new MatchStarted($request->league_id, 'ended', $scope))->toOthers();
+            }
+
         broadcast(new ScoreUpdated($payload, $coachGroupId,$request->game_id))->toOthers();
 
-      
+
     }
-   
+
     public function getWebSocketScoreBoard(){
 
         $user = auth()->user();
         $coachGroupId = $user->role === 'head_coach'
             ? $user->id
             : $user->head_coach_id;
+        \Log::info(['checking websocket with user id working or nort'=>$coachGroupId]);
         $webSocketScorboard= WebsocketScoreboard::where('user_id',$coachGroupId)
         ->firstOrFail();
          if (!$webSocketScorboard) {
@@ -416,22 +433,22 @@ if (
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "scoreboardList",$webSocketScorboard);
         // return WebsocketScoreboard::where('game_id', $game_id)->firstOrFail();
     }
-    
+
 
      public function delete($gameId){
          $user = auth()->user();
         $coachGroupId = $user->role === 'head_coach'
             ? $user->id
             : $user->head_coach_id;
-           
+
         $deleted= WebsocketScoreboard::where('user_id',$coachGroupId)
         ->delete();
         if ($deleted) {
           broadcast(new ScoreUpdated((object)[], $coachGroupId,$gameId))->toOthers();
-          
+
         }
         return response()->noContent();
-        
+
     }
 
     public function deletePractice($gameId){
@@ -440,15 +457,15 @@ if (
         $coachGroupId = $user->role === 'head_coach'
             ? $user->id
             : $user->head_coach_id;
-           
+
         $deleted= WebsocketPracticeScoreboard::where('user_id',$coachGroupId)
         ->delete();
         if ($deleted) {
-          
+
              broadcast(new PracticeScoreUpdated((object)[], $coachGroupId,$gameId))->toOthers();
-           
+
              return response()->noContent();
-        
+
          }
   }
 }
