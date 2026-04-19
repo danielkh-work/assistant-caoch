@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Events\PracticeScoreUpdated;
 use App\Events\ScoreUpdated;
+use App\Events\MatchStarted;
 use App\Events\TeamScoreUpdated;
 use App\Events\YardageBroadcast;
 use App\Events\PlaySuggested;
@@ -116,7 +117,12 @@ class BroadCastScoreController extends Controller
         $coachGroupId = $user->role === 'head_coach'
             ? $user->id
             : $user->head_coach_id;
-        \Log::info('Before broadcast');
+        $scope = $request->is_play_mode ? 'real' : 'practice';
+        if ($request->isStartTime) {
+            broadcast(new MatchStarted($request->league_id, 'started',  $scope))->toOthers();
+        } else {
+            broadcast(new MatchStarted($request->league_id, 'ended', $scope))->toOthers();
+        }
         broadcast(new PracticeScoreUpdated($payload, $coachGroupId, $request->game_id))->toOthers();
         \Log::info('After broadcast');
 
@@ -275,6 +281,8 @@ class BroadCastScoreController extends Controller
 
 
 
+
+
         $validated = $request->validate([
             'team' => 'required|in:left,right,both',
             'points' => 'required|integer',
@@ -284,7 +292,7 @@ class BroadCastScoreController extends Controller
         $team = $validated['team'];
         $points = $validated['points'];
         $action = $validated['action'];
-        \Log::info(['operation'=>$request->operation]);
+
         if($team=='left'){
 
 
@@ -382,6 +390,14 @@ if (
         $coachGroupId = $user->role === 'head_coach'
             ? $user->id
             : $user->head_coach_id;
+        \Log::info(['play_mode'=>$request->is_play_mode]);
+        $scope = $request->is_play_mode ? 'real' : 'practice';
+        if ($request->isStartTime) {
+                broadcast(new MatchStarted($request->league_id, 'started',  $scope))->toOthers();
+            } else {
+                broadcast(new MatchStarted($request->league_id, 'ended', $scope))->toOthers();
+            }
+
         broadcast(new ScoreUpdated($payload, $coachGroupId,$request->game_id))->toOthers();
 
 
