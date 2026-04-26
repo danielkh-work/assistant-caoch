@@ -33,10 +33,11 @@ class PlayGameModeController extends Controller
             $game->league_id = $request->league_id;
             $game->my_team_id =$request->my_team_id;
             $game->oponent_team_id =$request->oponent_team_id;
+            $game->game_mode = $request->is_practice ? 'practice' :'play';
             $game->user_id = auth()->id();
             $game->quater = '';
             $game->downs ='';
-            $game->status = 0;
+            $game->status = 2;
             $game->save();
             DB::commit();
             return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Game Start SuccessFully ", $game);

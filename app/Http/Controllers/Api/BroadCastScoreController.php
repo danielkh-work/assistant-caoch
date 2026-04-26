@@ -156,7 +156,7 @@ class BroadCastScoreController extends Controller
 
         ];
 
-          \Log::info(['payload...'=> $payload]);
+        
         broadcast(new YardageBroadcast($payload, $coachGroupId))->toOthers();
 
 
@@ -216,7 +216,7 @@ class BroadCastScoreController extends Controller
 
 
 
-
+      \Log::info(['data log'=>'qb post working sucesslfulll']);
         $user = auth()->user();
         $coachGroupId = $user->role === 'head_coach'
             ? $user->id

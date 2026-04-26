@@ -25,8 +25,14 @@ class MatchStarted implements ShouldBroadcast
     }
 
     public function broadcastOn()
-    {
-        return new PresenceChannel('league.' . $this->leagueId);
+    { 
+
+        return [
+            new PresenceChannel('league.global'), 
+            new PresenceChannel('league.' . $this->leagueId), 
+        ];
+        
+        //return new PresenceChannel('league.' . $this->leagueId);
     }
 
      public function broadcastAs()

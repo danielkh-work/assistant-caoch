@@ -12,6 +12,7 @@ class PlayGameMode extends Model
     protected $fillable = [
         'my_team_score',
         'oponent_team_score',
+        'game_mode',
     ];
 
     public function logs()
