@@ -162,7 +162,7 @@ class SuggestionController extends Controller
         $query->where('team_id', $gameData->my_team_id)
               ->where('type', 'myteam');
     })
-    
+
 
     ->where('player_type', 'offence')
     ->get()
