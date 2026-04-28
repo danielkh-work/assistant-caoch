@@ -64,6 +64,29 @@ class WebQrController extends Controller
         broadcast(new MobileSessionApproved($userData))->toOthers();
     }
 
+    public function logouQbApplicaion(Request $request)
+    {
+        $user = User::find($request->id);
+
+        if (!$user) {
+            return response()->json([
+                'status' => 404,
+                'message' => 'User not found'
+            ]);
+        }
+
+        // 🔴 Clear session_id (this is your main requirement)
+        $user->session_id = null;
+        $user->save();
+
+        $userData = [
+            'status'  => 200,
+            'message' => 'logout successful',
+            'user'    => $user->only(['name', 'session_id', 'code', 'head_coach_id']),
+        ];
+
+        return response()->json($userData);
+    }
     public function logoutQb(Request $request){
        
 
