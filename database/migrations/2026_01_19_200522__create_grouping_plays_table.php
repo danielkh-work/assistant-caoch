@@ -16,7 +16,7 @@ return new class extends Migration
 
                 $table->unsignedBigInteger('personal_grouping_id'); // matches personal_groupings.id (BIGINT unsigned)
 
-                $table->integer('play_id'); // matches plays.id (INT signed)
+                $table->unsignedBigInteger('play_id'); // matches plays.id (BIGINT unsigned)
 
                 $table->timestamps();
 

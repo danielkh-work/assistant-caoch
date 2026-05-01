@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('offensive_target_strengths', function (Blueprint $table) {
             $table->id();
-            $table->integer('play_id');
+            $table->unsignedBigInteger('play_id');
             $table->string('code');
             $table->integer('strength')->default(0);
             $table->integer('target_offensive_id');

@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('defensive_play_personal_grouping', function (Blueprint $table) {
             $table->id();
-            $table->integer('defensive_play_id');
+            $table->unsignedBigInteger('defensive_play_id');
             $table->unsignedBigInteger('personal_grouping_id'); 
             $table->foreign('defensive_play_id')
                     ->references('id')
