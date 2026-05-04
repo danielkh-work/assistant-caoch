@@ -242,6 +242,14 @@ class SportController extends Controller
     public function leagueView(Request $request)
     {
       $leauqe = League::with('teams','league_rule','sport')->find($request->id); 
+      
+      if (!$leauqe) {
+          return response()->json([
+              'success' => false,
+              'message' => 'League not found'
+          ], 404);
+      }
+      
       $teams = LeagueTeam::where('league_id', $leauqe->id)->where(function ($q) {
         $q->where('type', 1)
           ->orWhereNull('type');
