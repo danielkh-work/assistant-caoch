@@ -8,11 +8,11 @@ namespace App\OpenApi;
  * @OA\Info(
  *     title="Human Dashboard API",
  *     version="1.0.0",
- *     description="QB session login status and QB application logout. Postman `{{base_url}}` should match `L5_SWAGGER_CONST_HOST` + `/api` paths below (e.g. `http://localhost:8000/api` → set host to `http://localhost:8000`)."
+ *     description="QB session login status and QB application logout. **Try it out** uses this deployment’s origin. For Postman, set `{{base_url}}` to the same host as the API (no trailing slash), e.g. `https://staging.admin.humandashboard.ca` — paths in this spec are already prefixed with `/api`."
  * )
  * @OA\Server(
- *     url=L5_SWAGGER_CONST_HOST,
- *     description="Application base URL (no trailing slash). Override with `L5_SWAGGER_CONST_HOST` in `.env`."
+ *     url="/",
+ *     description="Relative to the host serving this OpenAPI document (staging, production, or local). No hardcoded localhost."
  * )
  */
 final class HumanDashboardApiDoc
