@@ -301,6 +301,44 @@ class AuthApiTest extends TestCase
     }
 
     /** @test */
+    public function get_qb_user_returns_all_qbs_newest_first()
+    {
+        $headCoach = User::create([
+            'name' => 'Head Coach',
+            'email' => 'headmf@test.com',
+            'password' => Hash::make('12345678'),
+            'role' => 'head_coach',
+            'status' => 'approved'
+        ]);
+
+        $first = User::create([
+            'name' => 'QB Old',
+            'email' => 'qb-old@test.com',
+            'role' => 'qb',
+            'head_coach_id' => $headCoach->id,
+            'password' => Hash::make('12345678')
+        ]);
+
+        $second = User::create([
+            'name' => 'QB New',
+            'email' => 'qb-new@test.com',
+            'role' => 'qb',
+            'head_coach_id' => $headCoach->id,
+            'password' => Hash::make('12345678')
+        ]);
+
+        $response = $this->actingAs($headCoach, 'sanctum')
+                         ->getJson('/api/get-qb-user');
+
+        $response->assertStatus(200);
+        $data = $response->json('data');
+        $this->assertIsArray($data);
+        $this->assertCount(2, $data);
+        $this->assertSame($second->id, $data[0]['id']);
+        $this->assertSame($first->id, $data[1]['id']);
+    }
+
+    /** @test */
     public function head_coach_can_get_assistant_coaches()
     {
         $headCoach = User::create([

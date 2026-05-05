@@ -404,9 +404,15 @@ class AuthController extends Controller
                
             ]);
 
-            $headCoachRoles = $headCoach->roles->pluck('name'); 
-            $assistant->assignRole($headCoachRoles); 
-            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Add QB Successfully",$assistant );
+            $headCoachRoles = $headCoach->roles->pluck('name');
+            $assistant->assignRole($headCoachRoles);
+
+            return new BaseResponse(
+                STATUS_CODE_OK,
+                STATUS_CODE_OK,
+                'Add QB Successfully',
+                $assistant->fresh()->load('roles')
+            );
            
     }
 
@@ -415,9 +421,12 @@ class AuthController extends Controller
     {
         $headCoachId = $request->user()->id; // auth user
 
-        $qbUser = User::where('role','qb')->where('head_coach_id', $headCoachId)->first();
+        $qbUser = User::where('role', 'qb')
+            ->where('head_coach_id', $headCoachId)
+            ->orderByDesc('id')
+            ->get();
 
-        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "qb list",$qbUser );
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "qb list", $qbUser);
 
        
     }
