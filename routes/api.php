@@ -64,7 +64,8 @@ use App\Http\Controllers\Api\WebQrController;
 
 
 Route::post('/mobile/create-session', [WebQrController::class, 'createSession']); // mobile 
-Route::post('/logout-qb-applicaion', [WebQrController::class, 'logouQbApplicaion']); 
+Route::get('/logout-qb-applicaion/{id}', [WebQrController::class, 'logouQbApplicaion']);
+Route::get('/qb-session-login-status/{session_id}', [WebQrController::class, 'qbSessionLoginStatus']);
 Route::middleware('auth:sanctum')->group(function () {
    Route::post('/web/scan-qr', [WebQrController::class, 'scanQr']); 
    Route::post('logout-qb', [WebQrController::class, 'logoutQb']); 

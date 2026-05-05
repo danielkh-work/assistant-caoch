@@ -89,4 +89,36 @@ class WebQrControllerTest extends TestCase
 
         $response->assertStatus(200);
     }
+
+    public function test_logout_qb_application_uses_get_with_id_param()
+    {
+        $this->qbUser->session_id = Str::uuid()->toString();
+        $this->qbUser->is_loggin = true;
+        $this->qbUser->save();
+
+        $response = $this->getJson("/api/logout-qb-applicaion/{$this->qbUser->id}");
+
+        $response->assertStatus(200)
+            ->assertJsonPath('status', 200);
+
+        $this->qbUser->refresh();
+        $this->assertNull($this->qbUser->session_id);
+        $this->assertFalse((bool) $this->qbUser->is_loggin);
+    }
+
+    public function test_qb_session_login_status_reflects_session_id()
+    {
+        $sessionId = Str::uuid()->toString();
+
+        $notLogged = $this->getJson("/api/qb-session-login-status/{$sessionId}");
+        $notLogged->assertStatus(401)
+            ->assertJsonPath('message', 'Unauthenticated');
+
+        $this->qbUser->session_id = $sessionId;
+        $this->qbUser->save();
+
+        $logged = $this->getJson("/api/qb-session-login-status/{$sessionId}");
+        $logged->assertStatus(200)
+            ->assertJsonPath('logged_in', true);
+    }
 }

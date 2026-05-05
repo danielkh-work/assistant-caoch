@@ -64,9 +64,9 @@ class WebQrController extends Controller
         broadcast(new MobileSessionApproved($userData))->toOthers();
     }
 
-    public function logouQbApplicaion(Request $request)
+    public function logouQbApplicaion(string $id)
     {
-        $user = User::find($request->id);
+        $user = User::find($id);
 
         if (!$user) {
             return response()->json([
@@ -75,8 +75,8 @@ class WebQrController extends Controller
             ]);
         }
 
-        // 🔴 Clear session_id (this is your main requirement)
         $user->session_id = null;
+        $user->is_loggin = false;
         $user->save();
 
         $userData = [
@@ -87,6 +87,27 @@ class WebQrController extends Controller
 
         return response()->json($userData);
     }
+
+    public function qbSessionLoginStatus(string $session_id)
+    {
+        $user = User::where('session_id', $session_id)
+            ->where('role', 'qb')
+            ->first();
+
+        if ($user === null) {
+            return response()->json([
+                'status' => 401,
+                'message' => 'Unauthenticated',
+            ], 401);
+        }
+
+        return response()->json([
+            'status' => 200,
+            'session_id' => $session_id,
+            'logged_in' => true,
+        ]);
+    }
+
     public function logoutQb(Request $request){
        
 
