@@ -469,9 +469,10 @@ class AuthController extends Controller
             ], 401);
         }
 
-        // Save session_id if provided
+        // Persist mobile pairing so dashboards (get-qb-user) can distinguish active sessions
         if ($request->filled('session_id')) {
             $user->session_id = $request->session_id;
+            $user->is_loggin = true;
             $user->save();
         }
        

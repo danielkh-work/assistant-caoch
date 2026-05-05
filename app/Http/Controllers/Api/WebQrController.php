@@ -37,37 +37,61 @@ class WebQrController extends Controller
     public function scanQr(Request $request)
     {
         $request->validate([
-            'session_id' => 'string',   
+            'session_id' => 'required|string',
+            'qb_id'      => 'sometimes|nullable|integer|exists:users,id',
         ]);
-       $authId = auth()->id();
-       $user = User::where('head_coach_id', $authId)->where('role', 'qb')
-                    ->first();
-       \Log::info(['qb user'=>$user]);             
-         if (!$user) {
+
+        $authId = auth()->id();
+
+        $qbQuery = User::query()
+            ->where('role', 'qb')
+            ->where('head_coach_id', $authId);
+
+        if ($request->filled('qb_id')) {
+            $user = (clone $qbQuery)->whereKey($request->integer('qb_id'))->first();
+        } else {
+            $qbCount = (clone $qbQuery)->count();
+            if ($qbCount === 0) {
+                return response()->json([
+                    'status' => 401,
+                    'message' => 'No QB users found for this coach',
+                ], 401);
+            }
+            if ($qbCount > 1) {
+                return response()->json([
+                    'status' => 422,
+                    'message' => 'Multiple QBs linked to this coach; pass qb_id to choose which QB to pair.',
+                ], 422);
+            }
+            $user = $qbQuery->orderByDesc('id')->first();
+        }
+
+        \Log::info(['qb user' => $user]);
+
+        if (! $user) {
             return response()->json([
                 'status' => 401,
-                'message' => 'Invalid code'
+                'message' => 'Invalid or unauthorized QB user',
             ], 401);
         }
-        if ($request->filled('session_id')) {
-            $user->session_id = $request->session_id;
-           
-        }
+
+        $user->session_id = $request->session_id;
         $user->is_loggin = true;
         $user->save();
+
         $token = $user->createToken('QB-App-Token')->plainTextToken;
 
-        // $userData = $user->only(['name', 'session_id', 'code','head_coach_id']);   
-        
         $userData = [
             'status'       => 201,
             'message'      => 'Login successful',
-            'user'         => $user->only(['name', 'session_id', 'code','head_coach_id']),
+            'user'         => $user->only(['name', 'session_id', 'code', 'head_coach_id']),
             'access_token' => $token,
             'token_type'   => 'Bearer'
         ];
-        
+
         broadcast(new MobileSessionApproved($userData))->toOthers();
+
+        return response()->json($userData, 201);
     }
 
     /**

@@ -404,8 +404,9 @@ class AuthApiTest extends TestCase
 
     $this->assertDatabaseHas('users', [
         'id' => $qb->id,
-        'session_id' => 'abc123'
+        'session_id' => 'abc123',
     ]);
+    $this->assertTrue($qb->fresh()->is_loggin);
 }
 
 /** @test */
