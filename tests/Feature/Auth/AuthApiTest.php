@@ -397,6 +397,7 @@ class AuthApiTest extends TestCase
              ->assertJson([
                  'message' => 'Login successful',
                  'user' => [
+                     'id' => $qb->id,
                      'name' => 'QB User',
                      'session_id' => 'abc123',
                      'code' => '1234',

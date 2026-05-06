@@ -84,7 +84,8 @@ class WebQrController extends Controller
         $userData = [
             'status'       => 201,
             'message'      => 'Login successful',
-            'user'         => $user->only(['name', 'session_id', 'code', 'head_coach_id']),
+            'user'         => $user->only(['id', 'name', 'session_id', 'code', 'head_coach_id']),
+            'user_id'      => $user->id,
             'access_token' => $token,
             'token_type'   => 'Bearer'
         ];

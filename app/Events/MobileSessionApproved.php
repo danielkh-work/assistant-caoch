@@ -2,40 +2,44 @@
 
 namespace App\Events;
 
-use Illuminate\Broadcasting\PrivateChannel;
+use Illuminate\Broadcasting\Channel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
-use App\Models\MobileSession;
-use Illuminate\Broadcasting\Channel;
 
 class MobileSessionApproved implements ShouldBroadcast
 {
     use Dispatchable, SerializesModels;
 
-     public $user;
+    /** @var array<string, mixed> */
+    public array $user;
 
     public function __construct(array $user)
     {
-    
         $this->user = $user;
-         
-        \Log::info(['web scoket'=> $this->user]);
     }
 
-
-     public function broadcastOn()
+    public function broadcastOn(): Channel
     {
-        return new Channel("qb-user.{$this->user['user']['session_id']}");
+        return new Channel('qb-user.'.$this->user['user']['session_id']);
     }
 
-    public function broadcastAs()
+    public function broadcastAs(): string
     {
         return 'session.approved';
     }
 
-    public function broadcastWith()
+    /**
+     * @return array<string, mixed>
+     */
+    public function broadcastWith(): array
     {
-        return $this->user;
+        $data = $this->user;
+        $id = $data['user']['id'] ?? $data['user_id'] ?? null;
+        if ($id !== null) {
+            $data['user_id'] = $id;
+        }
+
+        return $data;
     }
 }
