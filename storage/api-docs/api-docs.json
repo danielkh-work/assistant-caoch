@@ -2,7 +2,7 @@
     "openapi": "3.0.0",
     "info": {
         "title": "Human Dashboard API",
-        "description": "QB session login status and QB application logout. **Try it out** uses this deployment’s origin. For Postman, set `{{base_url}}` to the same host as the API (no trailing slash), e.g. `https://staging.admin.humandashboard.ca` — paths in this spec are already prefixed with `/api`.",
+        "description": "Human Dashboard",
         "version": "1.0.0"
     },
     "servers": [
