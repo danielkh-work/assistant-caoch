@@ -115,6 +115,7 @@ class WebQrControllerTest extends TestCase
             ->assertJsonPath('message', 'Unauthenticated');
 
         $this->qbUser->session_id = $sessionId;
+        $this->qbUser->is_loggin = true;
         $this->qbUser->save();
 
         $logged = $this->getJson("/api/qb-session-login-status/{$sessionId}");

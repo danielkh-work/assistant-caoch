@@ -178,7 +178,7 @@ class WebQrController extends Controller
      *         @OA\JsonContent(
      *             @OA\Property(property="status", type="integer", example=200),
      *             @OA\Property(property="session_id", type="string", format="uuid"),
-     *             @OA\Property(property="logged_in", type="boolean", example=true)
+     *             @OA\Property(property="logged_in", type="boolean", description="Mirrors the QB user's `is_loggin` flag in the database.", example=true)
      *         )
      *     ),
      *     @OA\Response(
@@ -207,7 +207,7 @@ class WebQrController extends Controller
         return response()->json([
             'status' => 200,
             'session_id' => $session_id,
-            'logged_in' => true,
+            'logged_in' => (bool) $user->is_loggin,
         ]);
     }
 

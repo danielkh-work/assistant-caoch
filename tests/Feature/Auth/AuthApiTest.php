@@ -270,8 +270,10 @@ class AuthApiTest extends TestCase
         $response->assertStatus(200);
         $this->assertDatabaseHas('users', [
             'email' => 'qb@test.com',
-            'head_coach_id' => $headCoach->id
+            'head_coach_id' => $headCoach->id,
+            'is_loggin' => 0,
         ]);
+        $this->assertFalse((bool) $response->json('data.is_loggin'));
     }
 
     /** @test */
@@ -407,6 +409,33 @@ class AuthApiTest extends TestCase
         'session_id' => 'abc123',
     ]);
     $this->assertTrue($qb->fresh()->is_loggin);
+}
+
+/** @test */
+public function qb_login_with_code_without_session_still_sets_is_loggin()
+{
+    $headCoach = User::create([
+        'name' => 'Head Coach',
+        'email' => 'headcoach2@test.com',
+        'password' => Hash::make('12345678'),
+        'role' => 'head_coach',
+        'status' => 'approved'
+    ]);
+
+    $qb = User::create([
+        'name' => 'QB User',
+        'email' => 'qb2@test.com',
+        'role' => 'qb',
+        'head_coach_id' => $headCoach->id,
+        'password' => Hash::make('12345678'),
+        'code' => '5678'
+    ]);
+
+    $response = $this->getJson('/api/qb/login-with-session?code=5678');
+
+    $response->assertStatus(200);
+    $this->assertTrue($qb->fresh()->is_loggin);
+    $this->assertNull($qb->fresh()->session_id);
 }
 
 /** @test */

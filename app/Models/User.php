@@ -28,7 +28,9 @@ class User extends Authenticatable
         'subscription_id',
         'image','is_subscribed',
         'code',
-        'encrypted_password'
+        'encrypted_password',
+        'session_id',
+        'is_loggin',
     ];
  
       

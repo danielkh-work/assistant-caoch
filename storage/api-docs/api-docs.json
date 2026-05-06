@@ -130,6 +130,7 @@
                                             "format": "uuid"
                                         },
                                         "logged_in": {
+                                            "description": "Mirrors the QB user's `is_loggin` flag in the database.",
                                             "type": "boolean",
                                             "example": true
                                         }

@@ -400,8 +400,9 @@ class AuthController extends Controller
                 'sport_id' => $headCoach->sport_id,
                 'is_subscribe' => $headCoach->is_subscribe,
                 'subscription_id' => $headCoach->subscription_id,
-                'code' => User::generateUniqueCode()
-               
+                'code' => User::generateUniqueCode(),
+                'session_id' => null,
+                'is_loggin' => false,
             ]);
 
             $headCoachRoles = $headCoach->roles->pluck('name');
@@ -469,12 +470,12 @@ class AuthController extends Controller
             ], 401);
         }
 
-        // Persist mobile pairing so dashboards (get-qb-user) can distinguish active sessions
+        // QB is on the device once code auth succeeds; dashboards use is_loggin (see get-qb-user).
         if ($request->filled('session_id')) {
             $user->session_id = $request->session_id;
-            $user->is_loggin = true;
-            $user->save();
         }
+        $user->is_loggin = true;
+        $user->save();
        
         
         // Generate Laravel Sanctum token
