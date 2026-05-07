@@ -77,20 +77,56 @@ class DefensivePlayController extends Controller
     }
     public function index(Request $request)
     {
-        
-        $plays = DefensivePlay::with('playResults','strategyBlitz','formation','personals.teamPlayer.player')->where('league_id',$request->league_id)
+        $query = DefensivePlay::with('playResults', 'strategyBlitz', 'formation', 'personals.teamPlayer.player')
+            ->where('league_id', $request->league_id)
             ->withCount([
-            'playResults as win_result' => function ($q) {
-            $q->where('result', 'win');
-            },
-            'playResults as loss_result' => function ($q) {
-            $q->where('result', 'loss');
-            },
-            'playResults as total_count'
+                'playResults as win_result' => function ($q) {
+                    $q->where('result', 'win');
+                },
+                'playResults as loss_result' => function ($q) {
+                    $q->where('result', 'loss');
+                },
+                'playResults as total_count',
             ])
-             ->withAvg('playResults as yardage_difference', 'yardage_difference') 
-        ->get();
-        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play Uploaded List ", $plays);
+            ->withAvg('playResults as yardage_difference', 'yardage_difference');
+
+        $searchTerm = trim((string) $request->input('search', ''));
+        if ($searchTerm !== '') {
+            $needle = '%' . addcslashes($searchTerm, '%_\\') . '%';
+            $query->where('name', 'like', $needle);
+        }
+
+        $paginateRequested = $request->has('page')
+            || $request->has('per_page')
+            || $request->filled('search');
+
+        if ($paginateRequested) {
+            $page = max(1, (int) $request->input('page', 1));
+            $perPage = max(1, min(100, (int) $request->input('per_page', 4)));
+
+            $paginator = $query->paginate($perPage, ['*'], 'page', $page);
+
+            $pagination = [
+                'total' => $paginator->total(),
+                'current_page' => $paginator->currentPage(),
+                'per_page' => $paginator->perPage(),
+                'last_page' => $paginator->lastPage(),
+            ];
+
+            return new BaseResponse(
+                STATUS_CODE_OK,
+                STATUS_CODE_OK,
+                'Play Uploaded List ',
+                $paginator->items(),
+                null,
+                null,
+                $pagination,
+            );
+        }
+
+        $plays = $query->get();
+
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Play Uploaded List ', $plays);
     }
 
      public function editDefensivePlay($id)
