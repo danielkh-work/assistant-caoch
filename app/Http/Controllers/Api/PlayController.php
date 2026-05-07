@@ -23,46 +23,77 @@ class PlayController extends Controller
 {
 
     public function index(Request $request)
-    {  
-
-      
-       
+    {
         $userRoleIds = auth()->user()->roles->pluck('id');
-         $id =  ['1', $request->league_id];
-        // $play =  Play::whereIn('league_id', $id)->get();
-        $play = Play::with(['roles', 'playResults','offensiveTargets'])
-    ->where(function ($query) use ($id, $userRoleIds) {
-        $query->orWhereIn('league_id', $id)
-            ->orWhereHas('roles', function ($q) use ($userRoleIds) {
-                $q->whereIn('roleables.role_id', $userRoleIds);
-            });
-    })
-    ->withCount([
-        'playResults as win_result' => function ($q) {
-            $q->where('result', 'win')->where('is_practice', 0);
-        },
-        'playResults as loss_result' => function ($q) {
-            $q->where('result', 'loss')->where('is_practice', 0);
-        },
-        'playResults as practice_win_result' => function ($q) {
-            $q->where('result', 'win')->where('is_practice', 1);
-        },
-         'playResults as practice_loss_result' => function ($q) {
-            $q->where('result', 'win')->where('is_practice', 1);
-        },
-        'playResults as total_count' => function ($q) {
-            $q->where('is_practice', 0);
-         },
-          'playResults as total_practice_count' => function ($q) {
-            $q->where('is_practice', 1);
-         },
-        
-    ])
-     ->withAvg('playResults as yardage_difference', 'yardage_difference')
-      ->orderByDesc('win_result') 
-      ->get();
+        $id = ['1', $request->league_id];
 
-        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play Uploaded List ", $play);
+        $query = Play::with(['roles', 'playResults', 'offensiveTargets'])
+            ->where(function ($sub) use ($id, $userRoleIds) {
+                $sub->orWhereIn('league_id', $id)
+                    ->orWhereHas('roles', function ($q) use ($userRoleIds) {
+                        $q->whereIn('roleables.role_id', $userRoleIds);
+                    });
+            })
+            ->withCount([
+                'playResults as win_result' => function ($q) {
+                    $q->where('result', 'win')->where('is_practice', 0);
+                },
+                'playResults as loss_result' => function ($q) {
+                    $q->where('result', 'loss')->where('is_practice', 0);
+                },
+                'playResults as practice_win_result' => function ($q) {
+                    $q->where('result', 'win')->where('is_practice', 1);
+                },
+                'playResults as practice_loss_result' => function ($q) {
+                    $q->where('result', 'win')->where('is_practice', 1);
+                },
+                'playResults as total_count' => function ($q) {
+                    $q->where('is_practice', 0);
+                },
+                'playResults as total_practice_count' => function ($q) {
+                    $q->where('is_practice', 1);
+                },
+            ])
+            ->withAvg('playResults as yardage_difference', 'yardage_difference')
+            ->orderByDesc('win_result');
+
+        $searchTerm = trim((string) $request->input('search', ''));
+        if ($searchTerm !== '') {
+            $needle = '%' . addcslashes($searchTerm, '%_\\') . '%';
+            $query->where('play_name', 'like', $needle);
+        }
+
+        $paginateRequested = $request->has('page')
+            || $request->has('per_page')
+            || $request->filled('search');
+
+        if ($paginateRequested) {
+            $page = max(1, (int) $request->input('page', 1));
+            $perPage = max(1, min(100, (int) $request->input('per_page', 4)));
+
+            $paginator = $query->paginate($perPage, ['*'], 'page', $page);
+
+            $pagination = [
+                'total' => $paginator->total(),
+                'current_page' => $paginator->currentPage(),
+                'per_page' => $paginator->perPage(),
+                'last_page' => $paginator->lastPage(),
+            ];
+
+            return new BaseResponse(
+                STATUS_CODE_OK,
+                STATUS_CODE_OK,
+                'Play Uploaded List ',
+                $paginator->items(),
+                null,
+                null,
+                $pagination,
+            );
+        }
+
+        $play = $query->get();
+
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Play Uploaded List ', $play);
     }
 
     public function deletePlayResults($id)

@@ -105,6 +105,51 @@ class PlayControllerTest extends TestCase
                  ->assertJsonStructure(['status', 'message', 'data']);
     }
 
+    public function test_play_list_supports_pagination_and_search_query_param()
+    {
+        $this->auth();
+
+        foreach (['Alpha List Play', 'Beta List Play', 'Gamma List Play'] as $title) {
+            $play = new Play();
+            $play->play_name = $title;
+            $play->league_id = $this->league->id;
+            $play->play_type = 1;
+            $play->zone_selection = 1;
+            $play->min_expected_yard = '0';
+            $play->max_expected_yard = '0';
+            $play->pre_snap_motion = 1;
+            $play->play_action_fake = 1;
+            $play->possession = 'offensive';
+            $play->video_path = '';
+            $play->save();
+        }
+
+        $query = '/api/upload-play-list?'
+            . 'league_id=' . $this->league->id
+            . '&page=1&per_page=2&search=Beta';
+
+        $response = $this->getJson($query);
+
+        $response->assertStatus(200)
+            ->assertJsonStructure([
+                'status',
+                'message',
+                'data',
+                'pagination' => ['total', 'current_page', 'per_page', 'last_page'],
+            ]);
+
+        $data = $response->json('data');
+        $pagination = $response->json('pagination');
+
+        $this->assertIsArray($data);
+        $this->assertCount(1, $data);
+        $this->assertSame('Beta List Play', $data[0]['play_name']);
+        $this->assertSame(1, $pagination['total']);
+        $this->assertSame(1, $pagination['current_page']);
+        $this->assertSame(2, $pagination['per_page']);
+        $this->assertSame(1, $pagination['last_page']);
+    }
+
     public function test_can_duplicate_play()
     {
         $this->auth();
