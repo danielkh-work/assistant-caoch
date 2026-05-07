@@ -51,10 +51,119 @@ class TeamController extends Controller
         $team =  Team::with('teamplayer.player')->get();
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Team list", $team);
     }
-    public function view($id)
+    public function view(Request $request, $id)
     {
-        $team =  LeagueTeam::with(['teamplayer.teamPlayerPosition','teamplayer.player.playerPosition','practiceTeamplayer.TeamPlayer.player','practiceTeamplayer.TeamPlayer.teamPlayerPosition','practiceTeamplayer.positions'])->find($id);
-        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Team view", $team);
+        if (filter_var($request->query('without_players', false), FILTER_VALIDATE_BOOLEAN)) {
+            $team = LeagueTeam::find($id);
+            if (!$team) {
+                return new BaseResponse(STATUS_CODE_UNPROCESSABLE, STATUS_CODE_UNPROCESSABLE, 'Team not found.');
+            }
+
+            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Team view', $team);
+        }
+
+        $team = LeagueTeam::with(['teamplayer.teamPlayerPosition','teamplayer.player.playerPosition','practiceTeamplayer.TeamPlayer.player','practiceTeamplayer.TeamPlayer.teamPlayerPosition','practiceTeamplayer.positions'])->find($id);
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Team view', $team);
+    }
+
+    /**
+     * Paginated roster for team edit UI (matches TeamEdit.vue bottom table payload shape).
+     */
+    public function paginatedTeamPlayers(Request $request, $id)
+    {
+        if (!LeagueTeam::whereKey($id)->exists()) {
+            return new BaseResponse(STATUS_CODE_UNPROCESSABLE, STATUS_CODE_UNPROCESSABLE, 'Team not found.');
+        }
+
+        $page = max(1, (int) $request->input('page', 1));
+        $perPage = max(1, min(500, (int) $request->input('per_page', 10)));
+
+        $query = TeamPlayer::query()
+            ->where('team_id', $id)
+            ->with(['teamPlayerPosition', 'player.playerPosition'])
+            ->orderBy('player_id'); // deterministic paging
+
+        $searchTerm = trim((string) $request->input('search', ''));
+        if ($searchTerm !== '') {
+            $needle = '%'.addcslashes($searchTerm, '%_\\').'%';
+            $query->where(function ($q) use ($needle) {
+                $q->where('name', 'like', $needle)
+                    ->orWhereHas('player', fn ($p) => $p->where('name', 'like', $needle));
+            });
+        }
+
+        $paginator = $query->paginate($perPage, ['*'], 'page', $page);
+
+        $rows = $paginator->getCollection()->map(fn (TeamPlayer $tp) => $this->teamPlayerEditRowFormat($tp))->values()->all();
+
+        $pagination = [
+            'total' => $paginator->total(),
+            'current_page' => $paginator->currentPage(),
+            'per_page' => $paginator->perPage(),
+            'last_page' => $paginator->lastPage(),
+        ];
+
+        return new BaseResponse(
+            STATUS_CODE_OK,
+            STATUS_CODE_OK,
+            'Team roster',
+            $rows,
+            null,
+            null,
+            $pagination,
+        );
+    }
+
+    private function teamPlayerEditRowFormat(TeamPlayer $tp): array
+    {
+        $name = ($tp->name !== null && $tp->name !== '') ? $tp->name : ($tp->player?->name ?: 'N/A');
+
+        $teamPlayerPositions = $tp->teamPlayerPosition;
+        $positions = [];
+        if ($teamPlayerPositions && $teamPlayerPositions->isNotEmpty()) {
+            $positions = $teamPlayerPositions->map(function ($pp) {
+                return [
+                    'id' => $pp->id,
+                    'position_name' => $pp->position_name,
+                ];
+            })->values()->all();
+        } elseif ($tp->player && $tp->relationLoaded('player')) {
+            $positions = optional($tp->player->playerPosition)?->map(function ($pp) {
+                return [
+                    'id' => $pp->id,
+                    'position_name' => $pp->position_name,
+                ];
+            })->values()->all() ?? [];
+        }
+
+        $dob = $tp->dob;
+        if ($dob) {
+            try {
+                $dob = Carbon::parse($dob)->format('Y-m-d');
+            } catch (\Throwable $e) {
+                $dob = null;
+            }
+        }
+
+        $rpp = $tp->rpp;
+
+        return [
+            'player_id' => $tp->player_id,
+            'name' => $name,
+            'player' => $name,
+            'target' => $tp->position && $tp->position !== '' ? $tp->position : 'N/A',
+            'number' => $tp->number !== null && $tp->number !== '' ? $tp->number : 'N/A',
+            'strength' => $tp->strength,
+            'height' => $tp->height !== null && $tp->height !== '' ? $tp->height : 'N/A',
+            'weight' => $tp->weight !== null && $tp->weight !== '' ? $tp->weight : 'N/A',
+            'dob_raw' => $dob,
+            'speed' => $tp->speed,
+            'positions' => $positions,
+            'ofp' => $rpp !== null && $rpp !== '' ? $rpp : 'N/A',
+            'size' => $tp->size,
+            'fromDatabase' => true,
+            'position' => $tp->position_value !== null && $tp->position_value !== '' ? $tp->position_value : 'N/A',
+        ];
     }
      public function practiceTeamList($id)
     {
