@@ -195,6 +195,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('team-list',[TeamController::class,'index']);
     Route::get('view-team/{id}',[TeamController::class,'view']);
     Route::get('team/{id}/players-paginated', [TeamController::class, 'paginatedTeamPlayers']);
+    Route::get('practice-team/{id}/players-paginated', [TeamController::class, 'paginatedPracticeTeamPlayers']);
     Route::get('practice-team-list/{id}',[TeamController::class,'practiceTeamList']);
     
     Route::post('practice-update-team/{id}',[PracticeTeamPlayerController::class,'update']);

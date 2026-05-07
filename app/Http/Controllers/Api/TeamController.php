@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Responses\BaseResponse;
 use App\Models\LeagueTeam;
+use App\Models\PracticeTeamPlayer;
 use App\Models\Team;
 use App\Models\TeamPlayer;
 use Illuminate\Http\Request;
@@ -112,6 +113,112 @@ class TeamController extends Controller
             null,
             $pagination,
         );
+    }
+
+    /**
+     * Paginated practice-team roster (practice_team_players) for PracticeTeam.vue bottom table.
+     */
+    public function paginatedPracticeTeamPlayers(Request $request, $id)
+    {
+        if (! LeagueTeam::whereKey($id)->exists()) {
+            return new BaseResponse(STATUS_CODE_UNPROCESSABLE, STATUS_CODE_UNPROCESSABLE, 'Team not found.');
+        }
+
+        $page = max(1, (int) $request->input('page', 1));
+        $perPage = max(1, min(500, (int) $request->input('per_page', 10)));
+
+        $query = PracticeTeamPlayer::query()
+            ->where('team_id', $id)
+            ->with(['positions', 'TeamPlayer.player.playerPosition', 'TeamPlayer.teamPlayerPosition'])
+            ->orderBy('id');
+
+        $searchTerm = trim((string) $request->input('search', ''));
+        if ($searchTerm !== '') {
+            $needle = '%'.addcslashes($searchTerm, '%_\\').'%';
+            $query->where(function ($q) use ($needle) {
+                $q->where('practice_team_players.name', 'like', $needle)
+                    ->orWhereHas('TeamPlayer.player', fn ($p) => $p->where('name', 'like', $needle));
+            });
+        }
+
+        $paginator = $query->paginate($perPage, ['*'], 'page', $page);
+
+        $rows = $paginator->getCollection()
+            ->map(fn (PracticeTeamPlayer $ptp) => $this->practiceTeamPlayerEditRowFormat($ptp))
+            ->values()
+            ->all();
+
+        $pagination = [
+            'total' => $paginator->total(),
+            'current_page' => $paginator->currentPage(),
+            'per_page' => $paginator->perPage(),
+            'last_page' => $paginator->lastPage(),
+        ];
+
+        return new BaseResponse(
+            STATUS_CODE_OK,
+            STATUS_CODE_OK,
+            'Practice team roster',
+            $rows,
+            null,
+            null,
+            $pagination,
+        );
+    }
+
+    private function practiceTeamPlayerEditRowFormat(PracticeTeamPlayer $ptp): array
+    {
+        $name = ($ptp->name !== null && $ptp->name !== '')
+            ? $ptp->name
+            : ($ptp->TeamPlayer?->player?->name ?: 'N/A');
+
+        $positions = [];
+        if ($ptp->relationLoaded('positions') && $ptp->positions->isNotEmpty()) {
+            $positions = $ptp->positions->map(fn ($pp) => [
+                'id' => $pp->id,
+                'position_name' => $pp->position_name,
+            ])->values()->all();
+        } elseif ($ptp->relationLoaded('TeamPlayer') && $ptp->TeamPlayer
+            && $ptp->TeamPlayer->relationLoaded('teamPlayerPosition')
+            && $ptp->TeamPlayer->teamPlayerPosition->isNotEmpty()) {
+            $positions = $ptp->TeamPlayer->teamPlayerPosition->map(fn ($pp) => [
+                'id' => $pp->id,
+                'position_name' => $pp->position_name,
+            ])->values()->all();
+        } elseif ($ptp->TeamPlayer?->player?->relationLoaded('playerPosition')) {
+            $positions = optional($ptp->TeamPlayer->player->playerPosition)?->map(fn ($pp) => [
+                'id' => $pp->id,
+                'position_name' => $pp->position_name,
+            ])->values()->all() ?? [];
+        }
+
+        $dob = $ptp->dob;
+        if ($dob) {
+            try {
+                $dob = Carbon::parse($dob)->format('Y-m-d');
+            } catch (\Throwable $e) {
+                $dob = null;
+            }
+        }
+
+        $rpp = $ptp->rpp;
+
+        return [
+            'player_id' => $ptp->player_id,
+            'name' => $name,
+            'player' => $name,
+            'target' => $ptp->position && $ptp->position !== '' ? $ptp->position : 'N/A',
+            'number' => $ptp->number !== null && $ptp->number !== '' ? $ptp->number : 'N/A',
+            'strength' => $ptp->strength,
+            'height' => $ptp->height !== null && $ptp->height !== '' ? $ptp->height : 'N/A',
+            'weight' => $ptp->weight !== null && $ptp->weight !== '' ? $ptp->weight : 'N/A',
+            'dob_raw' => $dob,
+            'speed' => $ptp->speed,
+            'position' => $positions,
+            'ofp' => $rpp !== null && $rpp !== '' ? $rpp : 'N/A',
+            'size' => $ptp->size,
+            'fromDatabase' => true,
+        ];
     }
 
     private function teamPlayerEditRowFormat(TeamPlayer $tp): array
