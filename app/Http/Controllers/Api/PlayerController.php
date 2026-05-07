@@ -88,21 +88,35 @@ class PlayerController extends Controller
             }
             $player->save();
 
-            if($request->has('positionValue') && is_array($request->positionValue)) {
-                foreach($request->positionValue as $index => $pos) {
-                    DB::table('player_positions')->insert([
-                        'player_id' => $player->id,
-                        'position_name' => $pos['text'],
-                        'meta' => null,
-                        'sort' => $index + 1,
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
+            $resolvedPositionNames = [];
+            if ($request->has('positionValue') && is_array($request->positionValue)) {
+                foreach ($request->positionValue as $pos) {
+                    $name = is_array($pos)
+                        ? ($pos['text'] ?? $pos['value'] ?? null)
+                        : $pos;
+                    if ($name === null || $name === '') {
+                        continue;
+                    }
+                    $resolvedPositionNames[] = $name;
                 }
             }
-         $player->load('playerPosition');
-        //    if($type === 'team'){
-                    DB::table('team_players')->insert([
+
+            foreach ($resolvedPositionNames as $index => $name) {
+                DB::table('player_positions')->insert([
+                    'player_id' => $player->id,
+                    'position_name' => $name,
+                    'meta' => null,
+                    'sort' => $index + 1,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+
+            $player->load('playerPosition');
+            //    if($type === 'team'){
+                    $teamPlayerPositionValue = $resolvedPositionNames[0] ?? null;
+
+                    $teamPlayerId = DB::table('team_players')->insertGetId([
                         'player_id' => $player->id,
                         'team_id' => $request->team_id,
                         'name' => $player->name,
@@ -115,11 +129,22 @@ class PlayerController extends Controller
                         'height' => $player->height,
                         'dob' => $player->dob,
                         'image' => $player->image,
-                        'position_value' => null,
+                        'position_value' => $teamPlayerPositionValue,
                         'rpp' => $player->rpp,
                         'created_at' => now(),
                         'updated_at' => now(),
                     ]);
+
+            foreach ($resolvedPositionNames as $index => $name) {
+                DB::table('team_player_positions')->insert([
+                    'teamplayer_id' => $teamPlayerId,
+                    'position_name' => $name,
+                    'meta' => null,
+                    'sort' => $index + 1,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
             // }
             DB::commit();
             return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Player Added SuccessFully ", $player);
