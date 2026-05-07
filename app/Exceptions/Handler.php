@@ -28,10 +28,8 @@ class Handler extends ExceptionHandler
      */
     public function register(): void
     {
-        $this->renderable(function (Throwable $e) {
-            if (request()->is("api/*")) {
-                $httpCode = $statusCode = $msg = "";
-
+        $this->renderable(function (Throwable $e, $request) {
+            if ($request->is("api/*")) {
                 $httpCode = $statusCode = match (class_basename($e)) {
                     "NotFoundHttpException" => 404,
                     "MethodNotAllowedHttpException" => 405,
@@ -53,7 +51,9 @@ class Handler extends ExceptionHandler
                 };
 
                 DB::rollback();
-                return new BaseResponse($httpCode, $statusCode, $e->getMessage() ?? $msg, []);
+
+                return (new BaseResponse($httpCode, $statusCode, $e->getMessage() ?: $msg, []))
+                    ->toResponse($request);
             }
         });
 
@@ -89,16 +89,18 @@ class Handler extends ExceptionHandler
         return parent::render($request, $exception);
     }
 
-    protected function customException(ValidationException $e)
+    protected function customException(ValidationException $e, $request = null)
     {
-        if (request()->is('api/*')) {
+        $request = $request ?? request();
+
+        if ($request->is('api/*')) {
             DB::rollback();
 
-            return new BaseResponse(
+            return (new BaseResponse(
                 STATUS_CODE_BADREQUEST,
                 STATUS_CODE_BADREQUEST,
                 $e->validator->errors()->first()
-            );
+            ))->toResponse($request);
         }
     }
 }
