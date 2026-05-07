@@ -218,10 +218,48 @@ class PlayerController extends Controller
     public function list(Request $request)
     {
         $userRoleIds = auth()->user()->roles->pluck('id');
-        $players = Player::with(['roles' => function ($query) use ($userRoleIds) {
-             $query->whereIn('roleables.role_id', $userRoleIds);
-        },'playerPosition'])->orderBy('name')->get();
-        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Player List  ", $players);
+
+        $query = Player::with(['roles' => function ($query) use ($userRoleIds) {
+            $query->whereIn('roleables.role_id', $userRoleIds);
+        }, 'playerPosition'])->orderBy('name');
+
+        $searchTerm = trim((string) $request->input('search', ''));
+        if ($searchTerm !== '') {
+            $needle = '%'.addcslashes($searchTerm, '%_\\').'%';
+            $query->where('name', 'like', $needle);
+        }
+
+        $paginateRequested = $request->has('page')
+            || $request->has('per_page')
+            || $request->filled('search');
+
+        if ($paginateRequested) {
+            $page = max(1, (int) $request->input('page', 1));
+            $perPage = max(1, min(500, (int) $request->input('per_page', 20)));
+
+            $paginator = $query->paginate($perPage, ['*'], 'page', $page);
+
+            $pagination = [
+                'total' => $paginator->total(),
+                'current_page' => $paginator->currentPage(),
+                'per_page' => $paginator->perPage(),
+                'last_page' => $paginator->lastPage(),
+            ];
+
+            return new BaseResponse(
+                STATUS_CODE_OK,
+                STATUS_CODE_OK,
+                'Player List  ',
+                $paginator->items(),
+                null,
+                null,
+                $pagination,
+            );
+        }
+
+        $players = $query->get();
+
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Player List  ', $players);
     }
     public function update(Request $request,$id)
     {
