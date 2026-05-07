@@ -143,15 +143,24 @@ class ConfigureController extends Controller
     {
         DB::beginTransaction();
         try {
-            ConfigurePlay::where(['user_id'=> auth()->user()->id,'league_id'=>$request->league_id,'match_id'=>$request->matchId])->delete();
-            foreach($request->play_id as $value)
-            {
+            $playIds = $request->input('play_id', []);
+            if (!is_array($playIds)) {
+                $playIds = $playIds !== null && $playIds !== '' ? [$playIds] : [];
+            }
+            $playIds = array_values(array_unique(array_filter(array_map('intval', $playIds), fn ($id) => $id > 0)));
 
-                $configureFormation =  new ConfigurePlay();
+            ConfigurePlay::where([
+                'user_id' => auth()->user()->id,
+                'league_id' => $request->league_id,
+                'match_id' => $request->matchId,
+            ])->delete();
+            foreach ($playIds as $value) {
+
+                $configureFormation = new ConfigurePlay();
                 $configureFormation->user_id = auth()->user()->id;
                 $configureFormation->play_id = $value;
                 $configureFormation->match_id = $request->matchId;
-                $configureFormation->league_id =  $request->league_id;
+                $configureFormation->league_id = $request->league_id;
                 $configureFormation->save();
             }
 
@@ -188,14 +197,24 @@ class ConfigureController extends Controller
     }
     public function configurePlayView(Request $request)
     {
-        $configure =  ConfigurePlay::with('league','play')->where('league_id',$request->league_id)->where('match_id',$request->matchId)->get();
-        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "configure Play List",$configure);
+        $configure = ConfigurePlay::with('league', 'play')
+            ->where('user_id', auth()->id())
+            ->where('league_id', $request->league_id)
+            ->where('match_id', $request->matchId)
+            ->get();
+
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "configure Play List", $configure);
   
     }
      public function configurePlayDefensiveView(Request $request)
     {
-        $configure =  ConfigureDefensivePlay::with('league','play')->where('league_id',$request->league_id)->where('game_id',$request->matchId)->get();
-        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "configure Play List",$configure);
+        $configure = ConfigureDefensivePlay::with('league', 'play')
+            ->where('user_id', auth()->id())
+            ->where('league_id', $request->league_id)
+            ->where('game_id', $request->matchId)
+            ->get();
+
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "configure Play List", $configure);
   
     }
     
