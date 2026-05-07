@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Game;
-use App\Models\ConfiguredPlayingTeamPlayer;
 use App\Models\BenchPlayer;
 use Illuminate\Http\Request;
 use App\Http\Responses\BaseResponse;
@@ -31,7 +30,8 @@ class GameController extends Controller
 
     public function endMatchClearGroundPlayers($id)
     {
-        ConfiguredPlayingTeamPlayer::where('match_id', $id)->delete();
+        // Clear in-game bench only. Keep configured playing-team rosters and personal groupings
+        // so pre-game player selection and offensive/defensive groups persist after the match.
         BenchPlayer::where('game_id', $id)->delete();
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Players cleared successfully", null);
     }
