@@ -18,34 +18,33 @@ class ConfigureController extends Controller
        
         DB::beginTransaction();
         try {
+            $playerIds = $request->input('player_id', []);
+            if (! is_array($playerIds)) {
+                $playerIds = $playerIds !== null && $playerIds !== '' ? [$playerIds] : [];
+            }
 
-            $types = collect($request->type)->unique();
+            $types = $request->input('type', []);
+            if (! is_array($types)) {
+                $types = $types !== null && $types !== '' ? [$types] : [];
+            }
 
-          
+            // Replace the full roster for this match: if we only deleted rows matching
+            // the types present in the request, omitted squads (e.g. all offensive
+            // removed while saving defensive only) would never be cleared.
             ConfiguredPlayingTeamPlayer::where('team_id', $request->team_id)
-                ->whereIn('type', $types)
                 ->where('match_id', $request->match_id)
                 ->where('game_type', $request->game_type)
+                ->where('team_type', 1)
                 ->delete();
     
          
-            foreach ($request->player_id as $index => $playerId) {
-                // ConfiguredPlayingTeamPlayer::updateOrCreate(
-                //     [
-                //         'team_id' => $request->team_id,
-                //         'match_id' => $request->match_id,
-                //         'player_id' => $playerId,
-                //         'type' => $request->type[$index],
-                //         'team_type'=>1
-                //     ],
-                //     [] 
-                // );
-
+            foreach ($playerIds as $index => $playerId) {
+     
 
                     ConfiguredPlayingTeamPlayer::create([
                         'team_id' => $request->team_id,
                         'match_id' => $request->match_id,
-                        'type' => $request->type[$index],
+                        'type' => $types[$index] ?? 'offensive',
                         'team_type' => 1,
                         'game_type' => $request->game_type,
                         'player_id' => $request->game_type == 1 ? $playerId : null,
@@ -64,32 +63,33 @@ class ConfigureController extends Controller
     {
         DB::beginTransaction();
         try {
-            $types = collect($request->type)->unique();
+            $playerIds = $request->input('player_id', []);
+            if (! is_array($playerIds)) {
+                $playerIds = $playerIds !== null && $playerIds !== '' ? [$playerIds] : [];
+            }
+
+            $types = $request->input('type', []);
+            if (! is_array($types)) {
+                $types = $types !== null && $types !== '' ? [$types] : [];
+            }
+
             ConfiguredPlayingTeamPlayer::where('team_id', $request->team_id)
-                ->whereIn('type', $types) ->where('match_id', $request->match_id)
+                ->where('match_id', $request->match_id)
                 ->where('game_type', $request->game_type)
+                ->where('team_type', 2)
                 ->delete();
-            foreach ($request->player_id as $index => $playerId) {
+            foreach ($playerIds as $index => $playerId) {
 
                     ConfiguredPlayingTeamPlayer::create([
                         'team_id' => $request->team_id,
                         'match_id' => $request->match_id,
-                        'type' => $request->type[$index],
+                        'type' => $types[$index] ?? 'offensive',
                         'team_type' => 2,
                         'game_type' => $request->game_type,
                         'player_id' => $request->game_type == 1 ? $playerId : null,
                         'practice_player_id' => $request->game_type != 1 ? $playerId : null,
                     ],[]);
-                // ConfiguredPlayingTeamPlayer::updateOrCreate(
-                //     [
-                //         'team_id' => $request->team_id,
-                //         'match_id' => $request->match_id,
-                //         'player_id' => $playerId,
-                //         'type' => $request->type[$index],
-                //         'team_type'=>2
-                //     ],
-                //     [] 
-                // );
+        
             }
            DB::commit();
            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "configure Player successFully");
