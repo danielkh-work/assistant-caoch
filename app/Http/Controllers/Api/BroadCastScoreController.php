@@ -47,30 +47,25 @@ class BroadCastScoreController extends Controller
         $team = $validated['team'];
         $points = $validated['points'];
         $action = $validated['action'];
-        if($team=='left'){
-          self::$scores[$team]['total'] = $request->teamLeftScore+$points;
-        }
-        else if($team=='right'){
-         self::$scores[$team]['total'] = $request->teamRightScore+$points;
-        }else{
 
-            self::$scores['left']['total'] = $request->teamLeftScore;
-            self::$scores['right']['total'] = $request->teamRightScore;
-        }
+        // Frontend already computes final scores optimistically before sending.
+        // Backend just accepts them and broadcasts — no double-counting.
+        self::$scores['left']['total'] = max(0, (int) $request->teamLeftScore);
+        self::$scores['right']['total'] = max(0, (int) $request->teamRightScore);
+
+        $user = auth()->user();
+        $coachGroupId = $user->role === 'head_coach'
+            ? $user->id
+            : $user->head_coach_id;
 
         $record = WebsocketPracticeScoreboard::firstOrNew(
-            [
-             'user_id' => auth()->id(),
-             'game_id' => $request->game_id,
-
-            ] // lookup condition
-
+            ['user_id' => $coachGroupId, 'game_id' => $request->game_id]
         );
 
 
 
-        if (!$record->exists) {
-        $record->time = \Carbon\Carbon::now('America/New_York')->toDateTimeString();
+        if (!$record->exists || ($record->exists && $record->quarter != $request->quarter)) {
+            $record->time = now()->toDateTimeString(); // UTC — updated each time quarter changes
         }
 
         // Always update these fields
@@ -88,6 +83,8 @@ class BroadCastScoreController extends Controller
         $record->pkg = $request->pkg;
         $record->strategies = $request->strategies;
         $record->possession = $request->possession;
+        $record->weather = $request->weather;
+        $record->league_id = $request->league_id;
 
         // Save (creates or updates)
         $record->save();
@@ -97,7 +94,7 @@ class BroadCastScoreController extends Controller
             'scores' => self::$scores,
             'team' => $team,
             'game_id' => $request->game_id,
-             'user_id' => auth()->id(),
+            'user_id' => auth()->id(),
             'points' => $points,
             'action' => $action,
             'isStart'=>$request->isStartTime,
@@ -111,21 +108,26 @@ class BroadCastScoreController extends Controller
             'positionNumber' => $request->positionNumber,
             'pkg' => $request->pkg,
             'possession' => $request->possession,
+            'weather' => $request->weather,
+            'coverageCategory' => $request->coverageCategory,
         ];
 
-        $user = auth()->user();
-        $coachGroupId = $user->role === 'head_coach'
-            ? $user->id
-            : $user->head_coach_id;
-        $scope = $request->is_play_mode ? 'real' : 'practice';
-        if ($request->isStartTime) {
-            broadcast(new MatchStarted($request->league_id, 'started',  $scope))->toOthers();
-        } else {
-            broadcast(new MatchStarted($request->league_id, 'ended', $scope))->toOthers();
+        try {
+            if ($request->league_id) {
+                $scope = $request->is_play_mode ? 'real' : 'practice';
+                if ($request->isStartTime) {
+                    broadcast(new MatchStarted($request->league_id, 'started', $scope))->toOthers();
+                } else {
+                    broadcast(new MatchStarted($request->league_id, 'ended', $scope))->toOthers();
+                }
+            }
+            broadcast(new PracticeScoreUpdated($payload, $coachGroupId, $request->game_id))->toOthers();
+            \Log::info('After broadcast');
+        } catch (\Exception $e) {
+            \Log::error('PracticeScoreUpdated broadcast failed: ' . $e->getMessage());
         }
-        broadcast(new PracticeScoreUpdated($payload, $coachGroupId, $request->game_id))->toOthers();
-        \Log::info('After broadcast');
 
+        return response()->noContent();
     }
 
     public function yardagePlaytoAssistant(Request $request)
@@ -357,6 +359,7 @@ if (
         $record->pkg = $request->pkg;
         $record->strategies = $request->strategies;
         $record->possession = $request->possession;
+        $record->league_id = $request->league_id;
 
         // Save (creates or updates)
         $record->save();
@@ -391,16 +394,19 @@ if (
             ? $user->id
             : $user->head_coach_id;
         \Log::info(['play_mode'=>$request->is_play_mode]);
-        $scope = $request->is_play_mode ? 'real' : 'practice';
-        if ($request->isStartTime) {
-                broadcast(new MatchStarted($request->league_id, 'started',  $scope))->toOthers();
+        try {
+            $scope = $request->is_play_mode ? 'real' : 'practice';
+            if ($request->isStartTime) {
+                broadcast(new MatchStarted($request->league_id, 'started', $scope))->toOthers();
             } else {
                 broadcast(new MatchStarted($request->league_id, 'ended', $scope))->toOthers();
             }
+            broadcast(new ScoreUpdated($payload, $coachGroupId, $request->game_id))->toOthers();
+        } catch (\Exception $e) {
+            \Log::error('ScoreUpdated broadcast failed: ' . $e->getMessage());
+        }
 
-        broadcast(new ScoreUpdated($payload, $coachGroupId,$request->game_id))->toOthers();
-
-
+        return response()->noContent();
     }
 
     public function getWebSocketScoreBoard(){
@@ -419,19 +425,26 @@ if (
         // return WebsocketScoreboard::where('game_id', $game_id)->firstOrFail();
     }
 
-    public function getPracticeWebSocketScoreBoard(){
+    public function getPracticeWebSocketScoreBoard(Request $request){
 
         $user = auth()->user();
         $coachGroupId = $user->role === 'head_coach'
             ? $user->id
             : $user->head_coach_id;
-        $webSocketScorboard= WebsocketPracticeScoreboard::where('user_id',$coachGroupId)
-        ->firstOrFail();
-         if (!$webSocketScorboard) {
-             return response()->noContent();
-          }
-        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "scoreboardList",$webSocketScorboard);
-        // return WebsocketScoreboard::where('game_id', $game_id)->firstOrFail();
+
+        $query = WebsocketPracticeScoreboard::where('user_id', $coachGroupId);
+
+        if ($request->has('game_id')) {
+            $query->where('game_id', $request->game_id);
+        }
+
+        $webSocketScorboard = $query->latest()->first();
+
+        if (!$webSocketScorboard) {
+            return response()->noContent();
+        }
+
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "scoreboardList", $webSocketScorboard);
     }
 
 
