@@ -27,6 +27,11 @@ public function storeAllGroups(Request $request)
             $isPractice = filter_var($groupData['is_practice'] ?? false, FILTER_VALIDATE_BOOLEAN);
             \Log::info(['is_practice'=> $isPractice ]);
 
+            $status = $groupData['status'] ?? 'active';
+            if (! in_array($status, ['draft', 'active', 'inactive'], true)) {
+                $status = 'active';
+            }
+
             $insertData[] = [
                 'game_id' => $groupData['game_id'],
                 'league_id' => $groupData['league_id'],
@@ -38,6 +43,8 @@ public function storeAllGroups(Request $request)
                 'players' => $isPractice ? null : json_encode($groupData['players']),
                 'practice_players' => $isPractice ? json_encode($groupData['players']) : null,
                 'group_level' => $isPractice ? 2 : 1, // 2 = Practice Mode, 1 = Play Mode
+                'status' => $status,
+                'roster_repair_player_ids' => null,
                 'created_at' => now(),
                 'updated_at' => now(),
             ];
@@ -144,12 +151,38 @@ public function storeAllGroups(Request $request)
 //     }
 // }
 
+    /**
+     * @param  array<int,mixed>  $players
+     * @return array<int,array{id:int,mixed}>
+     */
+    protected function normalizeGroupPlayers(array $players): array
+    {
+        $out = [];
+        foreach ($players as $p) {
+            if (is_int($p) || (is_string($p) && ctype_digit($p))) {
+                $out[] = ['id' => (int) $p, 'positions' => null];
+                continue;
+            }
+            if (is_array($p) && isset($p['id'])) {
+                $out[] = [
+                    'id' => (int) $p['id'],
+                    'positions' => $p['positions'] ?? null,
+                ];
+            }
+        }
+
+        return $out;
+    }
+
         public function updateGroup(Request $request, $id)
         {
             $request->validate([
                 'group_name'  => 'required|string|max:255',
                 'players'     => 'required|array',
-                'is_practice' => 'nullable'
+                'is_practice' => 'nullable',
+                'status' => 'nullable|in:draft,active,inactive',
+                'roster_repair_append' => 'nullable|array',
+                'roster_repair_append.*' => 'integer',
             ]);
 
             try {
@@ -157,15 +190,39 @@ public function storeAllGroups(Request $request)
 
                 $isPractice = filter_var($request->is_practice ?? false, FILTER_VALIDATE_BOOLEAN);
 
+                $normalized = $this->normalizeGroupPlayers($request->players);
+                $memberIds = collect($normalized)->pluck('id')->map(fn ($id) => (int) $id)->all();
+
+                $append = $request->input('roster_repair_append', []);
+                $repair = array_values(array_unique(array_merge(
+                    $group->roster_repair_player_ids ?? [],
+                    array_map('intval', $append)
+                )));
+                $repair = array_values(array_diff($repair, $memberIds));
+
+                $newStatus = $request->input('status');
+                if ($newStatus === 'active' && count($repair) > 0) {
+                    return new BaseResponse(
+                        STATUS_CODE_ERROR,
+                        STATUS_CODE_ERROR,
+                        'Cannot set group to active until all removed roster players are added back to the group.',
+                    );
+                }
+
                 $updateData = [
                     'group_name' => $request->group_name,
+                    'roster_repair_player_ids' => count($repair) ? $repair : null,
                 ];
+
+                if ($newStatus !== null && $newStatus !== '') {
+                    $updateData['status'] = $newStatus;
+                }
 
                 if ($isPractice) {
                     $updateData['players'] = null;
-                    $updateData['practice_players'] = $request->players;
+                    $updateData['practice_players'] = $normalized;
                 } else {
-                    $updateData['players'] = $request->players;
+                    $updateData['players'] = $normalized;
                     $updateData['practice_players'] = null;
                 }
 
@@ -175,7 +232,7 @@ public function storeAllGroups(Request $request)
                     STATUS_CODE_OK,
                     STATUS_CODE_OK,
                     "Group updated successfully",
-                    $group
+                    $group->fresh()
                 );
 
             } catch (\Exception $e) {

@@ -19,12 +19,15 @@ class PersionalGrouping extends Model
         'type',
         'players',
         'practice_players',
-        'group_level'
+        'group_level',
+        'status',
+        'roster_repair_player_ids',
     ];
 
    protected $casts = [
     'players' => 'array',
     'practice_players' => 'array',
+    'roster_repair_player_ids' => 'array',
 ];
 
 
