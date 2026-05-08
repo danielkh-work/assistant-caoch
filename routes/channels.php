@@ -19,7 +19,7 @@ Broadcast::routes(['middleware' => ['auth:sanctum']]);
 
 Broadcast::channel('user.{userId}.game.{gameId}', function ($user, $userId, $gameId) {
     if ($user->role === 'head_coach' && $user->id == $userId) return true;
-    if ($user->role === 'assistant_coach' && $user->head_coach_id == $userId) return true;
+    if (in_array($user->role, ['assistant_coach', 'performance_coach']) && $user->head_coach_id == $userId) return true;
     return false;
 });
 
