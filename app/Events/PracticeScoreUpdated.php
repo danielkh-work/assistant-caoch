@@ -36,8 +36,7 @@ class PracticeScoreUpdated implements ShouldBroadcast
 
     public function broadcastAs()
     {
-           return 'score.updated';
-        // return 'practice.score.updated';
+        return 'practice.score.updated';
     }
 
 }
