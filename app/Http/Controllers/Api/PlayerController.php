@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Responses\BaseResponse;
 use App\Models\Player;
+use App\Models\PracticeTeamPlayer;
+use App\Models\PracticeTeamPlayerPosition;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -487,18 +489,101 @@ class PlayerController extends Controller
 
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Player RPP Updated SuccessFully ", $teamPlayer);
     }
-    public function delete($id,$team_id)
+    /**
+     * Remove a player from one team: pivot (team_players), roster rows (TeamPlayer),
+     * and practice roster (practice_team_players + positions). The UI practice-team
+     * table reads practice_team_players — detach() alone was not enough.
+     */
+    private function removePlayerFromTeamRoster(int|string $playerId, int|string $teamId): void
     {
-        $player =  Player::find($id);
-        $player->teams()->detach($team_id);
-        // $player->delete();
+        $playerId = (int) $playerId;
+        $teamId = (int) $teamId;
+
+        $teamPlayerIds = TeamPlayer::query()
+            ->where('team_id', $teamId)
+            ->where('player_id', $playerId)
+            ->pluck('id');
+
+        $practiceRowIds = PracticeTeamPlayer::query()
+            ->where('team_id', $teamId)
+            ->where(function ($q) use ($playerId, $teamPlayerIds) {
+                $q->where('player_id', $playerId);
+                if ($teamPlayerIds->isNotEmpty()) {
+                    $q->orWhereIn('player_id', $teamPlayerIds);
+                }
+            })
+            ->pluck('id');
+
+        if ($practiceRowIds->isNotEmpty()) {
+            PracticeTeamPlayerPosition::query()
+                ->whereIn('practice_team_player_id', $practiceRowIds)
+                ->delete();
+            PracticeTeamPlayer::query()
+                ->whereIn('id', $practiceRowIds)
+                ->delete();
+        }
+
+        TeamPlayer::query()
+            ->where('team_id', $teamId)
+            ->where('player_id', $playerId)
+            ->delete();
+    }
+
+    public function delete($id, $team_id)
+    {
+        $player = Player::find($id);
+        if (! $player) {
+            return new BaseResponse(STATUS_CODE_BADREQUEST, STATUS_CODE_BADREQUEST, 'Player not found.');
+        }
+
+        DB::beginTransaction();
+        try {
+            $this->removePlayerFromTeamRoster($id, $team_id);
+            $player->teams()->detach($team_id);
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            return new BaseResponse(STATUS_CODE_BADREQUEST, STATUS_CODE_BADREQUEST, $e->getMessage());
+        }
+
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Player is  Deleted from the team SuccessFully ");
     }
-     public function deletePlayer($id,$team_id)
+
+    public function deletePlayer($id, $team_id)
     {
-        $player =  Player::find($id);
-        $player->teams()->detach($team_id);
-        $player->delete();
+        $player = Player::find($id);
+        if (! $player) {
+            return new BaseResponse(STATUS_CODE_BADREQUEST, STATUS_CODE_BADREQUEST, 'Player not found.');
+        }
+
+        DB::beginTransaction();
+        try {
+            $this->removePlayerFromTeamRoster($id, $team_id);
+            $player->teams()->detach($team_id);
+
+            $remainingPracticeIds = PracticeTeamPlayer::query()
+                ->where('player_id', (int) $id)
+                ->pluck('id');
+            if ($remainingPracticeIds->isNotEmpty()) {
+                PracticeTeamPlayerPosition::query()
+                    ->whereIn('practice_team_player_id', $remainingPracticeIds)
+                    ->delete();
+                PracticeTeamPlayer::query()
+                    ->whereIn('id', $remainingPracticeIds)
+                    ->delete();
+            }
+
+            TeamPlayer::query()->where('player_id', (int) $id)->delete();
+            $player->teams()->detach();
+            $player->delete();
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            return new BaseResponse(STATUS_CODE_BADREQUEST, STATUS_CODE_BADREQUEST, $e->getMessage());
+        }
+
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Player is  Deleted from the SuccessFully ");
     }
     public function view($id)
