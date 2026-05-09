@@ -9,6 +9,7 @@ use App\Models\ConfiguredPlayingTeamPlayer;
 use App\Models\ConfigureFormation;
 use App\Models\ConfigurePlay;
 use App\Models\ConfigureDefensivePlay;
+use App\Models\PersionalGrouping;
 use Illuminate\Support\Facades\DB;
 
 class ConfigureController extends Controller
@@ -53,6 +54,11 @@ class ConfigureController extends Controller
             }
           
            DB::commit();
+           PersionalGrouping::pruneAllStaleRepairsAfterConfigureSave(
+               (int) $request->team_id,
+               (int) $request->match_id,
+               (int) $request->game_type
+           );
            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "configure Player successFully");
         } catch (\Throwable $th) {
           DB::rollBack();
@@ -92,6 +98,11 @@ class ConfigureController extends Controller
         
             }
            DB::commit();
+           PersionalGrouping::pruneAllStaleRepairsAfterConfigureSave(
+               (int) $request->team_id,
+               (int) $request->match_id,
+               (int) $request->game_type
+           );
            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "configure Player successFully");
         } catch (\Throwable $th) {
           DB::rollBack();

@@ -202,6 +202,15 @@ public function storeAllGroups(Request $request)
                 )));
                 $repair = array_values(array_diff($repair, $memberIds));
 
+                $isPracticeGroup = (int) ($group->group_level ?? 1) === 2;
+                $gameType = $isPracticeGroup ? 2 : 1;
+                $repair = PersionalGrouping::pruneRosterRepairIdsAgainstMatchRoster(
+                    $repair,
+                    (int) $group->team_id,
+                    (int) $group->game_id,
+                    $gameType
+                );
+
                 $newStatus = $request->input('status');
                 if ($newStatus === 'active' && count($repair) > 0) {
                     return new BaseResponse(
@@ -266,6 +275,11 @@ public function storeAllGroups(Request $request)
             "team_id & game_id OR league_id is required"
         );
     }
+
+      if ($teamId && $gameId) {
+          $gameType = (int) $isPractice === 1 ? 2 : 1;
+          PersionalGrouping::pruneAllStaleRepairsAfterConfigureSave((int) $teamId, (int) $gameId, $gameType);
+      }
 
       $groups = PersionalGrouping::query()
         ->when($teamId && $gameId, function ($q) use ($teamId, $gameId) {
@@ -355,6 +369,20 @@ public function storeAllGroups(Request $request)
     public function rosterRepairMissing(PersionalGrouping $group)
     {
         $repairIds = array_values(array_filter(array_map('intval', $group->roster_repair_player_ids ?? [])));
+
+        $gameType = (int) ($group->group_level ?? 1) === 2 ? 2 : 1;
+        $prunedRepair = PersionalGrouping::pruneRosterRepairIdsAgainstMatchRoster(
+            $repairIds,
+            (int) $group->team_id,
+            (int) $group->game_id,
+            $gameType
+        );
+        if ($prunedRepair !== $repairIds) {
+            $group->roster_repair_player_ids = count($prunedRepair) ? $prunedRepair : null;
+            $group->save();
+        }
+        $repairIds = $prunedRepair;
+
         if (! count($repairIds)) {
             return new BaseResponse(
                 STATUS_CODE_OK,
@@ -362,7 +390,6 @@ public function storeAllGroups(Request $request)
                 'No roster repair pending',
                 [
                     'missing_players' => [],
-                    'missing_ids' => [],
                 ]
             );
         }
@@ -380,7 +407,6 @@ public function storeAllGroups(Request $request)
                 'No roster repair pending',
                 [
                     'missing_players' => [],
-                    'missing_ids' => [],
                 ]
             );
         }
@@ -398,12 +424,12 @@ public function storeAllGroups(Request $request)
             if (! $p) {
                 return [
                     'id' => $id,
-                    'name' => 'Player #'.$id,
+                    'name' => 'Unknown player',
                     'number' => null,
                 ];
             }
 
-            $name = $p->name ?? ($p->player_name ?? null) ?? 'Player #'.$id;
+            $name = $p->name ?? ($p->player_name ?? null) ?? 'Unknown player';
 
             return [
                 'id' => (int) $p->id,
@@ -418,7 +444,6 @@ public function storeAllGroups(Request $request)
             'Roster repair players retrieved',
             [
                 'missing_players' => $missingPlayers,
-                'missing_ids' => $missingIds,
             ]
         );
     }

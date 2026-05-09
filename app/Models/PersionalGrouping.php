@@ -173,4 +173,84 @@ class PersionalGrouping extends Model
 
     }
 
+    /**
+     * Team / practice player IDs currently on the match roster (Configure Players).
+     *
+     * @param  int  $gameType  configure game_type: 1 = regular, 2 = practice
+     * @return array<int,int>
+     */
+    public static function matchRosterPlayerIdsForConfigure(int $teamId, int $matchId, int $gameType): array
+    {
+        $isPracticeConfigure = (int) $gameType === 2;
+
+        $rows = ConfiguredPlayingTeamPlayer::query()
+            ->where('team_id', $teamId)
+            ->where('match_id', $matchId)
+            ->where('game_type', $gameType)
+            ->get();
+
+        $ids = [];
+        foreach ($rows as $row) {
+            if ($isPracticeConfigure && $row->practice_player_id) {
+                $ids[] = (int) $row->practice_player_id;
+            }
+            if (! $isPracticeConfigure && $row->player_id) {
+                $ids[] = (int) $row->player_id;
+            }
+        }
+
+        return array_values(array_unique(array_filter($ids)));
+    }
+
+    /**
+     * Keep only roster-repair IDs that still appear on the match roster.
+     *
+     * @param  array<int,mixed>  $repairIds
+     * @return array<int,int>
+     */
+    public static function pruneRosterRepairIdsAgainstMatchRoster(array $repairIds, int $teamId, int $matchId, int $gameType): array
+    {
+        $repairIds = array_values(array_unique(array_map('intval', $repairIds)));
+        if ($repairIds === []) {
+            return [];
+        }
+
+        $allowed = self::matchRosterPlayerIdsForConfigure($teamId, $matchId, $gameType);
+        if ($allowed === []) {
+            return [];
+        }
+
+        $flip = array_flip($allowed);
+
+        return array_values(array_filter($repairIds, fn ($id) => isset($flip[(int) $id])));
+    }
+
+    /**
+     * After Configure Players save (or for self-heal on fetch), drop stale repair IDs for all groups on this match.
+     */
+    public static function pruneAllStaleRepairsAfterConfigureSave(int $teamId, int $matchId, int $gameType): void
+    {
+        $isPractice = (int) $gameType === 2;
+        $expectedGroupLevel = $isPractice ? 2 : 1;
+
+        $groups = self::query()
+            ->where('team_id', $teamId)
+            ->where('game_id', $matchId)
+            ->where('group_level', $expectedGroupLevel)
+            ->get();
+
+        foreach ($groups as $group) {
+            $repair = $group->roster_repair_player_ids ?? [];
+            if (! is_array($repair) || $repair === []) {
+                continue;
+            }
+            $repair = array_values(array_unique(array_map('intval', $repair)));
+            $pruned = self::pruneRosterRepairIdsAgainstMatchRoster($repair, $teamId, $matchId, $gameType);
+            if ($pruned !== $repair) {
+                $group->roster_repair_player_ids = $pruned === [] ? null : $pruned;
+                $group->save();
+            }
+        }
+    }
+
 }
