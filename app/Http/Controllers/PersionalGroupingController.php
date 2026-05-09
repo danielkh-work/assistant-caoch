@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\PersionalGrouping;
 use App\Models\League;
+use App\Models\TeamPlayer;
+use App\Models\PracticeTeamPlayer;
 
 use Illuminate\Support\Facades\DB;
 use App\Http\Responses\BaseResponse;
@@ -344,6 +346,80 @@ public function storeAllGroups(Request $request)
             STATUS_CODE_OK,
             "plays synced successfully",
              $responseData
+        );
+    }
+
+    /**
+     * Players still required to re-join the group before it can be set active (roster repair).
+     */
+    public function rosterRepairMissing(PersionalGrouping $group)
+    {
+        $repairIds = array_values(array_filter(array_map('intval', $group->roster_repair_player_ids ?? [])));
+        if (! count($repairIds)) {
+            return new BaseResponse(
+                STATUS_CODE_OK,
+                STATUS_CODE_OK,
+                'No roster repair pending',
+                [
+                    'missing_players' => [],
+                    'missing_ids' => [],
+                ]
+            );
+        }
+
+        $raw = $group->practice_players ?? $group->players;
+        $playersArr = is_array($raw) ? $raw : (json_decode($raw ?? '[]', true) ?: []);
+        $normalized = $this->normalizeGroupPlayers($playersArr);
+        $memberIds = collect($normalized)->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $missingIds = array_values(array_diff($repairIds, $memberIds));
+
+        if (! count($missingIds)) {
+            return new BaseResponse(
+                STATUS_CODE_OK,
+                STATUS_CODE_OK,
+                'No roster repair pending',
+                [
+                    'missing_players' => [],
+                    'missing_ids' => [],
+                ]
+            );
+        }
+
+        $isPracticeGroup = (int) ($group->group_level ?? 1) === 2;
+
+        if ($isPracticeGroup) {
+            $rows = PracticeTeamPlayer::query()->whereIn('id', $missingIds)->get()->keyBy('id');
+        } else {
+            $rows = TeamPlayer::query()->whereIn('id', $missingIds)->get()->keyBy('id');
+        }
+
+        $missingPlayers = collect($missingIds)->map(function ($id) use ($rows) {
+            $p = $rows->get($id);
+            if (! $p) {
+                return [
+                    'id' => $id,
+                    'name' => 'Player #'.$id,
+                    'number' => null,
+                ];
+            }
+
+            $name = $p->name ?? ($p->player_name ?? null) ?? 'Player #'.$id;
+
+            return [
+                'id' => (int) $p->id,
+                'name' => $name,
+                'number' => $p->number ?? null,
+            ];
+        })->values()->all();
+
+        return new BaseResponse(
+            STATUS_CODE_OK,
+            STATUS_CODE_OK,
+            'Roster repair players retrieved',
+            [
+                'missing_players' => $missingPlayers,
+                'missing_ids' => $missingIds,
+            ]
         );
     }
 
