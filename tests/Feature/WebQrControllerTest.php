@@ -79,15 +79,20 @@ class WebQrControllerTest extends TestCase
     {
         $this->auth();
 
-        $response = $this->postJson('/api/logout-qb', [
-            'id' => $this->qbUser->id
-        ]);
-        
-        if ($response->status() === 404) {
-            $this->markTestSkipped('Endpoint mapping differs from guessed URL');
-        }
+        $this->qbUser->is_loggin = true;
+        $this->qbUser->save();
 
-        $response->assertStatus(200);
+        $response = $this->postJson('/api/logout-qb', [
+            'id' => $this->qbUser->id,
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('status', 200)
+            ->assertJsonPath('message', 'logout successful')
+            ->assertJsonPath('is_loggin', false);
+
+        $this->qbUser->refresh();
+        $this->assertFalse((bool) $this->qbUser->is_loggin);
     }
 
     public function test_logout_qb_application_uses_get_with_id_param()

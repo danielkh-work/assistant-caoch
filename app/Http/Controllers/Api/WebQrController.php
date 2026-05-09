@@ -212,21 +212,57 @@ class WebQrController extends Controller
         ]);
     }
 
-    public function logoutQb(Request $request){
-       
+    public function logoutQb(Request $request)
+    {
+        $request->validate([
+            'id' => 'required|integer|exists:users,id',
+        ]);
 
-        $user = User::find($request->id);
-        $token = $user->createToken('QB-App-Token')->plainTextToken;
-        $userData = [
-            'status'       => 201,
-            'message'      => 'logout successful',
-            'user'         => $user->only(['name', 'session_id', 'code','head_coach_id']),
-            'access_token' => $token,
-            'token_type'   => 'Bearer'
+        $coach = $request->user();
+        if ($coach->role !== 'head_coach') {
+            return response()->json([
+                'status' => 403,
+                'message' => 'Forbidden',
+            ], 403);
+        }
+
+        $user = User::query()
+            ->whereKey($request->integer('id'))
+            ->where('role', 'qb')
+            ->where('head_coach_id', $coach->id)
+            ->first();
+
+        if (! $user) {
+            return response()->json([
+                'status' => 404,
+                'message' => 'QB user not found',
+            ], 404);
+        }
+
+        $sessionId = $user->session_id;
+
+        $user->is_loggin = false;
+        $user->save();
+
+        $payload = [
+            'status' => 200,
+            'message' => 'logout successful',
+            'user' => $user->only(['id', 'name', 'session_id', 'code', 'head_coach_id']),
+            'is_loggin' => (bool) $user->is_loggin,
         ];
-      
-        
-        broadcast(new MobileSessionLogout($userData))->toOthers();
+
+        if ($sessionId) {
+            broadcast(new MobileSessionLogout([
+                'status' => 200,
+                'message' => 'logout successful',
+                'user' => array_merge(
+                    $user->only(['id', 'name', 'code', 'head_coach_id']),
+                    ['session_id' => $sessionId]
+                ),
+            ]))->toOthers();
+        }
+
+        return response()->json($payload);
     }
 
 
