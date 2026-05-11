@@ -63,13 +63,12 @@ class BroadCastScoreController extends Controller
                 'user_id' => $user->id,
                 'role' => $user->role,
             ]);
+            return response()->json(['error' => 'missing coach group id'], 400);
         }
 
-        $existingPractice = $coachGroupId !== null
-            ? WebsocketPracticeScoreboard::where('user_id', $coachGroupId)
-                ->where('game_id', $request->game_id)
-                ->first()
-            : null;
+        $existingPractice = WebsocketPracticeScoreboard::where('user_id', $coachGroupId)
+            ->where('game_id', $request->game_id)
+            ->first();
 
         $shouldRefreshTime = !$existingPractice
             || ($existingPractice->quarter != $request->quarter);
@@ -346,13 +345,12 @@ class BroadCastScoreController extends Controller
                 'user_id' => $user->id,
                 'role' => $user->role,
             ]);
+            return response()->json(['error' => 'missing coach group id'], 400);
         }
 
-        $existingScoreboard = $coachGroupId !== null
-            ? WebsocketScoreboard::where('user_id', $coachGroupId)
-                ->where('game_id', $request->game_id)
-                ->first()
-            : null;
+        $existingScoreboard = WebsocketScoreboard::where('user_id', $coachGroupId)
+            ->where('game_id', $request->game_id)
+            ->first();
 
         $shouldRefreshTime = !$existingScoreboard
             || ($existingScoreboard->quarter != $request->quarter);
