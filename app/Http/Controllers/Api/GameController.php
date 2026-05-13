@@ -39,6 +39,7 @@ class GameController extends Controller
         // Align Configure Players roster with personal groups: remove offensive/defensive slots
         // where the player is not in any **active** group on that side (special slots unchanged).
         try {
+            PersionalGrouping::syncInvalidActivePracticeGroupStatusesForMatchEnd($gamePk);
             PersionalGrouping::pruneMatchConfigurePlayersNotInAnyGroup($gamePk);
         } catch (\Throwable $e) {
             \Log::error('pruneMatchConfigurePlayersNotInAnyGroup failed', [

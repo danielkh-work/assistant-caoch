@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Game;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -203,6 +204,33 @@ class PersionalGrouping extends Model
     }
 
     /**
+     * How many normalized group members appear on the configure/match roster (same IDs as
+     * {@see countGroupMembersOnMatchRosterFromPayload} / syncStatusesForConfigureLanding).
+     *
+     * @param  array<int, array<string, mixed>>  $normalized  e.g. normalizeGroupPlayers() output
+     */
+    public static function countNormalizedPlayersOnMatchRoster(
+        array $normalized,
+        int $teamId,
+        int $matchId,
+        int $gameType
+    ): int {
+        $rosterFlip = array_flip(self::matchRosterPlayerIdsForConfigure($teamId, $matchId, $gameType));
+        if ($rosterFlip === []) {
+            return 0;
+        }
+        $n = 0;
+        foreach ($normalized as $p) {
+            $id = (int) ($p['id'] ?? 0);
+            if ($id > 0 && isset($rosterFlip[$id])) {
+                $n++;
+            }
+        }
+
+        return $n;
+    }
+
+    /**
      * Keep only roster-repair IDs that still appear on the match roster.
      *
      * @param  array<int,mixed>  $repairIds
@@ -251,6 +279,145 @@ class PersionalGrouping extends Model
                 $group->save();
             }
         }
+    }
+
+    /**
+     * Practice games only: after match ends, persist `inactive` for groups that are still `active`
+     * in DB but do not have 7, 9, or 11 members. Does not remove members from JSON.
+     * Run before `pruneMatchConfigurePlayersNotInAnyGroup` so roster prune uses corrected notion of "active".
+     */
+    public static function syncInvalidActivePracticeGroupStatusesForMatchEnd(int $matchId): void
+    {
+        $game = Game::query()->find($matchId);
+        if ($game === null) {
+            return;
+        }
+
+        $configureGameType = (int) ($game->type ?? 1) === 2 ? 2 : 1;
+        if ($configureGameType !== 2) {
+            return;
+        }
+
+        $expectedGroupLevel = 2;
+
+        $groups = self::query()
+            ->where('game_id', $matchId)
+            ->where('group_level', $expectedGroupLevel)
+            ->get();
+
+        foreach ($groups as $group) {
+            $status = strtolower((string) ($group->status ?? ''));
+            if ($status !== 'active') {
+                continue;
+            }
+
+            $raw = $group->practice_players;
+            $n = count(self::collectIdsFromGroupedPlayersPayload($raw));
+
+            if (! self::practiceGroupMemberCountIsValid($n)) {
+                $group->status = 'inactive';
+                $group->save();
+            }
+        }
+    }
+
+    /** Practice personal groups: only these sizes may remain or be set `active`. */
+    public static function practiceGroupActiveMemberCountIsValid(int $count): bool
+    {
+        return in_array($count, [7, 9, 11], true);
+    }
+
+    private static function practiceGroupMemberCountIsValid(int $count): bool
+    {
+        return self::practiceGroupActiveMemberCountIsValid($count);
+    }
+
+    /**
+     * Members saved on the group who still appear on the configure roster (coach-vue countGroupMembersOnMatchRoster).
+     *
+     * @param  array<int,true>  $rosterFlip
+     */
+    private static function countGroupMembersOnMatchRosterFromPayload(
+        PersionalGrouping $group,
+        bool $isPractice,
+        array $rosterFlip
+    ): int {
+        $raw = $isPractice ? $group->practice_players : $group->players;
+        $memberIds = self::collectIdsFromGroupedPlayersPayload($raw);
+        $n = 0;
+        foreach ($memberIds as $mid) {
+            if (isset($rosterFlip[(int) $mid])) {
+                $n++;
+            }
+        }
+
+        return $n;
+    }
+
+    /**
+     * Run when opening Configure → Players Grouping: prune repairs, then demote invalid `active` groups to `inactive`.
+     * Does not modify `draft`. Idempotent.
+     *
+     * @return int Number of groups whose status was changed from active to inactive
+     */
+    public static function syncStatusesForConfigureLanding(
+        int $teamId,
+        int $matchId,
+        int $gameType,
+        int $leagueNonPracticePlayerLimit
+    ): int {
+        self::pruneAllStaleRepairsAfterConfigureSave($teamId, $matchId, $gameType);
+
+        $isPractice = (int) $gameType === 2;
+        $expectedGroupLevel = $isPractice ? 2 : 1;
+
+        $rosterIds = self::matchRosterPlayerIdsForConfigure($teamId, $matchId, $gameType);
+        $rosterFlip = array_flip($rosterIds);
+
+        $lim = $leagueNonPracticePlayerLimit > 0 ? $leagueNonPracticePlayerLimit : 12;
+
+        $groups = self::query()
+            ->where('team_id', $teamId)
+            ->where('game_id', $matchId)
+            ->where('group_level', $expectedGroupLevel)
+            ->get();
+
+        $updated = 0;
+
+        foreach ($groups as $group) {
+            $stored = strtolower((string) ($group->status ?? 'active'));
+            if ($stored === 'draft') {
+                continue;
+            }
+
+            if ($stored !== 'active') {
+                continue;
+            }
+
+            $repair = array_values(array_filter(array_map('intval', $group->roster_repair_player_ids ?? [])));
+            $repair = self::pruneRosterRepairIdsAgainstMatchRoster($repair, $teamId, $matchId, $gameType);
+
+            $n = self::countGroupMembersOnMatchRosterFromPayload($group, $isPractice, $rosterFlip);
+
+            $shouldDemote = false;
+            if ($repair !== []) {
+                $shouldDemote = true;
+            } elseif ($isPractice) {
+                if (! self::practiceGroupActiveMemberCountIsValid($n)) {
+                    $shouldDemote = true;
+                }
+            } elseif ($n !== $lim) {
+                $shouldDemote = true;
+            }
+
+            if ($shouldDemote) {
+                $group->status = 'inactive';
+                $group->save();
+                $updated++;
+            }
+        }
+
+        return $updated;
     }
 
     /**
@@ -326,6 +493,10 @@ class PersionalGrouping extends Model
             $raw = $usePracticePlayersPayload ? $group->practice_players : $group->players;
             $memberIds = self::collectIdsFromGroupedPlayersPayload($raw);
             if ($memberIds === []) {
+                continue;
+            }
+
+            if ($usePracticePlayersPayload && ! self::practiceGroupMemberCountIsValid(count($memberIds))) {
                 continue;
             }
 

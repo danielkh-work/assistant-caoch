@@ -34,6 +34,26 @@ public function storeAllGroups(Request $request)
                 $status = 'active';
             }
 
+                if ($isPractice && $status === 'active') {
+                    $normalized = $this->normalizeGroupPlayers($groupData['players'] ?? []);
+                    $nRoster = PersionalGrouping::countNormalizedPlayersOnMatchRoster(
+                        $normalized,
+                        (int) $groupData['team_id'],
+                        (int) $groupData['game_id'],
+                        2
+                    );
+                    if (! PersionalGrouping::practiceGroupActiveMemberCountIsValid($nRoster)) {
+                        DB::rollBack();
+
+                        return new BaseResponse(
+                            STATUS_CODE_ERROR,
+                            STATUS_CODE_ERROR,
+                            'Practice groups can only be Active when exactly 7, 9, or 11 members are on the match roster for this game. '
+                                ."Currently {$nRoster} match-rostered player(s) count toward this group (Configure Players).",
+                        );
+                    }
+                }
+
             $insertData[] = [
                 'game_id' => $groupData['game_id'],
                 'league_id' => $groupData['league_id'],
@@ -218,6 +238,26 @@ public function storeAllGroups(Request $request)
                         STATUS_CODE_ERROR,
                         'Cannot set group to active until all removed roster players are added back to the group.',
                     );
+                }
+
+                $resolvedStatus = ($newStatus !== null && $newStatus !== '')
+                    ? strtolower((string) $newStatus)
+                    : strtolower((string) ($group->status ?? 'active'));
+                if ($isPracticeGroup && $resolvedStatus === 'active') {
+                    $nRoster = PersionalGrouping::countNormalizedPlayersOnMatchRoster(
+                        $normalized,
+                        (int) $group->team_id,
+                        (int) $group->game_id,
+                        $gameType
+                    );
+                    if (! PersionalGrouping::practiceGroupActiveMemberCountIsValid($nRoster)) {
+                        return new BaseResponse(
+                            STATUS_CODE_ERROR,
+                            STATUS_CODE_ERROR,
+                            'Practice groups can only be Active when exactly 7, 9, or 11 members are on the match roster for this game. '
+                                ."Currently {$nRoster} match-rostered player(s) count toward this group (Configure Players).",
+                        );
+                    }
                 }
 
                 $updateData = [
