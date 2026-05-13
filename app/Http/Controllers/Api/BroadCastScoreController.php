@@ -88,6 +88,9 @@ class BroadCastScoreController extends Controller
             'possession' => $request->possession,
             'weather' => $request->weather,
             'league_id' => $request->league_id,
+            'coverage_category' => $request->coverageCategory,
+            'timer_remaining' => is_numeric($request->time) ? (int) $request->time : null,
+            'sys_time' => now()->toDateTimeString(),
         ];
 
         if ($shouldRefreshTime) {
@@ -126,13 +129,10 @@ class BroadCastScoreController extends Controller
         ];
 
         try {
-            if ($request->league_id) {
+            if ($request->league_id && in_array($action, ['Start', 'EndMatch'])) {
                 $scope = $request->is_play_mode ? 'real' : 'practice';
-                if ($request->isStartTime) {
-                    broadcast(new MatchStarted($request->league_id, 'started', $scope))->toOthers();
-                } else {
-                    broadcast(new MatchStarted($request->league_id, 'ended', $scope))->toOthers();
-                }
+                $status = ($action === 'Start') ? 'started' : 'ended';
+                broadcast(new MatchStarted($request->league_id, $status, $scope))->toOthers();
             }
             broadcast(new PracticeScoreUpdated($payload, $coachGroupId, $request->game_id))->toOthers();
             \Log::info('After broadcast');
@@ -411,11 +411,10 @@ class BroadCastScoreController extends Controller
 
         \Log::info(['play_mode'=>$request->is_play_mode]);
         try {
-            $scope = $request->is_play_mode ? 'real' : 'practice';
-            if ($request->isStartTime) {
-                broadcast(new MatchStarted($request->league_id, 'started', $scope))->toOthers();
-            } else {
-                broadcast(new MatchStarted($request->league_id, 'ended', $scope))->toOthers();
+            if ($request->league_id && in_array($action, ['Start', 'EndMatch'])) {
+                $scope = $request->is_play_mode ? 'real' : 'practice';
+                $status = ($action === 'Start') ? 'started' : 'ended';
+                broadcast(new MatchStarted($request->league_id, $status, $scope))->toOthers();
             }
             broadcast(new ScoreUpdated($payload, $coachGroupId, $request->game_id))->toOthers();
         } catch (\Exception $e) {
