@@ -200,7 +200,9 @@ public function storeAllGroups(Request $request)
         {
             $request->validate([
                 'group_name'  => 'required|string|max:255',
-                'players'     => 'required|array',
+                // `required` rejects []; inactive groups may legitimately save with no match-rostered members
+                // when selections are orphans / "Not in the match" (payload is empty after normalization).
+                'players'     => 'present|array',
                 'is_practice' => 'nullable',
                 'status' => 'nullable|in:draft,active,inactive',
                 'roster_repair_append' => 'nullable|array',
@@ -258,6 +260,14 @@ public function storeAllGroups(Request $request)
                                 ."Currently {$nRoster} match-rostered player(s) count toward this group (Configure Players).",
                         );
                     }
+                }
+
+                if ($resolvedStatus === 'active' && ! $isPracticeGroup && count($memberIds) === 0) {
+                    return new BaseResponse(
+                        STATUS_CODE_ERROR,
+                        STATUS_CODE_ERROR,
+                        'Active groups must include players on the match roster.',
+                    );
                 }
 
                 $updateData = [
