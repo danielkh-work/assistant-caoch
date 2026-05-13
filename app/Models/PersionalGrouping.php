@@ -253,4 +253,194 @@ class PersionalGrouping extends Model
         }
     }
 
+    /**
+     * When a match ends: drop configured roster entries (Configure Players list) for offensive/defensive
+     * slots where that player does not belong to any **active** personal group on the matching side.
+     * `special` rows are not removed here.
+     *
+     * Mirrors coach-vue `collectActiveGroupedPlayerIdsBySide` (+ practice vs league `group_level`).
+     */
+    public static function pruneMatchConfigurePlayersNotInAnyGroup(int $matchId): void
+    {
+        $game = Game::query()->find($matchId);
+        if ($game === null) {
+            return;
+        }
+
+        $configureGameType = (int) ($game->type ?? 1) === 2 ? 2 : 1;
+        $isPracticeConfigure = $configureGameType === 2;
+        $expectedGroupLevel = $isPracticeConfigure ? 2 : 1;
+
+        foreach (
+            [
+                ['team_id' => (int) $game->my_team_id, 'team_type' => 1],
+                ['team_id' => (int) $game->oponent_team_id, 'team_type' => 2],
+            ] as $side
+        ) {
+            if ($side['team_id'] <= 0) {
+                continue;
+            }
+
+            $idsBySide = self::activeGroupedPlayerIdsByConfigureSideFromGroups(
+                $side['team_id'],
+                $matchId,
+                $expectedGroupLevel,
+                $isPracticeConfigure
+            );
+
+            self::deleteConfiguredRowsWithoutMatchingGroupMembership(
+                $side['team_id'],
+                $matchId,
+                $configureGameType,
+                $side['team_type'],
+                $idsBySide['offensive'],
+                $idsBySide['defensive']
+            );
+        }
+    }
+
+    /**
+     * @return array{offensive: array<int,int>, defensive: array<int,int>}
+     */
+    private static function activeGroupedPlayerIdsByConfigureSideFromGroups(
+        int $teamId,
+        int $gameId,
+        int $expectedGroupLevel,
+        bool $usePracticePlayersPayload
+    ): array {
+        $offensiveFlip = [];
+        $defensiveFlip = [];
+
+        $groups = self::query()
+            ->where('team_id', $teamId)
+            ->where('game_id', $gameId)
+            ->where('group_level', $expectedGroupLevel)
+            ->get();
+
+        foreach ($groups as $group) {
+            $status = strtolower((string) ($group->status ?? 'active'));
+            if ($status !== 'active') {
+                continue;
+            }
+
+            $raw = $usePracticePlayersPayload ? $group->practice_players : $group->players;
+            $memberIds = self::collectIdsFromGroupedPlayersPayload($raw);
+            if ($memberIds === []) {
+                continue;
+            }
+
+            $isOff = self::isOffensivePersonalGroupTypeLabel($group->type);
+            foreach ($memberIds as $mid) {
+                if ($mid <= 0) {
+                    continue;
+                }
+                if ($isOff) {
+                    $offensiveFlip[(int) $mid] = true;
+                } else {
+                    $defensiveFlip[(int) $mid] = true;
+                }
+            }
+        }
+
+        return [
+            'offensive' => array_map('intval', array_keys($offensiveFlip)),
+            'defensive' => array_map('intval', array_keys($defensiveFlip)),
+        ];
+    }
+
+    /** @param  array<mixed>|string|null  $payload */
+    private static function collectIdsFromGroupedPlayersPayload($payload): array
+    {
+        if ($payload === null || $payload === '') {
+            return [];
+        }
+        if (! is_array($payload)) {
+            $decoded = json_decode((string) $payload, true);
+            if (! is_array($decoded)) {
+                return [];
+            }
+            $payload = $decoded;
+        }
+        if ($payload === []) {
+            return [];
+        }
+
+        $ids = [];
+        foreach ($payload as $entry) {
+            if (is_int($entry) || is_float($entry)) {
+                $ids[] = (int) $entry;
+            } elseif (is_string($entry) && ctype_digit($entry)) {
+                $ids[] = (int) $entry;
+            } elseif (is_array($entry) && isset($entry['id'])) {
+                $ids[] = (int) $entry['id'];
+            }
+        }
+
+        return array_values(array_unique(array_filter($ids, fn ($id) => (int) $id > 0)));
+    }
+
+    /** Same rules as coach-vue `isOffensiveGroupType` */
+    private static function isOffensivePersonalGroupTypeLabel($type): bool
+    {
+        $t = strtolower((string) ($type ?? ''));
+        if ($t === '' || str_contains($t, 'special')) {
+            return false;
+        }
+        if ($t === 'offense' || $t === 'offensive') {
+            return true;
+        }
+        if ($t === 'defense' || $t === 'defensive') {
+            return false;
+        }
+
+        return str_contains($t, 'offen');
+    }
+
+    /**
+     * @param  array<int,int>  $offensiveGroupedIds
+     * @param  array<int,int>  $defensiveGroupedIds
+     */
+    private static function deleteConfiguredRowsWithoutMatchingGroupMembership(
+        int $teamId,
+        int $matchId,
+        int $configureGameType,
+        int $teamType,
+        array $offensiveGroupedIds,
+        array $defensiveGroupedIds
+    ): void {
+        $flipOff = array_flip(array_map('intval', $offensiveGroupedIds));
+        $flipDef = array_flip(array_map('intval', $defensiveGroupedIds));
+        $isPracticeRow = ((int) $configureGameType) === 2;
+
+        ConfiguredPlayingTeamPlayer::query()
+            ->where('match_id', $matchId)
+            ->where('team_id', $teamId)
+            ->where('team_type', $teamType)
+            ->where('game_type', $configureGameType)
+            ->get()
+            ->each(function ($row) use ($flipOff, $flipDef, $isPracticeRow): void {
+                $slotType = strtolower((string) ($row->type ?? ''));
+                if ($slotType === 'special') {
+                    return;
+                }
+                if ($slotType !== 'offensive' && $slotType !== 'defensive') {
+                    return;
+                }
+
+                $pid = $isPracticeRow ? (int) ($row->practice_player_id ?? 0) : (int) ($row->player_id ?? 0);
+                if ($pid <= 0) {
+                    return;
+                }
+
+                if ($slotType === 'offensive' && ! isset($flipOff[$pid])) {
+                    $row->delete();
+
+                    return;
+                }
+                if ($slotType === 'defensive' && ! isset($flipDef[$pid])) {
+                    $row->delete();
+                }
+            });
+    }
+
 }
