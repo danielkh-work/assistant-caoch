@@ -88,6 +88,9 @@ class BroadCastScoreController extends Controller
             'possession' => $request->possession,
             'weather' => $request->weather,
             'league_id' => $request->league_id,
+            'coverage_category' => $request->coverageCategory,
+            'timer_remaining' => is_numeric($request->time) ? (int) $request->time : null,
+            'sys_time' => now()->toDateTimeString(),
         ];
 
         if ($shouldRefreshTime) {
