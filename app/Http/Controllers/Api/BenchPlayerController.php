@@ -452,8 +452,13 @@ public function index(Request $request, $teamId, $gameId)
         $offenseIds = array_map(fn($player) => $player['id'], $offensePlayers);
         $benchIds   = array_map(fn($player) => $player['id'], $benchPlayers);
 
+        // Configured-roster slot type for the players coming on-field. Without this, rows are
+        // inserted with type=NULL and the match-end roster prune cannot tell which side they
+        // belong to. Keep this in sync with the values written by ConfigureController::store.
+        $slotType = strtolower((string) $playerType) === 'offence' ? 'offensive' : 'defensive';
+        $configureGameType = $isPractice ? 2 : 1;
 
-        DB::transaction(function() use ($offenseIds, $benchPlayers, $benchIds, $teamId,$leagueId,$type, $gameId, $playerType,$team_type,$playerColumn) {
+        DB::transaction(function() use ($offenseIds, $benchPlayers, $benchIds, $teamId,$leagueId,$type, $gameId, $playerType,$team_type,$playerColumn,$slotType,$configureGameType) {
 
 
         if (!empty($offenseIds)) {
@@ -502,8 +507,9 @@ public function index(Request $request, $teamId, $gameId)
                                     'team_id'   => $teamId,
                                     'match_id'   => $gameId,
                                     $playerColumn => $playerId,
-                                    'team_type' => $team_type
-
+                                    'team_type' => $team_type,
+                                    'type' => $slotType,
+                                    'game_type' => $configureGameType,
                                 ];
                             }
 

@@ -421,9 +421,14 @@ class PersionalGrouping extends Model
     }
 
     /**
-     * When a match ends: drop configured roster entries (Configure Players list) for offensive/defensive
-     * slots where that player does not belong to any **active** personal group on the matching side.
-     * `special` rows are not removed here.
+     * When a match ends: drop configured roster entries (Configure Players list) for any player
+     * who does not belong to **any active** personal group on that team. Applies to both my team
+     * and the opposing team, both offensive and defensive sides. `special` rows are never removed.
+     *
+     * The check is intentionally **slot-type-agnostic**: substitution/shuffle and benching paths
+     * insert configured rows with `type = NULL`, so a strict `type='offensive'/'defensive'`
+     * comparison would silently skip them. Match the row purely by player id against the union
+     * of active offensive + defensive grouped IDs for the team.
      *
      * Mirrors coach-vue `collectActiveGroupedPlayerIdsBySide` (+ practice vs league `group_level`).
      */
@@ -568,6 +573,15 @@ class PersionalGrouping extends Model
     }
 
     /**
+     * Delete configured roster rows whose player id is not in any active group on this team
+     * (union of offensive + defensive grouped ids). `special` rows are always preserved.
+     *
+     * Filtering deliberately ignores the row's slot `type` and `game_type` columns:
+     *  - `type` can be NULL on rows inserted by shuffle/bench-substitution flows.
+     *  - `game_type` is sometimes left at its default (1) by those same flows; a match has
+     *    exactly one game type already, so filtering by `match_id` + `team_id` + `team_type`
+     *    is sufficient and avoids leaving orphan rows behind.
+     *
      * @param  array<int,int>  $offensiveGroupedIds
      * @param  array<int,int>  $defensiveGroupedIds
      */
@@ -579,39 +593,54 @@ class PersionalGrouping extends Model
         array $offensiveGroupedIds,
         array $defensiveGroupedIds
     ): void {
-        $flipOff = array_flip(array_map('intval', $offensiveGroupedIds));
-        $flipDef = array_flip(array_map('intval', $defensiveGroupedIds));
+        $keep = [];
+        foreach ($offensiveGroupedIds as $id) {
+            $n = (int) $id;
+            if ($n > 0) {
+                $keep[$n] = true;
+            }
+        }
+        foreach ($defensiveGroupedIds as $id) {
+            $n = (int) $id;
+            if ($n > 0) {
+                $keep[$n] = true;
+            }
+        }
         $isPracticeRow = ((int) $configureGameType) === 2;
+
+        $deletedRowIds = [];
 
         ConfiguredPlayingTeamPlayer::query()
             ->where('match_id', $matchId)
             ->where('team_id', $teamId)
             ->where('team_type', $teamType)
-            ->where('game_type', $configureGameType)
             ->get()
-            ->each(function ($row) use ($flipOff, $flipDef, $isPracticeRow): void {
+            ->each(function ($row) use ($keep, $isPracticeRow, &$deletedRowIds): void {
                 $slotType = strtolower((string) ($row->type ?? ''));
                 if ($slotType === 'special') {
                     return;
                 }
-                if ($slotType !== 'offensive' && $slotType !== 'defensive') {
-                    return;
-                }
 
-                $pid = $isPracticeRow ? (int) ($row->practice_player_id ?? 0) : (int) ($row->player_id ?? 0);
+                $pid = $isPracticeRow
+                    ? (int) ($row->practice_player_id ?? 0)
+                    : (int) ($row->player_id ?? 0);
                 if ($pid <= 0) {
                     return;
                 }
 
-                if ($slotType === 'offensive' && ! isset($flipOff[$pid])) {
+                if (! isset($keep[$pid])) {
                     $row->delete();
-
-                    return;
-                }
-                if ($slotType === 'defensive' && ! isset($flipDef[$pid])) {
-                    $row->delete();
+                    $deletedRowIds[] = (int) $row->id;
                 }
             });
+
+        \Log::info('pruneMatchConfigurePlayersNotInAnyGroup: roster pruned', [
+            'team_id' => $teamId,
+            'match_id' => $matchId,
+            'team_type' => $teamType,
+            'kept_player_ids' => array_keys($keep),
+            'deleted_row_ids' => $deletedRowIds,
+        ]);
     }
 
 }
