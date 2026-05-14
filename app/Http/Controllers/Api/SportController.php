@@ -7,11 +7,13 @@ use App\Http\Responses\BaseResponse;
 use App\Models\League;
 use App\Models\LeagueRule;
 use App\Models\LeagueTeam;
+use App\Models\PersionalGrouping;
 use App\Models\Player;
 use App\Models\PlayGameMode;
 use App\Models\Sport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use App\Models\Game;
 
 class SportController extends Controller
@@ -182,7 +184,11 @@ class SportController extends Controller
         
         $request->validate([
             'number_of_players' => 'nullable|integer|min:1|max:12',
-            'practice_number_players' => 'nullable|integer|min:1|max:12',
+            'practice_number_players' => [
+                'nullable',
+                'integer',
+                Rule::in(PersionalGrouping::practiceGroupAllowedMemberCounts()),
+            ],
         ]);
        
 

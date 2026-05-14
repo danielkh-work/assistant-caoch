@@ -283,7 +283,7 @@ class PersionalGrouping extends Model
 
     /**
      * Practice games only: after match ends, persist `inactive` for groups that are still `active`
-     * in DB but do not have 7, 9, or 11 members. Does not remove members from JSON.
+     * in DB but do not have 7, 11, or 12 members. Does not remove members from JSON.
      * Run before `pruneMatchConfigurePlayersNotInAnyGroup` so roster prune uses corrected notion of "active".
      */
     public static function syncInvalidActivePracticeGroupStatusesForMatchEnd(int $matchId): void
@@ -321,10 +321,16 @@ class PersionalGrouping extends Model
         }
     }
 
+    /** @return array<int,int> Sizes that may remain or be set `active` for practice personal groups. */
+    public static function practiceGroupAllowedMemberCounts(): array
+    {
+        return [7, 11, 12];
+    }
+
     /** Practice personal groups: only these sizes may remain or be set `active`. */
     public static function practiceGroupActiveMemberCountIsValid(int $count): bool
     {
-        return in_array($count, [7, 9, 11], true);
+        return in_array($count, self::practiceGroupAllowedMemberCounts(), true);
     }
 
     private static function practiceGroupMemberCountIsValid(int $count): bool

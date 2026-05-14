@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\PersionalGrouping;
-use App\Models\League;
 use App\Models\TeamPlayer;
 use App\Models\PracticeTeamPlayer;
 
@@ -48,7 +47,7 @@ public function storeAllGroups(Request $request)
                         return new BaseResponse(
                             STATUS_CODE_ERROR,
                             STATUS_CODE_ERROR,
-                            'Practice groups can only be Active when exactly 7, 9, or 11 members are on the match roster for this game. '
+                            'Practice groups can only be Active when exactly 7, 11, or 12 members are on the match roster for this game. '
                                 ."Currently {$nRoster} match-rostered player(s) count toward this group (Configure Players).",
                         );
                     }
@@ -256,7 +255,7 @@ public function storeAllGroups(Request $request)
                         return new BaseResponse(
                             STATUS_CODE_ERROR,
                             STATUS_CODE_ERROR,
-                            'Practice groups can only be Active when exactly 7, 9, or 11 members are on the match roster for this game. '
+                            'Practice groups can only be Active when exactly 7, 11, or 12 members are on the match roster for this game. '
                                 ."Currently {$nRoster} match-rostered player(s) count toward this group (Configure Players).",
                         );
                     }
@@ -315,10 +314,7 @@ public function storeAllGroups(Request $request)
         $leagueId = $request->query('league_id');
         $isPractice = $request->query('is_practice', 0);
 
-        $League = League::find($leagueId);
-
-        $practice_length_players = $League->practice_number_players ?? 7;
-         if ((!$teamId || !$gameId) && !$leagueId) {
+        if ((!$teamId || !$gameId) && !$leagueId) {
         return new BaseResponse(
             STATUS_CODE_ERROR,
             STATUS_CODE_ERROR,
@@ -339,8 +335,11 @@ public function storeAllGroups(Request $request)
         ->when((!$teamId || !$gameId) && $leagueId, function ($q) use ($leagueId) {
             $q->where('league_id', $leagueId);
         })
-        ->when($isPractice && $forPracticeMode, function ($q) use ($practice_length_players) {
-            $q->whereRaw('JSON_LENGTH(practice_players) = ?', [$practice_length_players]);
+        ->when($isPractice && $forPracticeMode, function ($q) {
+            $sizes = implode(',', PersionalGrouping::practiceGroupAllowedMemberCounts());
+            $q->whereRaw(
+                'practice_players IS NOT NULL AND JSON_LENGTH(practice_players) IN ('.$sizes.')'
+            );
         })
 
         ->orderBy('created_at', 'desc')
