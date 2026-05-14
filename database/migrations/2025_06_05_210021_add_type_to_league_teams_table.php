@@ -11,9 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('league_teams', function (Blueprint $table) {
-             $table->integer('type')->nullable(); 
-        });
+        if (!Schema::hasColumn('league_teams', 'type')) {
+            Schema::table('league_teams', function (Blueprint $table) {
+                $table->integer('type')->nullable();
+            });
+        }
     }
 
     /**
@@ -21,8 +23,10 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('league_teams', function (Blueprint $table) {
-             $table->dropColumn('type');
-        });
+        if (Schema::hasColumn('league_teams', 'type')) {
+            Schema::table('league_teams', function (Blueprint $table) {
+                $table->dropColumn('type');
+            });
+        }
     }
 };

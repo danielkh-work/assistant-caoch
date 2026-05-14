@@ -369,7 +369,11 @@ class BroadCastScoreController extends Controller
             'pkg' => $request->pkg,
             'strategies' => $request->strategies,
             'possession' => $request->possession,
+            'weather' => $request->weather,
+            'coverage_category' => $request->coverageCategory,
             'league_id' => $request->league_id,
+            'timer_remaining' => is_numeric($request->time) ? (int) $request->time : null,
+            'sys_time' => now()->toDateTimeString(),
         ];
 
         if ($shouldRefreshTime) {
@@ -407,6 +411,8 @@ class BroadCastScoreController extends Controller
             'positionNumber' => $request->positionNumber,
             'pkg' => $request->pkg,
             'possession' => $request->possession,
+            'weather' => $request->weather,
+            'coverageCategory' => $request->coverageCategory,
         ];
 
         \Log::info(['play_mode'=>$request->is_play_mode]);
@@ -424,14 +430,20 @@ class BroadCastScoreController extends Controller
         return response()->noContent();
     }
 
-    public function getWebSocketScoreBoard(){
+    public function getWebSocketScoreBoard(Request $request){
 
         $user = auth()->user();
         $coachGroupId = $user->role === 'head_coach'
             ? $user->id
             : $user->head_coach_id;
         \Log::info(['checking websocket with user id working or nort'=>$coachGroupId]);
-        $webSocketScorboard = WebsocketScoreboard::where('user_id', $coachGroupId)->first();
+        $query = WebsocketScoreboard::where('user_id', $coachGroupId);
+
+        if ($request->has('game_id')) {
+            $query->where('game_id', $request->game_id);
+        }
+
+        $webSocketScorboard = $query->latest('updated_at')->first();
 
         if (!$webSocketScorboard) {
             \Log::debug('getWebSocketScoreBoard: no scoreboard row for coach', [
@@ -456,7 +468,7 @@ class BroadCastScoreController extends Controller
             $query->where('game_id', $request->game_id);
         }
 
-        $webSocketScorboard = $query->latest()->first();
+        $webSocketScorboard = $query->latest('updated_at')->first();
 
         if (!$webSocketScorboard) {
             \Log::debug('getPracticeWebSocketScoreBoard: no scoreboard row', [

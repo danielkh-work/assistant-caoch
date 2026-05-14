@@ -11,11 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('roleables', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('role_id')->constrained()->onDelete('cascade');
-            $table->morphs('roleable'); // roleable_id, roleable_type
-        });
+        if (!Schema::hasTable('roleables')) {
+            Schema::create('roleables', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('role_id')->constrained()->onDelete('cascade');
+                $table->morphs('roleable'); // roleable_id, roleable_type
+            });
+        }
     }
 
     /**
