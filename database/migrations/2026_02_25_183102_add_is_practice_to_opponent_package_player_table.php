@@ -11,9 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
+        try {
         Schema::table('opponent_package_player', function (Blueprint $table) {
             $table->boolean('is_practice')->default(0)->after('player_id');
         });
+        } catch (\Illuminate\Database\QueryException $e) {
+            if (stripos($e->getMessage(), 'Duplicate') === false && stripos($e->getMessage(), 'already exists') === false) throw $e;
+        }
     }
 
     /**
@@ -21,8 +25,12 @@ return new class extends Migration
      */
     public function down(): void
     {
+        try {
         Schema::table('opponent_package_player', function (Blueprint $table) {
               $table->dropColumn('is_practice');
         });
+        } catch (\Illuminate\Database\QueryException $e) {
+            if (stripos($e->getMessage(), 'Duplicate') === false && stripos($e->getMessage(), 'already exists') === false) throw $e;
+        }
     }
 };

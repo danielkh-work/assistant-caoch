@@ -11,9 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
+        try {
         Schema::table('players', function (Blueprint $table) {
              $table->string('number')->nullable()->change();
         });
+        } catch (\Illuminate\Database\QueryException $e) {
+            if (stripos($e->getMessage(), 'Duplicate') === false && stripos($e->getMessage(), 'already exists') === false) throw $e;
+        }
     }
 
     /**
@@ -21,8 +25,12 @@ return new class extends Migration
      */
     public function down(): void
     {
+        try {
         Schema::table('players', function (Blueprint $table) {
            $table->string('number')->nullable(false)->change();
         });
+        } catch (\Illuminate\Database\QueryException $e) {
+            if (stripos($e->getMessage(), 'Duplicate') === false && stripos($e->getMessage(), 'already exists') === false) throw $e;
+        }
     }
 };

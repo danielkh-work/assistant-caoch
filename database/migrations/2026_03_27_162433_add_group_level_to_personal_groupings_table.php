@@ -11,11 +11,15 @@ return new class extends Migration
      */
     public function up(): void
     {
+        try {
         Schema::table('personal_groupings', function (Blueprint $table) {
             $table->unsignedTinyInteger('group_level')
             ->default(1)
             ->comment('1 = Play Mode, 2 = Practice Mode');
         });
+        } catch (\Illuminate\Database\QueryException $e) {
+            if (stripos($e->getMessage(), 'Duplicate') === false && stripos($e->getMessage(), 'already exists') === false) throw $e;
+        }
     }
 
     /**
@@ -23,10 +27,14 @@ return new class extends Migration
      */
     public function down(): void
     {
+        try {
         Schema::table('personal_groupings', function (Blueprint $table) {
             $table->unsignedTinyInteger('group_level')
             ->default(1)
             ->comment('1 = Play Mode, 2 = Practice Mode');
         });
+        } catch (\Illuminate\Database\QueryException $e) {
+            if (stripos($e->getMessage(), 'Duplicate') === false && stripos($e->getMessage(), 'already exists') === false) throw $e;
+        }
     }
 };

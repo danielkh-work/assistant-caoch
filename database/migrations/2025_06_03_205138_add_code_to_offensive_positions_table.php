@@ -11,9 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
+        try {
         Schema::table('offensive_positions', function (Blueprint $table) {
              $table->string('code')->nullable()->after('name');
         });
+        } catch (\Illuminate\Database\QueryException $e) {
+            if (stripos($e->getMessage(), 'Duplicate') === false && stripos($e->getMessage(), 'already exists') === false) throw $e;
+        }
     }
 
     /**
@@ -21,8 +25,12 @@ return new class extends Migration
      */
     public function down(): void
     {
+        try {
         Schema::table('offensive_positions', function (Blueprint $table) {
             $table->dropColumn('code');
         });
+        } catch (\Illuminate\Database\QueryException $e) {
+            if (stripos($e->getMessage(), 'Duplicate') === false && stripos($e->getMessage(), 'already exists') === false) throw $e;
+        }
     }
 };

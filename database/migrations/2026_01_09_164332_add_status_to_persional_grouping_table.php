@@ -11,9 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
+        try {
         Schema::table('persional_grouping', function (Blueprint $table) {
              $table->string('status')->nullable()->comment('NULL , substituted ');
         });
+        } catch (\Illuminate\Database\QueryException $e) {
+            if (stripos($e->getMessage(), 'Duplicate') === false && stripos($e->getMessage(), 'already exists') === false) throw $e;
+        }
     }
 
     /**
@@ -21,8 +25,12 @@ return new class extends Migration
      */
     public function down(): void
     {
+        try {
         Schema::table('persional_grouping', function (Blueprint $table) {
             $table->dropColumn('status');
         });
+        } catch (\Illuminate\Database\QueryException $e) {
+            if (stripos($e->getMessage(), 'Duplicate') === false && stripos($e->getMessage(), 'already exists') === false) throw $e;
+        }
     }
 };

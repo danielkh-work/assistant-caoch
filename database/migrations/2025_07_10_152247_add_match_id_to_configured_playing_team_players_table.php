@@ -11,10 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
+        try {
         Schema::table('configured_playing_team_players', function (Blueprint $table) {
 
               $table->unsignedBigInteger('match_id')->nullable()->after('id'); // or wherever you want it
         });
+        } catch (\Illuminate\Database\QueryException $e) {
+            if (stripos($e->getMessage(), 'Duplicate') === false && stripos($e->getMessage(), 'already exists') === false) throw $e;
+        }
     }
 
     /**
@@ -22,8 +26,12 @@ return new class extends Migration
      */
     public function down(): void
     {
+        try {
         Schema::table('configured_playing_team_players', function (Blueprint $table) {
              $table->dropColumn('match_id');
         });
+        } catch (\Illuminate\Database\QueryException $e) {
+            if (stripos($e->getMessage(), 'Duplicate') === false && stripos($e->getMessage(), 'already exists') === false) throw $e;
+        }
     }
 };

@@ -11,11 +11,15 @@ return new class extends Migration
      */
     public function up(): void
     {
+        try {
         Schema::table('practice_team_players', function (Blueprint $table) {
             $table->double('size')->nullable()->change();
             $table->integer('strength')->nullable()->change();
             $table->string('ofp')->nullable()->change();
         });
+        } catch (\Illuminate\Database\QueryException $e) {
+            if (stripos($e->getMessage(), 'Duplicate') === false && stripos($e->getMessage(), 'already exists') === false) throw $e;
+        }
     }
 
     /**
@@ -23,11 +27,15 @@ return new class extends Migration
      */
     public function down(): void
     {
+        try {
         Schema::table('practice_team_players', function (Blueprint $table) {
              $table->double('size')->nullable(false)->change();
             $table->integer('strength')->nullable(false)->change();
             $table->string('ofp')->nullable(false)->change();
         });
+        } catch (\Illuminate\Database\QueryException $e) {
+            if (stripos($e->getMessage(), 'Duplicate') === false && stripos($e->getMessage(), 'already exists') === false) throw $e;
+        }
     }
 };
 

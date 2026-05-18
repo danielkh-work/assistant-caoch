@@ -11,11 +11,15 @@ return new class extends Migration
      */
     public function up(): void
     {
+        try {
         Schema::table('play_game_modes', function (Blueprint $table) {
              $table->enum('game_mode', ['play', 'practice'])
              ->default('play')
               ->after('league_id'); // change position if needed
         });
+        } catch (\Illuminate\Database\QueryException $e) {
+            if (stripos($e->getMessage(), 'Duplicate') === false && stripos($e->getMessage(), 'already exists') === false) throw $e;
+        }
     }
 
     /**
@@ -23,8 +27,12 @@ return new class extends Migration
      */
     public function down(): void
     {
+        try {
         Schema::table('play_game_modes', function (Blueprint $table) {
             $table->dropColumn('game_mode');
         });
+        } catch (\Illuminate\Database\QueryException $e) {
+            if (stripos($e->getMessage(), 'Duplicate') === false && stripos($e->getMessage(), 'already exists') === false) throw $e;
+        }
     }
 };

@@ -11,6 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
+        try {
         Schema::table('team_players', function (Blueprint $table) {
             $table->string('name')->nullable();
             $table->string('number')->nullable()->after('name');
@@ -25,6 +26,9 @@ return new class extends Migration
             $table->string('position_value')->nullable()->after('image');
             $table->string('ofp')->nullable()->after('position_value');
         });
+        } catch (\Illuminate\Database\QueryException $e) {
+            if (stripos($e->getMessage(), 'Duplicate') === false && stripos($e->getMessage(), 'already exists') === false) throw $e;
+        }
     }
 
     /**
@@ -32,6 +36,7 @@ return new class extends Migration
      */
     public function down(): void
     {
+        try {
         Schema::table('team_players', function (Blueprint $table) {
               $table->dropColumn([
                 'name',
@@ -40,5 +45,8 @@ return new class extends Migration
                 'dob', 'image', 'position_value', 'ofp'
             ]);
         });
+        } catch (\Illuminate\Database\QueryException $e) {
+            if (stripos($e->getMessage(), 'Duplicate') === false && stripos($e->getMessage(), 'already exists') === false) throw $e;
+        }
     }
 };

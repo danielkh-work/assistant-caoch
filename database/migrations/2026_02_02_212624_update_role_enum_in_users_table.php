@@ -11,10 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
+        try {
         Schema::table('users', function (Blueprint $table) {
              
              DB::statement("ALTER TABLE `users` MODIFY `role` ENUM('head_coach', 'assistant_coach', 'qb', 'performance_coach') NOT NULL DEFAULT 'head_coach'");
         });
+        } catch (\Illuminate\Database\QueryException $e) {
+            if (stripos($e->getMessage(), 'Duplicate') === false && stripos($e->getMessage(), 'already exists') === false) throw $e;
+        }
     }
 
     /**
@@ -22,8 +26,12 @@ return new class extends Migration
      */
     public function down(): void
     {
+        try {
         Schema::table('users', function (Blueprint $table) {
            DB::statement("ALTER TABLE users MODIFY role ENUM('head_coach', 'assistant_coach','qb') NOT NULL DEFAULT 'head_coach'");
         });
+        } catch (\Illuminate\Database\QueryException $e) {
+            if (stripos($e->getMessage(), 'Duplicate') === false && stripos($e->getMessage(), 'already exists') === false) throw $e;
+        }
     }
 };

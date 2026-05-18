@@ -11,6 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
+        try {
         Schema::table('players', function (Blueprint $table) {
             $table->unsignedBigInteger('league_id')->nullable()->after('id');
             $table->foreign('league_id')
@@ -18,6 +19,9 @@ return new class extends Migration
                   ->on('leagues')
                   ->onDelete('cascade');
         });
+        } catch (\Illuminate\Database\QueryException $e) {
+            if (stripos($e->getMessage(), 'Duplicate') === false && stripos($e->getMessage(), 'already exists') === false) throw $e;
+        }
     }
 
     /**
@@ -25,9 +29,13 @@ return new class extends Migration
      */
     public function down(): void
     {
+        try {
         Schema::table('players', function (Blueprint $table) {
             $table->dropForeign(['league_id']);
             $table->dropColumn('league_id');
         });
+        } catch (\Illuminate\Database\QueryException $e) {
+            if (stripos($e->getMessage(), 'Duplicate') === false && stripos($e->getMessage(), 'already exists') === false) throw $e;
+        }
     }
 };

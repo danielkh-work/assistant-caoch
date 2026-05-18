@@ -11,11 +11,15 @@ return new class extends Migration
      */
     public function up(): void
     {
+        try {
         Schema::table('plays', function (Blueprint $table) {
              $table->unsignedTinyInteger('position_status')
               ->nullable()
               ->comment('1 = Own team, 2 = Opponent team');
         });
+        } catch (\Illuminate\Database\QueryException $e) {
+            if (stripos($e->getMessage(), 'Duplicate') === false && stripos($e->getMessage(), 'already exists') === false) throw $e;
+        }
     }
 
     /**
@@ -23,8 +27,12 @@ return new class extends Migration
      */
     public function down(): void
     {
+        try {
         Schema::table('plays', function (Blueprint $table) {
              $table->dropColumn('position_status');
         });
+        } catch (\Illuminate\Database\QueryException $e) {
+            if (stripos($e->getMessage(), 'Duplicate') === false && stripos($e->getMessage(), 'already exists') === false) throw $e;
+        }
     }
 };

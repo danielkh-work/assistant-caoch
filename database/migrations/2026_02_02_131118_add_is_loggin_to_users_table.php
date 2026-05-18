@@ -11,11 +11,15 @@ return new class extends Migration
      */
     public function up(): void
     {
+        try {
         Schema::table('users', function (Blueprint $table) {
              $table->boolean('is_loggin')
                 ->default(false)
                 ->comment('Used only for QB users to track login status');
         });
+        } catch (\Illuminate\Database\QueryException $e) {
+            if (stripos($e->getMessage(), 'Duplicate') === false && stripos($e->getMessage(), 'already exists') === false) throw $e;
+        }
     }
 
     /**
@@ -23,8 +27,12 @@ return new class extends Migration
      */
     public function down(): void
     {
+        try {
         Schema::table('users', function (Blueprint $table) {
             $table->dropColumn('is_loggin');
         });
+        } catch (\Illuminate\Database\QueryException $e) {
+            if (stripos($e->getMessage(), 'Duplicate') === false && stripos($e->getMessage(), 'already exists') === false) throw $e;
+        }
     }
 };

@@ -11,9 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
+         try {
          Schema::table('players', function (Blueprint $table) {
             $table->string('position_value')->nullable();
         });
+         } catch (\Illuminate\Database\QueryException $e) {
+             if (stripos($e->getMessage(), 'Duplicate') === false && stripos($e->getMessage(), 'already exists') === false) throw $e;
+         }
     }
 
     /**

@@ -11,10 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
+        try {
         Schema::table('users', function (Blueprint $table) {
            $table->string('session_id')->nullable();
            $table->string('code')->nullable()->after('session_id');
         });
+        } catch (\Illuminate\Database\QueryException $e) {
+            if (stripos($e->getMessage(), 'Duplicate') === false && stripos($e->getMessage(), 'already exists') === false) throw $e;
+        }
     }
 
     /**
@@ -22,9 +26,13 @@ return new class extends Migration
      */
     public function down(): void
     {
+        try {
         Schema::table('users', function (Blueprint $table) {
              $table->dropColumn(['session_id', 'code']);
         });
+        } catch (\Illuminate\Database\QueryException $e) {
+            if (stripos($e->getMessage(), 'Duplicate') === false && stripos($e->getMessage(), 'already exists') === false) throw $e;
+        }
     }
 };
 

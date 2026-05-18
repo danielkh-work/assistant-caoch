@@ -11,12 +11,16 @@ return new class extends Migration
      */
     public function up(): void
     {
+        try {
         Schema::table('leagues', function (Blueprint $table) {
            $table->unsignedInteger('practice_number_players')
             ->default(7)
             ->after('number_of_players');
 
         });
+        } catch (\Illuminate\Database\QueryException $e) {
+            if (stripos($e->getMessage(), 'Duplicate') === false && stripos($e->getMessage(), 'already exists') === false) throw $e;
+        }
     }
 
     /**
@@ -24,8 +28,12 @@ return new class extends Migration
      */
     public function down(): void
     {
+        try {
         Schema::table('leagues', function (Blueprint $table) {
             $table->dropColumn('practice_number_players');
         });
+        } catch (\Illuminate\Database\QueryException $e) {
+            if (stripos($e->getMessage(), 'Duplicate') === false && stripos($e->getMessage(), 'already exists') === false) throw $e;
+        }
     }
 };

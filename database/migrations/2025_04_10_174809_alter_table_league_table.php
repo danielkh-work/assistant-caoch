@@ -11,10 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
+        try {
         Schema::table('leagues', function (Blueprint $table) {
             $table->unsignedBigInteger('user_id')->nullable();
           
         });
+        } catch (\Illuminate\Database\QueryException $e) {
+            if (stripos($e->getMessage(), 'Duplicate') === false && stripos($e->getMessage(), 'already exists') === false) throw $e;
+        }
     }
 
     /**
