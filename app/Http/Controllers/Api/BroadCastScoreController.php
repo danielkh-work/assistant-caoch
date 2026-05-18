@@ -308,32 +308,10 @@ class BroadCastScoreController extends Controller
         $points = $validated['points'];
         $action = $validated['action'];
 
-        if($team=='left'){
-
-
-
-            $operation = strtolower(trim($request->operation));
-            $adjustedPoints = ($operation == 'subtract')
-            ? $request->teamLeftScore - $points
-            : $request->teamLeftScore + $points;
-
-
-
-
-          self::$scores[$team]['total'] =  $adjustedPoints;
-        }
-        else if($team=='right'){
-            $operation = strtolower(trim($request->operation));
-            $adjustedPoints = ($operation == 'subtract')
-            ? $request->teamRightScore - $points
-            : $request->teamRightScore + $points;
-           // $request->teamRightScore+$points;
-             self::$scores[$team]['total'] = $adjustedPoints;
-        }else{
-
-            self::$scores['left']['total'] = $request->teamLeftScore;
-            self::$scores['right']['total'] = $request->teamRightScore;
-        }
+        // Frontend already applies the score change optimistically before sending;
+        // accept the final totals directly to avoid double-counting.
+        self::$scores['left']['total']  = max(0, (int) $request->teamLeftScore);
+        self::$scores['right']['total'] = max(0, (int) $request->teamRightScore);
 
         $user = auth()->user();
         $coachGroupId = $user->role === 'head_coach'
