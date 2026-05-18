@@ -25,153 +25,100 @@ class PersionalGrouping extends Model
         'roster_repair_player_ids',
     ];
 
-   protected $casts = [
-    'players' => 'array',
-    'practice_players' => 'array',
-    'roster_repair_player_ids' => 'array',
-];
-
-
-
-
-    // public function getPlayersDataAttribute()
-    // {
-    //     if (empty($this->players)) {
-    //         return [];
-    //     }
-
-    //     return TeamPlayer::whereIn('id', $this->players)->get();
-    // }
+    protected $casts = [
+        'players' => 'array',
+        'practice_players' => 'array',
+        'roster_repair_player_ids' => 'array',
+    ];
 
     public function getPlayersDataAttribute()
     {
-        if (!$this->players) {
+        if (! $this->players) {
             return collect();
         }
 
         $players = is_array($this->players) ? $this->players : json_decode($this->players, true);
-
         $ids = collect($players)->pluck('id');
-
         $teamPlayers = TeamPlayer::whereIn('id', $ids)->get()->keyBy('id');
 
-
-
-        // return collect($players)->map(function ($player) use ($teamPlayers) {
-
-        //     $teamPlayer = $teamPlayers->get($player['id']);
-
-        //     if (!$teamPlayer) {
-        //         return null;
-        //     }
-
-        //     return [
-        //         'id' => $teamPlayer->id,
-        //         'name' => $teamPlayer->name,
-        //         'rpp' => $teamPlayer->rpp,
-
-        //         'selected_position' => $player['positions'], // position from JSON
-        //     ];
-        // })->filter()->values();
-
-
         return collect($players)->map(function ($player) use ($teamPlayers) {
-
-    // ✅ handle integer case
-                    if (is_int($player)) {
-                        $teamPlayer = $teamPlayers->get($player);
-
-                          \Log::info('Integer Player:', [
-            'input' => $player,
-            'team_player' => $teamPlayer
-        ]);
-
-                        if (!$teamPlayer) return null;
-
-                        return [
-                            'id' => $teamPlayer->id,
-                            'name' => $teamPlayer->name,
-                            'rpp' => $teamPlayer->rpp ?? 0,
-                            'type' => $teamPlayer->type ?? 0,
-                            'selected_position' => null,
-                        ];
-                    }
-
-                    // ✅ handle array case
-                    if (is_array($player)) {
-                        $teamPlayer = $teamPlayers->get($player['id'] ?? null);
-
-
-                        if (!$teamPlayer) return null;
-
-
-                        return [
-                            'id' => $teamPlayer->id,
-                            'name' => $teamPlayer->name,
-                            'rpp' => $teamPlayer->rpp ?? 0,
-                            'type' => $teamPlayer->type ?? 0,
-                            'selected_position' => $player['positions'] ?? null,
-                        ];
-                    }
-
+            if (is_int($player)) {
+                $teamPlayer = $teamPlayers->get($player);
+                if (! $teamPlayer) {
                     return null;
+                }
 
-                })->filter()->values();
+                return [
+                    'id' => $teamPlayer->id,
+                    'name' => $teamPlayer->name,
+                    'rpp' => $teamPlayer->rpp ?? 0,
+                    'type' => $teamPlayer->type ?? 0,
+                    'selected_position' => null,
+                ];
+            }
+
+            if (is_array($player)) {
+                $teamPlayer = $teamPlayers->get($player['id'] ?? null);
+                if (! $teamPlayer) {
+                    return null;
+                }
+
+                return [
+                    'id' => $teamPlayer->id,
+                    'name' => $teamPlayer->name,
+                    'rpp' => $teamPlayer->rpp ?? 0,
+                    'type' => $teamPlayer->type ?? 0,
+                    'selected_position' => $player['positions'] ?? null,
+                ];
+            }
+
+            return null;
+        })->filter()->values();
     }
-
-
 
     public function getPracticePlayersDataAttribute()
     {
         if (empty($this->practice_players)) {
             return collect();
         }
+
         $players = is_array($this->practice_players) ? $this->practice_players : json_decode($this->practice_players, true);
         $ids = collect($players)->pluck('id');
         $practicePlayers = PracticeTeamPlayer::whereIn('id', $ids)->get()->keyBy('id');
+
         return collect($players)->map(function ($player) use ($practicePlayers) {
             $practicePlayer = $practicePlayers->get($player['id']);
-
-            if (!$practicePlayer) {
+            if (! $practicePlayer) {
                 return null;
             }
+
             return [
                 'id' => $practicePlayer->id,
                 'name' => $practicePlayer->name,
                 'rpp' => $practicePlayer->rpp,
-                'selected_position' => $player['positions'], // positions from JSON
+                'selected_position' => $player['positions'],
             ];
         })->filter()->values();
     }
 
-
-//    public function getPracticePlayersDataAttribute()
-//     {
-//         if (empty($this->practice_players)) {
-//             return [];
-//         }
-
-//         return PracticeTeamPlayer::whereIn('id', $this->practice_players)->get();
-//     }
-   public function plays()
+    public function plays()
     {
         return $this->belongsToMany(
-            Play::class,               // Related model
-            'personal_grouping_play', // Pivot table name
-            'personal_grouping_id',   // Foreign key on pivot table for this model
-            'play_id'                 // Foreign key on pivot table for related model
+            Play::class,
+            'personal_grouping_play',
+            'personal_grouping_id',
+            'play_id'
         );
     }
 
     public function defensivePlays()
     {
-            return $this->belongsToMany(
-                DefensivePlay::class,           // Related model
-                'defensive_play_personal_grouping', // Pivot table
-                'personal_grouping_id',         // Foreign key on pivot table pointing to this model (PersonalGrouping)
-                'defensive_play_id'             // Foreign key on pivot table pointing to related model (DefensivePlay)
-            );
-
+        return $this->belongsToMany(
+            DefensivePlay::class,
+            'defensive_play_personal_grouping',
+            'personal_grouping_id',
+            'defensive_play_id'
+        );
     }
 
     /**
@@ -282,9 +229,8 @@ class PersionalGrouping extends Model
     }
 
     /**
-     * Practice games only: after match ends, persist `inactive` for groups that are still `active`
-     * in DB but do not have 7, 11, or 12 members. Does not remove members from JSON.
-     * Run before `pruneMatchConfigurePlayersNotInAnyGroup` so roster prune uses corrected notion of "active".
+     * Practice match end: demote `active` groups whose on-roster member count is no longer 7/11/12.
+     * Off-roster ("Not in the match") residue is ignored, matching {@see syncStatusesForConfigureLanding}.
      */
     public static function syncInvalidActivePracticeGroupStatusesForMatchEnd(int $matchId): void
     {
@@ -298,21 +244,26 @@ class PersionalGrouping extends Model
             return;
         }
 
-        $expectedGroupLevel = 2;
-
         $groups = self::query()
             ->where('game_id', $matchId)
-            ->where('group_level', $expectedGroupLevel)
+            ->where('group_level', 2)
             ->get();
 
+        $rosterFlipByTeam = [];
+
         foreach ($groups as $group) {
-            $status = strtolower((string) ($group->status ?? ''));
-            if ($status !== 'active') {
+            if (strtolower((string) ($group->status ?? '')) !== 'active') {
                 continue;
             }
 
-            $raw = $group->practice_players;
-            $n = count(self::collectIdsFromGroupedPlayersPayload($raw));
+            $teamId = (int) $group->team_id;
+            if (! isset($rosterFlipByTeam[$teamId])) {
+                $rosterFlipByTeam[$teamId] = array_flip(
+                    self::matchRosterPlayerIdsForConfigure($teamId, $matchId, $configureGameType)
+                );
+            }
+
+            $n = self::countGroupMembersOnMatchRosterFromPayload($group, true, $rosterFlipByTeam[$teamId]);
 
             if (! self::practiceGroupMemberCountIsValid($n)) {
                 $group->status = 'inactive';
@@ -427,16 +378,12 @@ class PersionalGrouping extends Model
     }
 
     /**
-     * When a match ends: drop configured roster entries (Configure Players list) for any player
-     * who does not belong to **any active** personal group on that team. Applies to both my team
-     * and the opposing team, both offensive and defensive sides. `special` rows are never removed.
+     * Match end: delete configure-player rows whose id is not in any group on that team
+     * (active or inactive). `special` slot rows are always preserved.
      *
-     * The check is intentionally **slot-type-agnostic**: substitution/shuffle and benching paths
-     * insert configured rows with `type = NULL`, so a strict `type='offensive'/'defensive'`
-     * comparison would silently skip them. Match the row purely by player id against the union
-     * of active offensive + defensive grouped IDs for the team.
-     *
-     * Mirrors coach-vue `collectActiveGroupedPlayerIdsBySide` (+ practice vs league `group_level`).
+     * Group `status` is ignored on purpose — a group that became inactive (e.g. invalid member
+     * count after a roster edit) still represents a coach intent worth keeping its players for.
+     * Status is corrected separately by {@see syncInvalidActivePracticeGroupStatusesForMatchEnd}.
      */
     public static function pruneMatchConfigurePlayersNotInAnyGroup(int $matchId): void
     {
@@ -459,7 +406,7 @@ class PersionalGrouping extends Model
                 continue;
             }
 
-            $idsBySide = self::activeGroupedPlayerIdsByConfigureSideFromGroups(
+            $idsBySide = self::groupedPlayerIdsByConfigureSideFromGroups(
                 $side['team_id'],
                 $matchId,
                 $expectedGroupLevel,
@@ -480,7 +427,7 @@ class PersionalGrouping extends Model
     /**
      * @return array{offensive: array<int,int>, defensive: array<int,int>}
      */
-    private static function activeGroupedPlayerIdsByConfigureSideFromGroups(
+    private static function groupedPlayerIdsByConfigureSideFromGroups(
         int $teamId,
         int $gameId,
         int $expectedGroupLevel,
@@ -496,18 +443,9 @@ class PersionalGrouping extends Model
             ->get();
 
         foreach ($groups as $group) {
-            $status = strtolower((string) ($group->status ?? 'active'));
-            if ($status !== 'active') {
-                continue;
-            }
-
             $raw = $usePracticePlayersPayload ? $group->practice_players : $group->players;
             $memberIds = self::collectIdsFromGroupedPlayersPayload($raw);
             if ($memberIds === []) {
-                continue;
-            }
-
-            if ($usePracticePlayersPayload && ! self::practiceGroupMemberCountIsValid(count($memberIds))) {
                 continue;
             }
 
@@ -579,14 +517,8 @@ class PersionalGrouping extends Model
     }
 
     /**
-     * Delete configured roster rows whose player id is not in any active group on this team
-     * (union of offensive + defensive grouped ids). `special` rows are always preserved.
-     *
-     * Filtering deliberately ignores the row's slot `type` and `game_type` columns:
-     *  - `type` can be NULL on rows inserted by shuffle/bench-substitution flows.
-     *  - `game_type` is sometimes left at its default (1) by those same flows; a match has
-     *    exactly one game type already, so filtering by `match_id` + `team_id` + `team_type`
-     *    is sufficient and avoids leaving orphan rows behind.
+     * Drop configure rows whose player id is not in the keep set (offensive ∪ defensive grouped ids).
+     * Slot-type-agnostic because shuffle/bench paths insert rows with `type = NULL`. `special` preserved.
      *
      * @param  array<int,int>  $offensiveGroupedIds
      * @param  array<int,int>  $defensiveGroupedIds
@@ -600,53 +532,36 @@ class PersionalGrouping extends Model
         array $defensiveGroupedIds
     ): void {
         $keep = [];
-        foreach ($offensiveGroupedIds as $id) {
-            $n = (int) $id;
-            if ($n > 0) {
-                $keep[$n] = true;
-            }
-        }
-        foreach ($defensiveGroupedIds as $id) {
-            $n = (int) $id;
-            if ($n > 0) {
-                $keep[$n] = true;
+        foreach ([$offensiveGroupedIds, $defensiveGroupedIds] as $idList) {
+            foreach ($idList as $id) {
+                $n = (int) $id;
+                if ($n > 0) {
+                    $keep[$n] = true;
+                }
             }
         }
         $isPracticeRow = ((int) $configureGameType) === 2;
-
-        $deletedRowIds = [];
 
         ConfiguredPlayingTeamPlayer::query()
             ->where('match_id', $matchId)
             ->where('team_id', $teamId)
             ->where('team_type', $teamType)
             ->get()
-            ->each(function ($row) use ($keep, $isPracticeRow, &$deletedRowIds): void {
+            ->each(function ($row) use ($keep, $isPracticeRow): void {
                 $slotType = strtolower((string) ($row->type ?? ''));
                 if ($slotType === 'special') {
                     return;
                 }
-
                 $pid = $isPracticeRow
                     ? (int) ($row->practice_player_id ?? 0)
                     : (int) ($row->player_id ?? 0);
                 if ($pid <= 0) {
                     return;
                 }
-
                 if (! isset($keep[$pid])) {
                     $row->delete();
-                    $deletedRowIds[] = (int) $row->id;
                 }
             });
-
-        \Log::info('pruneMatchConfigurePlayersNotInAnyGroup: roster pruned', [
-            'team_id' => $teamId,
-            'match_id' => $matchId,
-            'team_type' => $teamType,
-            'kept_player_ids' => array_keys($keep),
-            'deleted_row_ids' => $deletedRowIds,
-        ]);
     }
 
 }
