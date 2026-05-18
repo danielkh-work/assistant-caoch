@@ -335,11 +335,14 @@ public function storeAllGroups(Request $request)
         ->when((!$teamId || !$gameId) && $leagueId, function ($q) use ($leagueId) {
             $q->where('league_id', $leagueId);
         })
+        // Match-Start / substitution view (for_practice_mode=1) shows the same set as
+        // Configure → "Active" tab: every group with status='active'. Practice size 7/11/12 is
+        // already validated against the match roster at save time, so a plain JSON_LENGTH check
+        // here would wrongly hide groups that legitimately have extra off-roster members tagged
+        // "Not in the match" (length can be 8/9 even when 7 roster members are saved).
         ->when($isPractice && $forPracticeMode, function ($q) {
-            $sizes = implode(',', PersionalGrouping::practiceGroupAllowedMemberCounts());
-            $q->whereRaw(
-                'practice_players IS NOT NULL AND JSON_LENGTH(practice_players) IN ('.$sizes.')'
-            );
+            $q->where('status', 'active')
+              ->whereNotNull('practice_players');
         })
 
         ->orderBy('created_at', 'desc')
