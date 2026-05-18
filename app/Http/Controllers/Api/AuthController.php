@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Responses\BaseResponse;
 use App\Models\User;
 use Illuminate\Http\Request;
+use App\Events\QbSessionUpdated;
 use App\Events\UserQrGenerated;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
@@ -476,8 +477,16 @@ class AuthController extends Controller
         }
         $user->is_loggin = true;
         $user->save();
-       
-        
+
+        if ($user->head_coach_id) {
+            broadcast(new QbSessionUpdated(
+                (int) $user->head_coach_id,
+                $user->only(['id', 'name', 'email', 'session_id', 'code', 'head_coach_id', 'is_loggin']),
+                true,
+                'login',
+            ));
+        }
+
         // Generate Laravel Sanctum token
         $token = $user->createToken('QB-App-Token')->plainTextToken;
 
