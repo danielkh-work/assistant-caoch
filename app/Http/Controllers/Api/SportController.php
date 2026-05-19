@@ -36,12 +36,12 @@ class SportController extends Controller
             'sport:id,title',
             'roles' 
         ])
-        ->when($user->role == 'assistant_coach', function ($query) use ($user) {
+        ->when(in_array($user->role, ['assistant_coach', 'performance_coach']), function ($query) use ($user) {
                 return $query->where(function ($q) use ($user) {
                     $q->where('user_id', $user->id)
                     ->orWhere('user_id', $user->head_coach_id);
                 });
-             
+
             }, function ($query) use ($user) {
                 return $query->orWhere('user_id', $user->id);
         })
