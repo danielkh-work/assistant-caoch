@@ -129,20 +129,78 @@ class PersionalGrouping extends Model
      */
     public static function matchRosterPlayerIdsForConfigure(int $teamId, int $matchId, int $gameType): array
     {
-        $isPracticeConfigure = (int) $gameType === 2;
+        return self::extractMatchRosterPlayerIdsFromConfigureRows(
+            self::configuredPlayingTeamRowsForMatch($teamId, $matchId, $gameType),
+            $gameType,
+            false
+        );
+    }
 
-        $rows = ConfiguredPlayingTeamPlayer::query()
+    /**
+     * Same IDs as coach-vue `playerMap` / `matchRosterPlayerIds` (configure rows with a resolvable player).
+     *
+     * @return array<int,int>
+     */
+    public static function matchRosterPlayerIdsForConfigureResolved(int $teamId, int $matchId, int $gameType): array
+    {
+        return self::extractMatchRosterPlayerIdsFromConfigureRows(
+            self::configuredPlayingTeamRowsForMatch($teamId, $matchId, $gameType, true),
+            $gameType,
+            true
+        );
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, ConfiguredPlayingTeamPlayer>
+     */
+    private static function configuredPlayingTeamRowsForMatch(
+        int $teamId,
+        int $matchId,
+        int $gameType,
+        bool $eagerLoadRelations = false
+    ) {
+        $query = ConfiguredPlayingTeamPlayer::query()
             ->where('team_id', $teamId)
             ->where('match_id', $matchId)
-            ->where('game_type', $gameType)
-            ->get();
+            ->where('game_type', $gameType);
 
+        if ($eagerLoadRelations) {
+            $isPracticeConfigure = (int) $gameType === 2;
+            $query->with(
+                $isPracticeConfigure
+                    ? ['practice_player']
+                    : ['player.player']
+            );
+        }
+
+        return $query->get();
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, ConfiguredPlayingTeamPlayer>  $rows
+     * @return array<int,int>
+     */
+    private static function extractMatchRosterPlayerIdsFromConfigureRows($rows, int $gameType, bool $requireResolvedRelation): array
+    {
+        $isPracticeConfigure = (int) $gameType === 2;
         $ids = [];
+
         foreach ($rows as $row) {
-            if ($isPracticeConfigure && $row->practice_player_id) {
+            if ($isPracticeConfigure) {
+                if (! $row->practice_player_id) {
+                    continue;
+                }
+                if ($requireResolvedRelation && ! $row->practice_player) {
+                    continue;
+                }
                 $ids[] = (int) $row->practice_player_id;
-            }
-            if (! $isPracticeConfigure && $row->player_id) {
+            } else {
+                if (! $row->player_id) {
+                    continue;
+                }
+                if ($requireResolvedRelation && (! $row->player || ! $row->player->player)) {
+                    continue;
+                }
                 $ids[] = (int) $row->player_id;
             }
         }
@@ -378,12 +436,11 @@ class PersionalGrouping extends Model
     }
 
     /**
-     * Match end: delete configure-player rows whose id is not in any group on that team
-     * (active or inactive). `special` slot rows are always preserved.
+     * Match end: delete configure-player rows except those in an **active** personal group and
+     * still on the match configure roster (same rule as coach-vue `collectActiveGroupedPlayerIdsBySide`).
+     * Historic group members shown as "Not in the match" are not kept. `special` rows are preserved.
      *
-     * Group `status` is ignored on purpose — a group that became inactive (e.g. invalid member
-     * count after a roster edit) still represents a coach intent worth keeping its players for.
-     * Status is corrected separately by {@see syncInvalidActivePracticeGroupStatusesForMatchEnd}.
+     * Run after {@see syncInvalidActivePracticeGroupStatusesForMatchEnd} so demoted groups are excluded.
      */
     public static function pruneMatchConfigurePlayersNotInAnyGroup(int $matchId): void
     {
@@ -406,11 +463,21 @@ class PersionalGrouping extends Model
                 continue;
             }
 
+            $rosterFlip = array_flip(
+                self::matchRosterPlayerIdsForConfigureResolved(
+                    $side['team_id'],
+                    $matchId,
+                    $configureGameType
+                )
+            );
+
             $idsBySide = self::groupedPlayerIdsByConfigureSideFromGroups(
                 $side['team_id'],
                 $matchId,
                 $expectedGroupLevel,
-                $isPracticeConfigure
+                $isPracticeConfigure,
+                $rosterFlip,
+                true
             );
 
             self::deleteConfiguredRowsWithoutMatchingGroupMembership(
@@ -431,7 +498,9 @@ class PersionalGrouping extends Model
         int $teamId,
         int $gameId,
         int $expectedGroupLevel,
-        bool $usePracticePlayersPayload
+        bool $usePracticePlayersPayload,
+        ?array $rosterFlip = null,
+        bool $onlyActiveGroups = false
     ): array {
         $offensiveFlip = [];
         $defensiveFlip = [];
@@ -443,6 +512,10 @@ class PersionalGrouping extends Model
             ->get();
 
         foreach ($groups as $group) {
+            if ($onlyActiveGroups && strtolower((string) ($group->status ?? '')) !== 'active') {
+                continue;
+            }
+
             $raw = $usePracticePlayersPayload ? $group->practice_players : $group->players;
             $memberIds = self::collectIdsFromGroupedPlayersPayload($raw);
             if ($memberIds === []) {
@@ -452,6 +525,9 @@ class PersionalGrouping extends Model
             $isOff = self::isOffensivePersonalGroupTypeLabel($group->type);
             foreach ($memberIds as $mid) {
                 if ($mid <= 0) {
+                    continue;
+                }
+                if ($rosterFlip !== null && ! isset($rosterFlip[(int) $mid])) {
                     continue;
                 }
                 if ($isOff) {
