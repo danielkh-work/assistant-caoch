@@ -549,6 +549,10 @@ public function index(Request $request, $teamId, $gameId)
             }
         });
 
+        $user = auth()->user();
+        $headCoachId = $user->head_coach_id ?? $user->id;
+        broadcast(new \App\Events\PlayerSubstituted($headCoachId, $gameId, $teamId))->toOthers();
+
          return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Player Shuffle  Successfully", []);
 
     }
@@ -657,6 +661,10 @@ public function index(Request $request, $teamId, $gameId)
             ]);
 
         DB::commit();
+
+        $user = auth()->user();
+        $headCoachId = $user->head_coach_id ?? $user->id;
+        broadcast(new \App\Events\PlayerSubstituted($headCoachId, $game_id, $team_id))->toOthers();
 
          return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Bench Player Add Successfully", [
                 ]);
