@@ -358,62 +358,76 @@ public function index(Request $request, $teamId, $gameId)
     // }
 
 
-      public function opponentBenchPlayerStore(Request $request)
+    public function opponentBenchPlayerStore(Request $request)
     {
+        $benchData   = $request->get('benchPlayers');
+        $team_id     = $request->get('teamId');
+        $league_id   = (int) $request->get('leagueId');
+        $game_id     = (int) $request->get('gameId');
+        $player_type = $request->get('playerType');
+        $isPractice  = (bool) $request->get('isPractice');
+        $playerColumn = $isPractice ? 'practice_player_id' : 'player_id';
 
+        $benchData = is_array($benchData) ? $benchData : [];
+        $incomingIds = array_values(array_filter(array_map(
+            fn ($it) => (int) ($it['id'] ?? 0),
+            $benchData
+        )));
 
-        $benchData=$request->get('benchPlayers');
-        $team_id=$request->get('teamId');
-        $league_id=(int) $request->get('leagueId');
-        $game_id=(int) $request->get('gameId');
-        $player_type=$request->get('playerType');
-        $isPractice = (bool) $request->get('isPractice');
-        $savedPlayers=[];
-        foreach ($benchData as $index => $item) {
+        $savedPlayers = [];
 
-         if ($isPractice) {
+        DB::transaction(function () use (
+            $benchData,
+            $team_id,
+            $player_type,
+            $league_id,
+            $game_id,
+            $isPractice,
+            $playerColumn,
+            $incomingIds,
+            &$savedPlayers
+        ) {
+            if ($incomingIds !== []) {
+                // Preserve the opponent match configure roster — same regression as the
+                // myteam side. PersionalGrouping counts only members that still exist on
+                // the roster, so a hard delete here makes active groups show (0).
                 ConfiguredPlayingTeamPlayer::where('match_id', $game_id)
                     ->where('team_id', $team_id)
-                    ->where('practice_player_id', $item['id'])
-                    ->delete();
-            } else {
-                ConfiguredPlayingTeamPlayer::where('match_id', $game_id)
+                    ->where('team_type', 2)
+                    ->whereIn($playerColumn, $incomingIds)
+                    ->where(function ($q) {
+                        $q->whereNull('type')->orWhere('type', '!=', 'special');
+                    })
+                    ->update(['type' => null]);
+
+                BenchPlayer::where('game_id', $game_id)
                     ->where('team_id', $team_id)
-                    ->where('player_id', $item['id'])
+                    ->where('type', 'opponent')
+                    ->where('player_type', $player_type)
+                    ->whereIn($playerColumn, $incomingIds)
                     ->delete();
             }
 
+            foreach ($benchData as $item) {
+                $savedPlayers[] = [
+                    'player_id'          => $isPractice ? null : $item['id'],
+                    'practice_player_id' => $isPractice ? $item['id'] : null,
+                    'game_id'            => $game_id,
+                    'team_id'            => $team_id,
+                    'position'           => $item['positionSelect'] ?? null,
+                    'league_id'          => $league_id,
+                    'type'               => 'opponent',
+                    'player_type'        => $player_type,
+                    'rpp'                => $item['rpp'] ?? 0,
+                ];
+            }
 
-        // ConfiguredPlayingTeamPlayer::where('match_id', $game_id)
-        // ->where('team_id', $team_id)
-        // ->where('player_id', $item['id'])
-        // ->delete();
+            if ($savedPlayers !== []) {
+                BenchPlayer::insert($savedPlayers);
+            }
+        });
 
-         $savedPlayers[] = [
-                'player_id' => $isPractice ? null : $item['id'],
-                'practice_player_id' => $isPractice ? $item['id'] : null,
-                // 'player_id' => $item['id'],
-                'game_id' =>   $game_id,
-                'team_id' => $team_id,
-                'position'=>$item['positionSelect'],
-                'league_id' =>  $league_id,
-                'type' => 'opponent',
-                'player_type' =>  $player_type,
-                'rpp' =>  $item['rpp'],
-            ];
-            // $savedPlayers[] = [
-            //     'player_id' => $item['id'],
-            //     'game_id' =>   $game_id,
-            //     'team_id' => $team_id,
-            //     'league_id' =>  $league_id,
-            //     'type' => 'opponent',
-            //     'player_type' =>  $player_type,
-            //     'rpp' =>  $item['rpp']
-            // ];
-        }
-         BenchPlayer::insert($savedPlayers);
-         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Bench Player Add Successfully", $savedPlayers);
-
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Bench Player Add Successfully", $savedPlayers);
     }
 
  public function rppUpdate(Request $request, $id)
@@ -559,127 +573,216 @@ public function index(Request $request, $teamId, $gameId)
 
     public function store(Request $request)
     {
+        $benchData   = $request->get('benchPlayers');
+        $team_id     = $request->get('teamId');
+        $player_type = $request->get('playerType');
+        $league_id   = (int) $request->get('leagueId');
+        $game_id     = (int) $request->get('gameId');
+        $isPractice  = (bool) $request->get('isPractice');
+        $playerColumn = $isPractice ? 'practice_player_id' : 'player_id';
 
+        $benchData = is_array($benchData) ? $benchData : [];
+        $incomingIds = array_values(array_filter(array_map(
+            fn ($it) => (int) ($it['id'] ?? 0),
+            $benchData
+        )));
 
+        $savedPlayers = [];
 
-        $benchData=$request->get('benchPlayers');
-        $team_id=$request->get('teamId');
-        $player_type=$request->get('playerType');
-        $league_id=(int) $request->get('leagueId');
-        $game_id=(int) $request->get('gameId');
-        $isPractice = (bool) $request->get('isPractice');
-
-
-
-        $savedPlayers=[];
-        foreach ($benchData as $index => $item) {
-
-
-        if ($isPractice) {
+        DB::transaction(function () use (
+            $benchData,
+            $team_id,
+            $player_type,
+            $league_id,
+            $game_id,
+            $isPractice,
+            $playerColumn,
+            $incomingIds,
+            &$savedPlayers
+        ) {
+            if ($incomingIds !== []) {
+                // Preserve the match configure roster — deleting these rows here removed
+                // players from PersionalGrouping's roster filter and collapsed active
+                // groups to (0). Mirror shufflePlayers: keep the row, clear the on-field
+                // slot type. The match-end prune still handles real cleanup at EoM.
                 ConfiguredPlayingTeamPlayer::where('match_id', $game_id)
                     ->where('team_id', $team_id)
-                    ->where('practice_player_id', $item['id'])
-                    ->delete();
-            } else {
-                ConfiguredPlayingTeamPlayer::where('match_id', $game_id)
+                    ->where('team_type', 1)
+                    ->whereIn($playerColumn, $incomingIds)
+                    ->where(function ($q) {
+                        $q->whereNull('type')->orWhere('type', '!=', 'special');
+                    })
+                    ->update(['type' => null]);
+
+                // Avoid duplicate bench rows if the same player is re-assigned to the
+                // same side (e.g. Assign Offense triggered twice in a row).
+                BenchPlayer::where('game_id', $game_id)
                     ->where('team_id', $team_id)
-                    ->where('player_id', $item['id'])
+                    ->where('type', 'myteam')
+                    ->where('player_type', $player_type)
+                    ->whereIn($playerColumn, $incomingIds)
                     ->delete();
             }
 
+            foreach ($benchData as $item) {
+                $savedPlayers[] = [
+                    'player_id'          => $isPractice ? null : $item['id'],
+                    'practice_player_id' => $isPractice ? $item['id'] : null,
+                    'position'           => $item['positionSelect'] ?? null,
+                    'game_id'            => $game_id,
+                    'team_id'            => $team_id,
+                    'league_id'          => $league_id,
+                    'type'               => 'myteam',
+                    'player_type'        => $player_type,
+                    'rpp'                => $item['rpp'] ?? 0,
+                ];
+            }
 
+            if ($savedPlayers !== []) {
+                BenchPlayer::insert($savedPlayers);
+            }
+        });
 
-            $savedPlayers[] = [
-                'player_id' => $isPractice ? null : $item['id'],
-                'practice_player_id' => $isPractice ? $item['id'] : null,
-
-                // 'player_id' => $item['id'],
-                'position'=>$item['positionSelect'],
-                'game_id' =>   $game_id,
-                'team_id' => $team_id,
-                'league_id' =>  $league_id,
-                'type' => 'myteam',
-                'player_type' =>  $player_type,
-                'rpp' =>  $item['rpp'],
-            ];
-        }
-
-        \Log::info(['bench Data inserted'=>$savedPlayers]);
-         BenchPlayer::insert($savedPlayers);
-         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Bench Player Add Successfully", $savedPlayers);
-
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Bench Player Add Successfully", $savedPlayers);
     }
 
-       public function createMyTeamForPlayMode(Request $request)
-{
+    public function createMyTeamForPlayMode(Request $request)
+    {
+        DB::beginTransaction();
 
+        try {
+            // The frontend names are inverted relative to direction of travel.
+            // After addSubstitute() locally swaps the two player objects:
+            //   offenseData = player NOW shown in the Offense/Defense lineup tab
+            //                 (was the on-field row before; goes to bench queue).
+            //   benchData   = player NOW shown in the Bench tab
+            //                 (was the bench queue row before; goes on the field).
+            $offenseData = $request->get('offenseData'); // outgoing: field -> bench queue
+            $benchData   = $request->get('benchData');   // incoming: bench queue -> field
 
-    DB::beginTransaction();
+            $team_id    = $request->get('teamId');
+            $league_id  = (int) $request->get('leagueId');
+            $game_id    = (int) $request->get('gameId');
+            $position   = $request->get('position');
+            $rpp        = $request->get('rpp');
+            $isPractice = $request->get('is_practice');
+            $playerColumn = $isPractice ? 'practice_player_id' : 'player_id';
 
-    try {
+            $outgoingId = (int) ($offenseData['id'] ?? 0);
+            $incomingId = (int) ($benchData['id']   ?? 0);
 
-        $offenseData = $request->get('offenseData');
-        $benchData = $request->get('benchData');
+            if ($outgoingId <= 0 || $incomingId <= 0) {
+                DB::rollBack();
+                return response()->json([
+                    'status'  => false,
+                    'message' => 'Substitution failed: missing player ids',
+                ], 422);
+            }
 
-        $team_id = $request->get('teamId');
-        $league_id = (int) $request->get('leagueId');
-        $game_id = (int) $request->get('gameId');
-        $position = $request->get('position');
-        $rpp = $request->get('rpp');
+            /*
+            |-----------------------------------------
+            | Configure roster: preserve both rows.
+            |-----------------------------------------
+            | Old behaviour swapped the player id on the outgoing row, which
+            | dropped one player out of CPT entirely and made personal groupings
+            | containing them collapse to (0). Keep both rows and only flip the
+            | on-field slot type (mirrors shufflePlayers).
+            */
 
-        $isPractice = $request->get('is_practice');
-        $playerColumn = $isPractice ? 'practice_player_id' : 'player_id';
+            $outgoingCpt = ConfiguredPlayingTeamPlayer::where('match_id', $game_id)
+                ->where('team_id', $team_id)
+                ->where($playerColumn, $outgoingId)
+                ->first();
 
-        /*
-        |-----------------------------------------
-        | Update configured offense/defense player
-        |-----------------------------------------
-        */
+            $slotType      = $outgoingCpt?->type;
+            $teamTypeValue = $outgoingCpt?->team_type ?? 1;
+            $gameTypeValue = $outgoingCpt?->game_type ?? ($isPractice ? 2 : 1);
 
-        ConfiguredPlayingTeamPlayer::where('match_id', $game_id)
-            ->where('team_id', $team_id)
-            ->where($playerColumn, $offenseData['id'] ) // old player
-            ->update([
-                $playerColumn => $benchData['id'], // new player
+            // Outgoing player heads to the bench queue: keep in roster, clear slot.
+            // 'special' slots (kickers/punters etc.) are not touched.
+            if ($outgoingCpt && strtolower((string) $outgoingCpt->type) !== 'special') {
+                $outgoingCpt->update(['type' => null]);
+            }
 
-            ]);
+            // Incoming player heads to the field: ensure a CPT row carries the slot.
+            $incomingCpt = ConfiguredPlayingTeamPlayer::where('match_id', $game_id)
+                ->where('team_id', $team_id)
+                ->where($playerColumn, $incomingId)
+                ->first();
 
-        /*
-        |-----------------------------------------
-        | Update bench player
-        |-----------------------------------------
-        */
-
-        BenchPlayer::where('game_id', $game_id)
-            ->where('team_id', $team_id)
-            ->where($playerColumn, $benchData['id'] ) // player moved to field
-            ->update([
-                $playerColumn => $offenseData['id'],
-                'position' => $position,
-                'rpp'=> $rpp
-
-            ]);
-
-        DB::commit();
-
-        $user = auth()->user();
-        $headCoachId = $user->head_coach_id ?? $user->id;
-        broadcast(new \App\Events\PlayerSubstituted($headCoachId, $game_id, $team_id))->toOthers();
-
-         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Bench Player Add Successfully", [
+            if ($incomingCpt) {
+                $incomingCpt->update([
+                    'type'      => $slotType,
+                    'team_type' => $incomingCpt->team_type ?: $teamTypeValue,
+                    'game_type' => $incomingCpt->game_type ?: $gameTypeValue,
                 ]);
+            } else {
+                ConfiguredPlayingTeamPlayer::create([
+                    'team_id'      => $team_id,
+                    'match_id'     => $game_id,
+                    $playerColumn  => $incomingId,
+                    'type'         => $slotType,
+                    'team_type'    => $teamTypeValue,
+                    'game_type'    => $gameTypeValue,
+                ]);
+            }
 
-    } catch (\Exception $e) {
+            /*
+            |-----------------------------------------
+            | Bench (offense_defense_players) queue.
+            |-----------------------------------------
+            | Re-use the incoming player's queue row so position/rpp history flows
+            | through to the outgoing player. Fall back to creating a row when the
+            | incoming player did not already have one (defensive substitution
+            | initiated from an unusual state).
+            */
 
-        DB::rollBack();
+            $incomingBench = BenchPlayer::where('game_id', $game_id)
+                ->where('team_id', $team_id)
+                ->where($playerColumn, $incomingId)
+                ->first();
 
-        return response()->json([
-            'status' => false,
-            'message' => 'Substitution failed',
-            'error' => $e->getMessage()
-        ], 500);
+            if ($incomingBench) {
+                $incomingBench->update([
+                    $playerColumn => $outgoingId,
+                    'position'    => $position,
+                    'rpp'         => $rpp,
+                ]);
+            } else {
+                $playerTypeForBench = strtolower((string) $slotType) === 'defensive'
+                    ? 'deffence'
+                    : 'offence';
+
+                BenchPlayer::create([
+                    'game_id'     => $game_id,
+                    'team_id'     => $team_id,
+                    'league_id'   => $league_id,
+                    $playerColumn => $outgoingId,
+                    'type'        => 'myteam',
+                    'player_type' => $playerTypeForBench,
+                    'position'    => $position,
+                    'rpp'         => $rpp,
+                ]);
+            }
+
+            DB::commit();
+
+            $user = auth()->user();
+            $headCoachId = $user->head_coach_id ?? $user->id;
+            broadcast(new \App\Events\PlayerSubstituted($headCoachId, $game_id, $team_id))->toOthers();
+
+            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Bench Player Add Successfully", []);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'status'  => false,
+                'message' => 'Substitution failed',
+                'error'   => $e->getMessage()
+            ], 500);
+        }
     }
-}
 
         // public function createMyTeamForPlayMode(Request $request)
         // {
@@ -798,72 +901,118 @@ public function index(Request $request, $teamId, $gameId)
         // }
 
 
-          public function createOpponentTeamForPlayMode(Request $request)
-{
-    DB::beginTransaction();
+    public function createOpponentTeamForPlayMode(Request $request)
+    {
+        DB::beginTransaction();
 
-    try {
+        try {
+            // See createMyTeamForPlayMode for the offenseData / benchData semantics —
+            // they're inverted relative to the direction each player moves.
+            $offenseData = $request->get('offenseData'); // outgoing: field -> bench queue
+            $benchData   = $request->get('benchData');   // incoming: bench queue -> field
 
-        $offenseData = $request->get('offenseData');
-        $benchData = $request->get('benchData');
+            $team_id    = $request->get('teamId');
+            $league_id  = (int) $request->get('leagueId');
+            $game_id    = (int) $request->get('gameId');
+            $position   = $request->get('position');
+            $rpp        = $request->get('rpp');
+            $isPractice = $request->get('is_practice');
+            $playerColumn = $isPractice ? 'practice_player_id' : 'player_id';
 
-        $team_id = $request->get('teamId');
-        $league_id = (int) $request->get('leagueId');
-        $game_id = (int) $request->get('gameId');
-        $position = $request->get('position');
+            $outgoingId = (int) ($offenseData['id'] ?? 0);
+            $incomingId = (int) ($benchData['id']   ?? 0);
 
-        $isPractice = $request->get('is_practice');
-        $playerColumn = $isPractice ? 'practice_player_id' : 'player_id';
-        $rpp = $request->get('rpp');
+            if ($outgoingId <= 0 || $incomingId <= 0) {
+                DB::rollBack();
+                return response()->json([
+                    'status'  => false,
+                    'message' => 'Substitution failed: missing player ids',
+                ], 422);
+            }
 
-        /*
-        |-----------------------------------------
-        | Update configured offense/defense player
-        |-----------------------------------------
-        */
+            $outgoingCpt = ConfiguredPlayingTeamPlayer::where('match_id', $game_id)
+                ->where('team_id', $team_id)
+                ->where($playerColumn, $outgoingId)
+                ->first();
 
-        ConfiguredPlayingTeamPlayer::where('match_id', $game_id)
-            ->where('team_id', $team_id)
-            ->where($playerColumn, $offenseData['id'] ) // old player
-            ->update([
-                $playerColumn => $benchData['id'], // new player
+            $slotType      = $outgoingCpt?->type;
+            $teamTypeValue = $outgoingCpt?->team_type ?? 2;
+            $gameTypeValue = $outgoingCpt?->game_type ?? ($isPractice ? 2 : 1);
 
-            ]);
+            if ($outgoingCpt && strtolower((string) $outgoingCpt->type) !== 'special') {
+                $outgoingCpt->update(['type' => null]);
+            }
 
-        /*
-        |-----------------------------------------
-        | Update bench player
-        |-----------------------------------------
-        */
+            $incomingCpt = ConfiguredPlayingTeamPlayer::where('match_id', $game_id)
+                ->where('team_id', $team_id)
+                ->where($playerColumn, $incomingId)
+                ->first();
 
-        BenchPlayer::where('game_id', $game_id)
-            ->where('team_id', $team_id)
-            ->where($playerColumn, $benchData['id'] ) // player moved to field
-            ->update([
-                $playerColumn => $offenseData['id'],
-                'position' => $position,
-                'rpp'=> $rpp
-
-            ]);
-
-        DB::commit();
-
-         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Bench Player Add Successfully", [
+            if ($incomingCpt) {
+                $incomingCpt->update([
+                    'type'      => $slotType,
+                    'team_type' => $incomingCpt->team_type ?: $teamTypeValue,
+                    'game_type' => $incomingCpt->game_type ?: $gameTypeValue,
                 ]);
+            } else {
+                ConfiguredPlayingTeamPlayer::create([
+                    'team_id'      => $team_id,
+                    'match_id'     => $game_id,
+                    $playerColumn  => $incomingId,
+                    'type'         => $slotType,
+                    'team_type'    => $teamTypeValue,
+                    'game_type'    => $gameTypeValue,
+                ]);
+            }
 
-    } catch (\Exception $e) {
+            $incomingBench = BenchPlayer::where('game_id', $game_id)
+                ->where('team_id', $team_id)
+                ->where($playerColumn, $incomingId)
+                ->first();
 
-    \Log::info($e->getMessage());
+            if ($incomingBench) {
+                $incomingBench->update([
+                    $playerColumn => $outgoingId,
+                    'position'    => $position,
+                    'rpp'         => $rpp,
+                ]);
+            } else {
+                $playerTypeForBench = strtolower((string) $slotType) === 'defensive'
+                    ? 'deffence'
+                    : 'offence';
 
-        DB::rollBack();
+                BenchPlayer::create([
+                    'game_id'     => $game_id,
+                    'team_id'     => $team_id,
+                    'league_id'   => $league_id,
+                    $playerColumn => $outgoingId,
+                    'type'        => 'opponent',
+                    'player_type' => $playerTypeForBench,
+                    'position'    => $position,
+                    'rpp'         => $rpp,
+                ]);
+            }
 
-        return response()->json([
-            'status' => false,
-            'message' => 'Substitution failed',
-            'error' => $e->getMessage()
-        ], 500);
+            DB::commit();
+
+            $user = auth()->user();
+            $headCoachId = $user->head_coach_id ?? $user->id;
+            broadcast(new \App\Events\PlayerSubstituted($headCoachId, $game_id, $team_id))->toOthers();
+
+            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Bench Player Add Successfully", []);
+
+        } catch (\Exception $e) {
+            \Log::info($e->getMessage());
+
+            DB::rollBack();
+
+            return response()->json([
+                'status'  => false,
+                'message' => 'Substitution failed',
+                'error'   => $e->getMessage()
+            ], 500);
+        }
     }
-}
 
     public function destroy($id)
     {
