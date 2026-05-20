@@ -374,5 +374,11 @@ class PracticeModeTest extends TestCase
             'match_id' => $mode->id,
             'practice_player_id' => $benchPlayerId,
         ]);
+
+        // Player moved to bench must stay on the match configure roster (regression: shuffle used to delete)
+        $this->assertDatabaseHas('configured_playing_team_players', [
+            'match_id' => $mode->id,
+            'practice_player_id' => $offensePlayerId,
+        ]);
     }
 }
