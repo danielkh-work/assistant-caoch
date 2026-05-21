@@ -430,6 +430,10 @@ class BroadCastScoreController extends Controller
             return response()->noContent();
         }
 
+        if ($webSocketScorboard->action === 'EndMatch') {
+            return response()->noContent();
+        }
+
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "scoreboardList", $webSocketScorboard);
     }
 
@@ -453,6 +457,10 @@ class BroadCastScoreController extends Controller
                 'user_id' => $coachGroupId,
                 'game_id' => $request->input('game_id'),
             ]);
+            return response()->noContent();
+        }
+
+        if ($webSocketScorboard->action === 'EndMatch') {
             return response()->noContent();
         }
 

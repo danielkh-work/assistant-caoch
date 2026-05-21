@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\GameLogAdded;
 use App\Http\Controllers\Controller;
 use App\Http\Responses\BaseResponse;
 use App\Models\PlayGameLog;
@@ -111,6 +112,16 @@ class PlayGameModeController extends Controller
 
         DB::commit();
 
+        try {
+            $user = auth()->user();
+            $coachGroupId = $user->role === 'head_coach'
+                ? $user->id
+                : $user->head_coach_id;
+            broadcast(new GameLogAdded($coachGroupId, (int) $value['game_id']));
+        } catch (\Exception $e) {
+            \Log::error('GameLogAdded broadcast failed: ' . $e->getMessage());
+        }
+
         return new BaseResponse(
             STATUS_CODE_OK,
             STATUS_CODE_OK,
@@ -182,6 +193,16 @@ class PlayGameModeController extends Controller
 
         // Commit the transaction
         DB::commit();
+
+        try {
+            $user = auth()->user();
+            $coachGroupId = $user->role === 'head_coach'
+                ? $user->id
+                : $user->head_coach_id;
+            broadcast(new GameLogAdded($coachGroupId, (int) $data[0]['game_id']));
+        } catch (\Exception $e) {
+            \Log::error('GameLogAdded broadcast failed: ' . $e->getMessage());
+        }
 
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Update Changes Added", $game);
     } catch (\Throwable $th) {

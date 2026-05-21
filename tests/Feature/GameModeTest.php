@@ -274,4 +274,53 @@ class GameModeTest extends TestCase
 
         $response->dump()->assertStatus(200);
     }
+
+    public function test_scoreboard_get_returns_204_when_latest_action_is_end_match()
+    {
+        $user = $this->authAsCoach();
+        [$league, $team1, $team2] = $this->createLeagueWithTeams($user);
+
+        $mode = new PlayGameMode();
+        $mode->sport_id = $user->sport_id;
+        $mode->league_id = $league->id;
+        $mode->my_team_id = $team1->id;
+        $mode->oponent_team_id = $team2->id;
+        $mode->save();
+
+        \App\Models\WebsocketScoreboard::create([
+            'user_id' => $user->id,
+            'game_id' => $mode->id,
+            'left_score' => 7,
+            'right_score' => 3,
+            'action' => 'EndMatch',
+        ]);
+
+        $this->getJson('/api/scoreboard?game_id=' . $mode->id)
+            ->assertStatus(204);
+    }
+
+    public function test_scoreboard_get_returns_200_for_active_match()
+    {
+        $user = $this->authAsCoach();
+        [$league, $team1, $team2] = $this->createLeagueWithTeams($user);
+
+        $mode = new PlayGameMode();
+        $mode->sport_id = $user->sport_id;
+        $mode->league_id = $league->id;
+        $mode->my_team_id = $team1->id;
+        $mode->oponent_team_id = $team2->id;
+        $mode->save();
+
+        \App\Models\WebsocketScoreboard::create([
+            'user_id' => $user->id,
+            'game_id' => $mode->id,
+            'left_score' => 0,
+            'right_score' => 0,
+            'action' => 'INFO',
+        ]);
+
+        $this->getJson('/api/scoreboard?game_id=' . $mode->id)
+            ->assertStatus(200)
+            ->assertJsonPath('data.action', 'INFO');
+    }
 }
