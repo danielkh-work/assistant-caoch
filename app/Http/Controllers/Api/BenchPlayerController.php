@@ -123,7 +123,7 @@ class BenchPlayerController extends Controller
 // }
 
 
-public function index(Request $request, $teamId, $gameId)
+public function index(Request $request, $gameId, $teamId)
 {
     $isPractice = filter_var($request->get('isPractice', false), FILTER_VALIDATE_BOOLEAN);
 
@@ -194,7 +194,8 @@ public function index(Request $request, $teamId, $gameId)
                 'size' => $size,
                 'position_value' => $position_value,
                 'squad' => 3,
-                'position' => $position,
+                // Frontend Offense/Defense tabs filter by `position` === offence/deffence (side).
+                'position' => $benchPlayer->player_type ?: $position,
                 'speed' => $speed,
                 'strength' => $strength,
                 'ofp' => $ofp,
@@ -229,7 +230,7 @@ public function index(Request $request, $teamId, $gameId)
         );
     }
 
-     public function getOpponentBenchPlayers(Request $request, $teamId, $gameId)
+     public function getOpponentBenchPlayers(Request $request, $gameId, $teamId)
 {
     // Get isPractice flag from query string
     $isPractice = filter_var($request->get('isPractice', false), FILTER_VALIDATE_BOOLEAN);
@@ -295,7 +296,7 @@ public function index(Request $request, $teamId, $gameId)
                 'size' => $size,
                 'position_value' => $position_value,
                 'squad' => 3,
-                'position' => $position,
+                'position' => $benchPlayer->player_type ?: $position,
                 'speed' => $speed,
                 'strength' => $strength,
                 'ofp' => $ofp,
@@ -375,6 +376,8 @@ public function index(Request $request, $teamId, $gameId)
         )));
 
         $savedPlayers = [];
+        $slotType = strtolower((string) $player_type) === 'offence' ? 'offensive' : 'defensive';
+        $configureGameType = $isPractice ? 2 : 1;
 
         DB::transaction(function () use (
             $benchData,
@@ -385,21 +388,11 @@ public function index(Request $request, $teamId, $gameId)
             $isPractice,
             $playerColumn,
             $incomingIds,
+            $slotType,
+            $configureGameType,
             &$savedPlayers
         ) {
             if ($incomingIds !== []) {
-                // Preserve the opponent match configure roster — same regression as the
-                // myteam side. PersionalGrouping counts only members that still exist on
-                // the roster, so a hard delete here makes active groups show (0).
-                ConfiguredPlayingTeamPlayer::where('match_id', $game_id)
-                    ->where('team_id', $team_id)
-                    ->where('team_type', 2)
-                    ->whereIn($playerColumn, $incomingIds)
-                    ->where(function ($q) {
-                        $q->whereNull('type')->orWhere('type', '!=', 'special');
-                    })
-                    ->update(['type' => null]);
-
                 BenchPlayer::where('game_id', $game_id)
                     ->where('team_id', $team_id)
                     ->where('type', 'opponent')
@@ -424,6 +417,32 @@ public function index(Request $request, $teamId, $gameId)
 
             if ($savedPlayers !== []) {
                 BenchPlayer::insert($savedPlayers);
+            }
+
+            foreach ($incomingIds as $playerId) {
+                $existing = ConfiguredPlayingTeamPlayer::query()
+                    ->where('team_id', $team_id)
+                    ->where('match_id', $game_id)
+                    ->where($playerColumn, $playerId)
+                    ->first();
+
+                if ($existing) {
+                    if (strtolower((string) $existing->type) !== 'special') {
+                        $existing->update([
+                            'type'      => $slotType,
+                            'game_type' => $configureGameType,
+                        ]);
+                    }
+                } else {
+                    ConfiguredPlayingTeamPlayer::create([
+                        'team_id'     => $team_id,
+                        'match_id'    => $game_id,
+                        $playerColumn => $playerId,
+                        'team_type'   => 2,
+                        'type'        => $slotType,
+                        'game_type'   => $configureGameType,
+                    ]);
+                }
             }
         });
 
@@ -478,9 +497,12 @@ public function index(Request $request, $teamId, $gameId)
         $slotType = strtolower((string) $playerType) === 'offence' ? 'offensive' : 'defensive';
         $configureGameType = $isPractice ? 2 : 1;
 
+        $offensePlayerMap = collect(is_array($offensePlayers) ? $offensePlayers : [])
+            ->keyBy(fn ($player) => (int) ($player['id'] ?? 0));
+
         DB::transaction(function () use (
             $offenseIds,
-            $benchPlayers,
+            $offensePlayerMap,
             $benchIds,
             $teamId,
             $leagueId,
@@ -490,54 +512,62 @@ public function index(Request $request, $teamId, $gameId)
             $team_type,
             $playerColumn,
             $slotType,
-            $configureGameType
+            $configureGameType,
+            $isPractice
         ) {
-            // Players coming on the field: remove bench rows for this side.
-            if ($offenseIds !== []) {
+            // Players leaving the field (current lineup minus the incoming group): drop their
+            // on-field bench rows and clear the configure slot. Do not re-insert bench rows
+            // with the same player_type — that kept replaced players on the Defense/Offense tab.
+            $leavingFieldIds = array_values(array_diff($benchIds, $offenseIds));
+
+            if ($leavingFieldIds !== []) {
                 BenchPlayer::where('team_id', $teamId)
                     ->where('game_id', $gameId)
                     ->where('player_type', $playerType)
-                    ->whereIn($playerColumn, $offenseIds)
+                    ->whereIn($playerColumn, $leavingFieldIds)
                     ->delete();
-            }
-
-            // Players leaving the field: add/update bench rows. Keep them on the match configure
-            // roster — deleting ConfiguredPlayingTeamPlayer here emptied the Bench tab and made
-            // active groups show (0) because PersonalGrouping filters by roster ids.
-            if ($benchIds !== []) {
-                BenchPlayer::where('team_id', $teamId)
-                    ->where('game_id', $gameId)
-                    ->where('player_type', $playerType)
-                    ->whereIn($playerColumn, $benchIds)
-                    ->delete();
-
-                $insertData = [];
-                foreach ($benchIds as $playerId) {
-                    $player = collect($benchPlayers)->firstWhere('id', $playerId);
-                    $insertData[] = [
-                        'team_id' => $teamId,
-                        'game_id' => $gameId,
-                        $playerColumn => $playerId,
-                        'league_id' => $leagueId,
-                        'player_type' => $playerType,
-                        'type' => $type,
-                        'rpp' => $player['rpp'] ?? 0,
-                        'position' => $player['selected_position'] ?? null,
-                    ];
-                }
-
-                if ($insertData !== []) {
-                    BenchPlayer::insert($insertData);
-                }
 
                 ConfiguredPlayingTeamPlayer::where('team_id', $teamId)
                     ->where('match_id', $gameId)
-                    ->whereIn($playerColumn, $benchIds)
+                    ->whereIn($playerColumn, $leavingFieldIds)
+                    ->where(function ($q) {
+                        $q->whereNull('type')->orWhere('type', '!=', 'special');
+                    })
                     ->update(['type' => null]);
             }
 
-            // Players coming on the field: ensure configure roster rows (update or create).
+            // Players coming/staying on the field: ensure on-field bench rows + configure slot.
             foreach ($offenseIds as $playerId) {
+                $player = $offensePlayerMap->get($playerId, []);
+                $selectedPosition = $player['selected_position'] ?? null;
+                $rpp = $player['rpp'] ?? 0;
+
+                $existingBench = BenchPlayer::where('team_id', $teamId)
+                    ->where('game_id', $gameId)
+                    ->where('type', $type)
+                    ->where('player_type', $playerType)
+                    ->where($playerColumn, $playerId)
+                    ->first();
+
+                if ($existingBench) {
+                    $existingBench->update([
+                        'position' => $selectedPosition,
+                        'rpp'        => $rpp,
+                    ]);
+                } else {
+                    BenchPlayer::create([
+                        'team_id'            => $teamId,
+                        'game_id'            => $gameId,
+                        'player_id'          => $isPractice ? null : $playerId,
+                        'practice_player_id' => $isPractice ? $playerId : null,
+                        'league_id'          => $leagueId,
+                        'type'               => $type,
+                        'player_type'        => $playerType,
+                        'position'           => $selectedPosition,
+                        'rpp'                => $rpp,
+                    ]);
+                }
+
                 $existing = ConfiguredPlayingTeamPlayer::query()
                     ->where('team_id', $teamId)
                     ->where('match_id', $gameId)
@@ -546,18 +576,18 @@ public function index(Request $request, $teamId, $gameId)
 
                 if ($existing) {
                     $existing->update([
-                        'type' => $slotType,
+                        'type'      => $slotType,
                         'team_type' => $team_type,
                         'game_type' => $configureGameType,
                     ]);
                 } else {
                     ConfiguredPlayingTeamPlayer::create([
-                        'team_id' => $teamId,
-                        'match_id' => $gameId,
-                        $playerColumn => $playerId,
-                        'team_type' => $team_type,
-                        'type' => $slotType,
-                        'game_type' => $configureGameType,
+                        'team_id'      => $teamId,
+                        'match_id'     => $gameId,
+                        $playerColumn  => $playerId,
+                        'team_type'    => $team_type,
+                        'type'         => $slotType,
+                        'game_type'    => $configureGameType,
                     ]);
                 }
             }
@@ -588,6 +618,8 @@ public function index(Request $request, $teamId, $gameId)
         )));
 
         $savedPlayers = [];
+        $slotType = strtolower((string) $player_type) === 'offence' ? 'offensive' : 'defensive';
+        $configureGameType = $isPractice ? 2 : 1;
 
         DB::transaction(function () use (
             $benchData,
@@ -598,22 +630,11 @@ public function index(Request $request, $teamId, $gameId)
             $isPractice,
             $playerColumn,
             $incomingIds,
+            $slotType,
+            $configureGameType,
             &$savedPlayers
         ) {
             if ($incomingIds !== []) {
-                // Preserve the match configure roster — deleting these rows here removed
-                // players from PersionalGrouping's roster filter and collapsed active
-                // groups to (0). Mirror shufflePlayers: keep the row, clear the on-field
-                // slot type. The match-end prune still handles real cleanup at EoM.
-                ConfiguredPlayingTeamPlayer::where('match_id', $game_id)
-                    ->where('team_id', $team_id)
-                    ->where('team_type', 1)
-                    ->whereIn($playerColumn, $incomingIds)
-                    ->where(function ($q) {
-                        $q->whereNull('type')->orWhere('type', '!=', 'special');
-                    })
-                    ->update(['type' => null]);
-
                 // Avoid duplicate bench rows if the same player is re-assigned to the
                 // same side (e.g. Assign Offense triggered twice in a row).
                 BenchPlayer::where('game_id', $game_id)
@@ -640,6 +661,33 @@ public function index(Request $request, $teamId, $gameId)
 
             if ($savedPlayers !== []) {
                 BenchPlayer::insert($savedPlayers);
+            }
+
+            // Mark these players on-field for this side in the configure roster.
+            foreach ($incomingIds as $playerId) {
+                $existing = ConfiguredPlayingTeamPlayer::query()
+                    ->where('team_id', $team_id)
+                    ->where('match_id', $game_id)
+                    ->where($playerColumn, $playerId)
+                    ->first();
+
+                if ($existing) {
+                    if (strtolower((string) $existing->type) !== 'special') {
+                        $existing->update([
+                            'type'      => $slotType,
+                            'game_type' => $configureGameType,
+                        ]);
+                    }
+                } else {
+                    ConfiguredPlayingTeamPlayer::create([
+                        'team_id'     => $team_id,
+                        'match_id'    => $game_id,
+                        $playerColumn => $playerId,
+                        'team_type'   => 1,
+                        'type'        => $slotType,
+                        'game_type'   => $configureGameType,
+                    ]);
+                }
             }
         });
 
