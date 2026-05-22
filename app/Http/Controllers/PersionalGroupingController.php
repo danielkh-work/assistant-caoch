@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\PersionalGrouping;
-use App\Models\League;
 use App\Models\TeamPlayer;
 use App\Models\PracticeTeamPlayer;
 
@@ -33,6 +32,26 @@ public function storeAllGroups(Request $request)
             if (! in_array($status, ['draft', 'active', 'inactive'], true)) {
                 $status = 'active';
             }
+
+                if ($isPractice && $status === 'active') {
+                    $normalized = $this->normalizeGroupPlayers($groupData['players'] ?? []);
+                    $nRoster = PersionalGrouping::countNormalizedPlayersOnMatchRoster(
+                        $normalized,
+                        (int) $groupData['team_id'],
+                        (int) $groupData['game_id'],
+                        2
+                    );
+                    if (! PersionalGrouping::practiceGroupActiveMemberCountIsValid($nRoster)) {
+                        DB::rollBack();
+
+                        return new BaseResponse(
+                            STATUS_CODE_ERROR,
+                            STATUS_CODE_ERROR,
+                            'Practice groups can only be Active when exactly 7, 11, or 12 members are on the match roster for this game. '
+                                ."Currently {$nRoster} match-rostered player(s) count toward this group (Configure Players).",
+                        );
+                    }
+                }
 
             $insertData[] = [
                 'game_id' => $groupData['game_id'],
@@ -180,7 +199,9 @@ public function storeAllGroups(Request $request)
         {
             $request->validate([
                 'group_name'  => 'required|string|max:255',
-                'players'     => 'required|array',
+                // `required` rejects []; inactive groups may legitimately save with no match-rostered members
+                // when selections are orphans / "Not in the match" (payload is empty after normalization).
+                'players'     => 'present|array',
                 'is_practice' => 'nullable',
                 'status' => 'nullable|in:draft,active,inactive',
                 'roster_repair_append' => 'nullable|array',
@@ -217,6 +238,34 @@ public function storeAllGroups(Request $request)
                         STATUS_CODE_ERROR,
                         STATUS_CODE_ERROR,
                         'Cannot set group to active until all removed roster players are added back to the group.',
+                    );
+                }
+
+                $resolvedStatus = ($newStatus !== null && $newStatus !== '')
+                    ? strtolower((string) $newStatus)
+                    : strtolower((string) ($group->status ?? 'active'));
+                if ($isPracticeGroup && $resolvedStatus === 'active') {
+                    $nRoster = PersionalGrouping::countNormalizedPlayersOnMatchRoster(
+                        $normalized,
+                        (int) $group->team_id,
+                        (int) $group->game_id,
+                        $gameType
+                    );
+                    if (! PersionalGrouping::practiceGroupActiveMemberCountIsValid($nRoster)) {
+                        return new BaseResponse(
+                            STATUS_CODE_ERROR,
+                            STATUS_CODE_ERROR,
+                            'Practice groups can only be Active when exactly 7, 11, or 12 members are on the match roster for this game. '
+                                ."Currently {$nRoster} match-rostered player(s) count toward this group (Configure Players).",
+                        );
+                    }
+                }
+
+                if ($resolvedStatus === 'active' && ! $isPracticeGroup && count($memberIds) === 0) {
+                    return new BaseResponse(
+                        STATUS_CODE_ERROR,
+                        STATUS_CODE_ERROR,
+                        'Active groups must include players on the match roster.',
                     );
                 }
 
@@ -265,10 +314,7 @@ public function storeAllGroups(Request $request)
         $leagueId = $request->query('league_id');
         $isPractice = $request->query('is_practice', 0);
 
-        $League = League::find($leagueId);
-
-        $practice_length_players = $League->practice_number_players ?? 7;
-         if ((!$teamId || !$gameId) && !$leagueId) {
+        if ((!$teamId || !$gameId) && !$leagueId) {
         return new BaseResponse(
             STATUS_CODE_ERROR,
             STATUS_CODE_ERROR,
@@ -289,8 +335,14 @@ public function storeAllGroups(Request $request)
         ->when((!$teamId || !$gameId) && $leagueId, function ($q) use ($leagueId) {
             $q->where('league_id', $leagueId);
         })
-        ->when($isPractice && $forPracticeMode, function ($q) use ($practice_length_players) {
-            $q->whereRaw('JSON_LENGTH(practice_players) = ?', [$practice_length_players]);
+        // Match-Start / substitution view (for_practice_mode=1) shows the same set as
+        // Configure → "Active" tab: every group with status='active'. Practice size 7/11/12 is
+        // already validated against the match roster at save time, so a plain JSON_LENGTH check
+        // here would wrongly hide groups that legitimately have extra off-roster members tagged
+        // "Not in the match" (length can be 8/9 even when 7 roster members are saved).
+        ->when($isPractice && $forPracticeMode, function ($q) {
+            $q->where('status', 'active')
+              ->whereNotNull('practice_players');
         })
 
         ->orderBy('created_at', 'desc')

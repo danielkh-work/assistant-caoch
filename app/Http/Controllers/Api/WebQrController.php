@@ -8,6 +8,7 @@ use App\Models\MobileSession;
 use App\Models\User;
 use App\Events\MobileSessionApproved;
 use App\Events\MobileSessionLogout;
+use App\Events\QbSessionUpdated;
 use Illuminate\Support\Str;
 
 /**
@@ -92,6 +93,13 @@ class WebQrController extends Controller
 
         broadcast(new MobileSessionApproved($userData))->toOthers();
 
+        broadcast(new QbSessionUpdated(
+            (int) $authId,
+            $user->only(['id', 'name', 'email', 'session_id', 'code', 'head_coach_id', 'is_loggin']),
+            true,
+            'login',
+        ))->toOthers();
+
         return response()->json($userData, 201);
     }
 
@@ -153,8 +161,17 @@ class WebQrController extends Controller
         $userData = [
             'status'  => 200,
             'message' => 'logout successful',
-            'user'    => $user->only(['name', 'session_id', 'code', 'head_coach_id']),
+            'user'    => $user->only(['id', 'name', 'session_id', 'code', 'head_coach_id', 'is_loggin']),
         ];
+
+        if ($user->head_coach_id) {
+            broadcast(new QbSessionUpdated(
+                (int) $user->head_coach_id,
+                $userData['user'],
+                false,
+                'logout',
+            ))->toOthers();
+        }
 
         return response()->json($userData);
     }
@@ -261,6 +278,13 @@ class WebQrController extends Controller
                 ),
             ]))->toOthers();
         }
+
+        broadcast(new QbSessionUpdated(
+            (int) $coach->id,
+            $user->only(['id', 'name', 'email', 'session_id', 'code', 'head_coach_id', 'is_loggin']),
+            false,
+            'logout',
+        ))->toOthers();
 
         return response()->json($payload);
     }

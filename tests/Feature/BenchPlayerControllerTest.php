@@ -131,6 +131,105 @@ class BenchPlayerControllerTest extends TestCase
         ]);
     }
 
+    public function test_assign_offense_preserves_match_configure_roster()
+    {
+        // Regression: BenchPlayerController::store() used to hard-delete the
+        // matching ConfiguredPlayingTeamPlayer row. That removed the player
+        // from PersionalGrouping's roster filter and collapsed any active
+        // group containing them to (0). We must keep the CPT row in place and
+        // only clear the on-field slot type.
+        $this->auth();
+
+        $player = $this->createPlayer('Roster Member');
+
+        DB::table('configured_playing_team_players')->insert([
+            'match_id'  => $this->game->id,
+            'team_id'   => $this->team->id,
+            'player_id' => $player->id,
+            'team_type' => 1,
+            'type'      => 'offensive',
+        ]);
+
+        $response = $this->postJson('/api/bench-players', [
+            'benchPlayers' => [
+                [
+                    'id'             => $player->id,
+                    'positionSelect' => 'QB',
+                    'rpp'            => 90,
+                ],
+            ],
+            'teamId'     => $this->team->id,
+            'playerType' => 'offence',
+            'leagueId'   => $this->league->id,
+            'gameId'     => $this->game->id,
+            'isPractice' => false,
+        ]);
+
+        $response->assertStatus(200);
+
+        // CPT row still exists for the match roster.
+        $this->assertDatabaseHas('configured_playing_team_players', [
+            'match_id'  => $this->game->id,
+            'team_id'   => $this->team->id,
+            'player_id' => $player->id,
+        ]);
+
+        // Slot is cleared since the player is now on the bench queue.
+        $this->assertDatabaseHas('configured_playing_team_players', [
+            'match_id'  => $this->game->id,
+            'team_id'   => $this->team->id,
+            'player_id' => $player->id,
+            'type'      => null,
+        ]);
+
+        // Bench queue row exists with the picked position/rpp.
+        $this->assertDatabaseHas('offense_defense_players', [
+            'game_id'     => $this->game->id,
+            'team_id'     => $this->team->id,
+            'player_id'   => $player->id,
+            'player_type' => 'offence',
+            'position'    => 'QB',
+            'rpp'         => 90,
+        ]);
+
+        // No duplicates if the same player is re-assigned to the same side.
+        $response = $this->postJson('/api/bench-players', [
+            'benchPlayers' => [
+                [
+                    'id'             => $player->id,
+                    'positionSelect' => 'RB',
+                    'rpp'            => 70,
+                ],
+            ],
+            'teamId'     => $this->team->id,
+            'playerType' => 'offence',
+            'leagueId'   => $this->league->id,
+            'gameId'     => $this->game->id,
+            'isPractice' => false,
+        ]);
+
+        $response->assertStatus(200);
+
+        $count = DB::table('offense_defense_players')
+            ->where('game_id', $this->game->id)
+            ->where('team_id', $this->team->id)
+            ->where('player_id', $player->id)
+            ->where('player_type', 'offence')
+            ->count();
+
+        $this->assertSame(1, $count, 'Re-assigning to the same side should not create duplicate bench rows.');
+
+        // Latest assignment values are reflected.
+        $this->assertDatabaseHas('offense_defense_players', [
+            'game_id'     => $this->game->id,
+            'team_id'     => $this->team->id,
+            'player_id'   => $player->id,
+            'player_type' => 'offence',
+            'position'    => 'RB',
+            'rpp'         => 70,
+        ]);
+    }
+
     public function test_can_update_rpp()
     {
         $this->auth();

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Game;
 use App\Models\BenchPlayer;
+use App\Models\PersionalGrouping;
 use Illuminate\Http\Request;
 use App\Http\Responses\BaseResponse;
 use App\Models\Penality;
@@ -30,10 +31,22 @@ class GameController extends Controller
 
     public function endMatchClearGroundPlayers($id)
     {
-        // Clear in-game bench only. Keep configured playing-team rosters and personal groupings
-        // so pre-game player selection and offensive/defensive groups persist after the match.
-        BenchPlayer::where('game_id', $id)->delete();
-        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Players cleared successfully", null);
+        $gamePk = (int) $id;
+
+        BenchPlayer::where('game_id', $gamePk)->delete();
+
+        try {
+            PersionalGrouping::syncInvalidActivePracticeGroupStatusesForMatchEnd($gamePk);
+            PersionalGrouping::pruneMatchConfigurePlayersNotInAnyGroup($gamePk);
+        } catch (\Throwable $e) {
+            \Log::error('endMatchClearGroundPlayers failed', [
+                'game_id' => $gamePk,
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        }
+
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Players cleared successfully', null);
     }
 
     public function index() {

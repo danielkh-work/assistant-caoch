@@ -250,13 +250,15 @@ class PracticeModeTest extends TestCase
             ['id' => $benchPlayerId, 'team_id' => $team1->id, 'name' => 'Bench Player', 'number' => 20, 'rpp' => 60, 'speed' => 90, 'strength' => 90, 'ofp' => 100],
         ]);
 
-        // Put one on the field (ConfiguredPlayingTeamPlayer)
+        // Put one on the field (ConfiguredPlayingTeamPlayer) — slot type carries the
+        // offensive side so the substitution can mirror it to the incoming player.
         DB::table('configured_playing_team_players')->insert([
             'match_id' => $mode->id,
             'team_id' => $team1->id,
             'practice_player_id' => $offensePlayerId,
             'player_id' => 0,
             'team_type' => 1,
+            'type' => 'offensive',
         ]);
 
         // Put one on the bench (BenchPlayer)
@@ -267,37 +269,48 @@ class PracticeModeTest extends TestCase
             'practice_player_id' => $benchPlayerId,
             'player_id' => 0,
             'type' => 'myteam',
+            'player_type' => 'offence',
             'position' => 'WR',
             'rpp' => 60, // Original RPP of bench player
         ]);
 
-        // Perform substitution
+        // Perform substitution. The frontend addSubstitute() sends the rpp of the
+        // player that just moved into the lineup tab (the outgoing-from-field one),
+        // so for this scenario rpp=80 carries through to the bench queue row.
         $response = $this->postJson('/api/create-my-team-play-mode', [
             'offenseData' => ['id' => $offensePlayerId],
-            'benchData' => ['id' => $benchPlayerId],
-            'teamId' => $team1->id,
-            'leagueId' => $league->id,
-            'gameId' => $mode->id,
-            'position' => 'QB',
+            'benchData'   => ['id' => $benchPlayerId],
+            'teamId'      => $team1->id,
+            'leagueId'    => $league->id,
+            'gameId'      => $mode->id,
+            'position'    => 'QB',
+            'rpp'         => 80,
             'is_practice' => true,
         ]);
 
         $response->assertStatus(200);
 
-        // Verify substitution happened (IDs swapped)
+        // Incoming player now carries the offensive slot on the match roster.
         $this->assertDatabaseHas('configured_playing_team_players', [
             'match_id' => $mode->id,
             'practice_player_id' => $benchPlayerId,
+            'type' => 'offensive',
         ]);
 
+        // Regression: the outgoing player MUST stay on the match roster (type cleared),
+        // otherwise personal groupings filtering by roster ids collapse to (0).
+        $this->assertDatabaseHas('configured_playing_team_players', [
+            'match_id' => $mode->id,
+            'practice_player_id' => $offensePlayerId,
+            'type' => null,
+        ]);
+
+        // Bench queue now holds the outgoing player with the freshly-picked position/rpp.
         $this->assertDatabaseHas('offense_defense_players', [
             'game_id' => $mode->id,
             'practice_player_id' => $offensePlayerId,
             'position' => 'QB',
-            // It substitutes the player, but RPP should ideally be updated to the new bench player's RPP.
-            // If the bug exists where RPP is not substituted, this assertion will fail and expose the issue, 
-            // per user request "created a test cases for it that it substitute a test cases or not"
-            'rpp' => 80, 
+            'rpp' => 80,
         ]);
     }
 
@@ -373,6 +386,12 @@ class PracticeModeTest extends TestCase
         $this->assertDatabaseHas('configured_playing_team_players', [
             'match_id' => $mode->id,
             'practice_player_id' => $benchPlayerId,
+        ]);
+
+        // Player moved to bench must stay on the match configure roster (regression: shuffle used to delete)
+        $this->assertDatabaseHas('configured_playing_team_players', [
+            'match_id' => $mode->id,
+            'practice_player_id' => $offensePlayerId,
         ]);
     }
 }
