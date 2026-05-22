@@ -446,6 +446,10 @@ public function index(Request $request, $gameId, $teamId)
             }
         });
 
+        $user = auth()->user();
+        $headCoachId = $user->head_coach_id ?? $user->id;
+        broadcast(new \App\Events\PlayerSubstituted($headCoachId, $game_id, $team_id))->toOthers();
+
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Bench Player Add Successfully", $savedPlayers);
     }
 
