@@ -15,17 +15,20 @@ class PlayerSubstituted implements ShouldBroadcast
     public $gameId;
     public $teamId;
     protected $headCoachId;
+    protected $isPractice;
 
-    public function __construct($headCoachId, $gameId, $teamId)
+    public function __construct($headCoachId, $gameId, $teamId, $isPractice = false)
     {
         $this->headCoachId = $headCoachId;
         $this->gameId      = $gameId;
         $this->teamId      = $teamId;
+        $this->isPractice  = (bool) $isPractice;
     }
 
     public function broadcastOn()
     {
-        return new PrivateChannel("user.{$this->headCoachId}.game.{$this->gameId}");
+        $namespace = $this->isPractice ? 'practice' : 'game';
+        return new PrivateChannel("user.{$this->headCoachId}.{$namespace}.{$this->gameId}");
     }
 
     public function broadcastAs()

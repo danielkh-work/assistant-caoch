@@ -159,7 +159,6 @@ class BroadCastScoreController extends Controller
             'playName' => $request->input('PlayName'),
             'yardageGain' => $request->input('playYardageGain'),
             'sliderDirection' => $request->input('playSliderDirection'),
-            'sliderDirection' => $request->input('playSliderDirection'),
             'targetTeam' => $request->input('targetTeam'),
             'suggestionData' => $request->input('suggestionData'),
             'selectedPlayIds' => $request->input('selectedPlayIds'),
@@ -168,9 +167,7 @@ class BroadCastScoreController extends Controller
             'targetPlayers' => $request->input('targetPlayers'),
             'my_team' => $request->input('my_team'),
             'opponent_team' => $request->input('opponent_team'),
-
-
-
+            'mode' => $request->input('mode'),
         ];
 
         

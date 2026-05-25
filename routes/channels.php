@@ -23,6 +23,12 @@ Broadcast::channel('user.{userId}.game.{gameId}', function ($user, $userId, $gam
     return false;
 });
 
+Broadcast::channel('user.{userId}.practice.{gameId}', function ($user, $userId, $gameId) {
+    if ($user->role === 'head_coach' && $user->id == $userId) return true;
+    if (in_array($user->role, ['assistant_coach', 'performance_coach']) && $user->head_coach_id == $userId) return true;
+    return false;
+});
+
 Broadcast::channel('headcoach.{headCoachId}.qb', function ($user, $headCoachId) {
 
      return true;
