@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\MatchLogCreated;
 use App\Http\Controllers\Controller;
 use App\Http\Responses\BaseResponse;
 use App\Models\PlayGameLog;
@@ -110,6 +111,48 @@ class PlayGameModeController extends Controller
         $log->save(); // ✅ save() method
 
         DB::commit();
+
+        // Broadcast the new log entry to all connected clients on this match channel
+        try {
+            $user = auth()->user();
+            $coachGroupId = $user->role === 'head_coach' ? $user->id : $user->head_coach_id;
+
+            if ($coachGroupId) {
+                $log->load('myTeam', 'opponentTeam');
+
+                if ($log->target == $log->my_team_id) {
+                    $targetData = $log->myTeam;
+                } elseif ($log->target == $log->oponent_team_id) {
+                    $targetData = $log->opponentTeam;
+                } else {
+                    $targetData = null;
+                }
+
+                $logData = [
+                    'id'               => $log->id,
+                    'players'          => $value['is_practice'] ? $log->practice_players : $log->players,
+                    'weather_status'   => $log->weather_status,
+                    'play_yardage_gain'=> $log->play_yardage_gain,
+                    'quater'           => $log->quater,
+                    'time'             => $log->time,
+                    'current_position' => $log->current_position,
+                    'my_points'        => $log->my_points,
+                    'target'           => $log->target,
+                    'oponent_points'   => $log->oponent_points,
+                    'downs'            => $log->downs,
+                    'my_team'          => $log->myTeam,
+                    'opponent_team'    => $log->opponentTeam,
+                    'targetdata'       => $targetData,
+                    'play'             => $log->target_team,
+                    'type_of_log'      => $log->type_of_log,
+                    'confirmed'        => $log->confirmed,
+                ];
+
+                broadcast(new MatchLogCreated($logData, (int) $coachGroupId, (int) $value['game_id']));
+            }
+        } catch (\Exception $e) {
+            \Log::error('MatchLogCreated broadcast failed: ' . $e->getMessage());
+        }
 
         return new BaseResponse(
             STATUS_CODE_OK,

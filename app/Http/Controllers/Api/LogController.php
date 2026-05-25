@@ -19,6 +19,7 @@ class LogController extends Controller
     $logs = PlayGameLog::where('league_id', $league->id)
         ->where('game_id', $match)
         ->with(['myTeam', 'opponentTeam'])
+        ->latest()
         ->get()
         ->map(function ($log) use ($isPractice){
             
