@@ -89,6 +89,7 @@ class BroadCastScoreController extends Controller
             'weather' => $request->weather,
             'league_id' => $request->league_id,
             'coverage_category' => $request->coverageCategory,
+            'session_id' => $request->session_id ?: null,
             'timer_remaining' => is_numeric($request->time) ? (int) $request->time : null,
             'sys_time' => now()->toDateTimeString(),
         ];
@@ -126,6 +127,7 @@ class BroadCastScoreController extends Controller
             'possession' => $request->possession,
             'weather' => $request->weather,
             'coverageCategory' => $request->coverageCategory,
+            'session_id' => $request->session_id,
         ];
 
         try {
@@ -350,6 +352,7 @@ class BroadCastScoreController extends Controller
             'weather' => $request->weather,
             'coverage_category' => $request->coverageCategory,
             'league_id' => $request->league_id,
+            'session_id' => $request->session_id ?: null,
             'timer_remaining' => is_numeric($request->time) ? (int) $request->time : null,
             'sys_time' => now()->toDateTimeString(),
         ];
@@ -391,6 +394,7 @@ class BroadCastScoreController extends Controller
             'possession' => $request->possession,
             'weather' => $request->weather,
             'coverageCategory' => $request->coverageCategory,
+            'session_id' => $request->session_id,
         ];
 
         \Log::info(['play_mode'=>$request->is_play_mode]);
