@@ -116,6 +116,7 @@ class BroadCastScoreController extends Controller
             'action' => $action,
             'isStart'=>$request->isStartTime,
             'time'=>$request->time,
+            'sync_time' => $request->sync_time,
             'sys_time' => now()->toDateTimeString(),
             'quarter' => $request->quarter,
             'down' => $request->down,
