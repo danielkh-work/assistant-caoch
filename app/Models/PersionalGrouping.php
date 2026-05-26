@@ -10,6 +10,15 @@ class PersionalGrouping extends Model
 {
     use HasFactory;
 
+    protected static function boot(): void
+    {
+        parent::boot();
+
+        static::saving(function (self $group): void {
+            $group->applyActiveStatusGuardOnSave();
+        });
+    }
+
     protected $table = 'personal_groupings';
     protected $appends = ['players_data','practice_players_data'];
     protected $fillable = [
@@ -119,6 +128,27 @@ class PersionalGrouping extends Model
             'personal_grouping_id',
             'defensive_play_id'
         );
+    }
+
+    /**
+     * Player ids on the configure roster for one team side before/after a save.
+     *
+     * @return array<int,int>
+     */
+    public static function configureRosterPlayerIdsForTeamSide(
+        int $teamId,
+        int $matchId,
+        int $gameType,
+        int $teamType
+    ): array {
+        $rows = ConfiguredPlayingTeamPlayer::query()
+            ->where('team_id', $teamId)
+            ->where('match_id', $matchId)
+            ->where('game_type', $gameType)
+            ->where('team_type', $teamType)
+            ->get();
+
+        return self::extractMatchRosterPlayerIdsFromConfigureRows($rows, $gameType, false);
     }
 
     /**
@@ -370,7 +400,93 @@ class PersionalGrouping extends Model
     }
 
     /**
-     * Run when opening Configure → Players Grouping: prune repairs, then demote invalid `active` groups to `inactive`.
+     * After Configure Players save: prune repairs, demote active groups that lost roster members, then
+     * demote any remaining active groups with invalid on-roster counts. Does not modify `draft`. Idempotent.
+     *
+     * @param  array<int,mixed>  $removedRosterPlayerIds  Player ids removed from the match configure roster
+     * @return int Number of groups whose status was changed from active to inactive
+     */
+    public static function syncAfterConfigureRosterSave(
+        int $teamId,
+        int $matchId,
+        int $gameType,
+        array $removedRosterPlayerIds = []
+    ): int {
+        self::pruneAllStaleRepairsAfterConfigureSave($teamId, $matchId, $gameType);
+
+        $updated = self::deactivateActiveGroupsForRemovedRosterPlayerIds(
+            $teamId,
+            $matchId,
+            $gameType,
+            $removedRosterPlayerIds
+        );
+
+        $updated += self::syncStatusesForConfigureLanding($teamId, $matchId, $gameType);
+
+        return $updated;
+    }
+
+    /**
+     * Demote `active` groups that still list players removed from the configure/match roster and record
+     * roster-repair ids (same behaviour as coach-vue `deactivateGroupsForRemovedPlayers`).
+     *
+     * @param  array<int,mixed>  $removedRosterPlayerIds
+     * @return int Number of groups demoted
+     */
+    public static function deactivateActiveGroupsForRemovedRosterPlayerIds(
+        int $teamId,
+        int $matchId,
+        int $gameType,
+        array $removedRosterPlayerIds
+    ): int {
+        $removedRosterPlayerIds = array_values(array_unique(array_map('intval', $removedRosterPlayerIds)));
+        if ($removedRosterPlayerIds === []) {
+            return 0;
+        }
+
+        $removedFlip = array_flip($removedRosterPlayerIds);
+        $isPractice = (int) $gameType === 2;
+        $expectedGroupLevel = $isPractice ? 2 : 1;
+
+        $groups = self::query()
+            ->where('team_id', $teamId)
+            ->where('game_id', $matchId)
+            ->where('group_level', $expectedGroupLevel)
+            ->where('status', 'active')
+            ->get();
+
+        $updated = 0;
+
+        foreach ($groups as $group) {
+            $raw = $isPractice ? $group->practice_players : $group->players;
+            $memberIds = self::collectIdsFromGroupedPlayersPayload($raw);
+            $affectedRemoved = array_values(array_filter(
+                $memberIds,
+                fn ($id) => isset($removedFlip[(int) $id])
+            ));
+
+            if ($affectedRemoved === []) {
+                continue;
+            }
+
+            $repair = array_values(array_unique(array_merge(
+                array_map('intval', $group->roster_repair_player_ids ?? []),
+                $affectedRemoved
+            )));
+            $repair = array_values(array_diff($repair, $memberIds));
+            $repair = self::pruneRosterRepairIdsAgainstMatchRoster($repair, $teamId, $matchId, $gameType);
+
+            $group->status = 'inactive';
+            $group->roster_repair_player_ids = $repair === [] ? null : $repair;
+            $group->saveQuietly();
+            $updated++;
+        }
+
+        return $updated;
+    }
+
+    /**
+     * Run when opening Configure → Players Grouping: demote invalid `active` groups to `inactive`.
      * Does not modify `draft`. Idempotent.
      *
      * @return int Number of groups whose status was changed from active to inactive
@@ -378,18 +494,13 @@ class PersionalGrouping extends Model
     public static function syncStatusesForConfigureLanding(
         int $teamId,
         int $matchId,
-        int $gameType,
-        int $leagueNonPracticePlayerLimit
+        int $gameType
     ): int {
-        self::pruneAllStaleRepairsAfterConfigureSave($teamId, $matchId, $gameType);
-
         $isPractice = (int) $gameType === 2;
         $expectedGroupLevel = $isPractice ? 2 : 1;
 
         $rosterIds = self::matchRosterPlayerIdsForConfigure($teamId, $matchId, $gameType);
         $rosterFlip = array_flip($rosterIds);
-
-        $lim = $leagueNonPracticePlayerLimit > 0 ? $leagueNonPracticePlayerLimit : 12;
 
         $groups = self::query()
             ->where('team_id', $teamId)
@@ -400,39 +511,84 @@ class PersionalGrouping extends Model
         $updated = 0;
 
         foreach ($groups as $group) {
-            $stored = strtolower((string) ($group->status ?? 'active'));
-            if ($stored === 'draft') {
+            if (! self::shouldDemoteActiveGroupOnRosterRules($group, $isPractice, $rosterFlip)) {
                 continue;
             }
 
-            if ($stored !== 'active') {
-                continue;
-            }
-
-            $repair = array_values(array_filter(array_map('intval', $group->roster_repair_player_ids ?? [])));
-            $repair = self::pruneRosterRepairIdsAgainstMatchRoster($repair, $teamId, $matchId, $gameType);
-
-            $n = self::countGroupMembersOnMatchRosterFromPayload($group, $isPractice, $rosterFlip);
-
-            $shouldDemote = false;
-            if ($repair !== []) {
-                $shouldDemote = true;
-            } elseif ($isPractice) {
-                if (! self::practiceGroupActiveMemberCountIsValid($n)) {
-                    $shouldDemote = true;
-                }
-            } elseif ($n !== $lim) {
-                $shouldDemote = true;
-            }
-
-            if ($shouldDemote) {
-                $group->status = 'inactive';
-                $group->save();
-                $updated++;
-            }
+            $group->status = 'inactive';
+            $group->saveQuietly();
+            $updated++;
         }
 
         return $updated;
+    }
+
+    /** League roster size for non-practice personal groups (defaults to 12). */
+    public static function leagueNonPracticePlayerLimitForGroup(self $group): int
+    {
+        $lim = 12;
+        if ($group->league_id) {
+            $league = League::query()->find((int) $group->league_id);
+            if ($league !== null && (int) ($league->number_of_players ?? 0) > 0) {
+                $lim = (int) $league->number_of_players;
+            }
+        }
+
+        return $lim;
+    }
+
+    /**
+     * Model `saving` hook: keep `active` only when on-roster member count matches league/practice rules
+     * and no roster-repair players are pending.
+     */
+    protected function applyActiveStatusGuardOnSave(): void
+    {
+        $stored = strtolower((string) ($this->status ?? 'active'));
+        if ($stored !== 'active') {
+            return;
+        }
+
+        $isPractice = (int) ($this->group_level ?? 1) === 2;
+        $gameType = $isPractice ? 2 : 1;
+        $teamId = (int) $this->team_id;
+        $matchId = (int) $this->game_id;
+        $rosterFlip = array_flip(self::matchRosterPlayerIdsForConfigure($teamId, $matchId, $gameType));
+
+        if (self::shouldDemoteActiveGroupOnRosterRules($this, $isPractice, $rosterFlip)) {
+            $this->status = 'inactive';
+        }
+    }
+
+    /**
+     * @param  array<int,true>  $rosterFlip
+     */
+    private static function shouldDemoteActiveGroupOnRosterRules(
+        self $group,
+        bool $isPractice,
+        array $rosterFlip
+    ): bool {
+        $stored = strtolower((string) ($group->status ?? 'active'));
+        if ($stored === 'draft' || $stored !== 'active') {
+            return false;
+        }
+
+        $teamId = (int) $group->team_id;
+        $matchId = (int) $group->game_id;
+        $gameType = $isPractice ? 2 : 1;
+
+        $repair = array_values(array_filter(array_map('intval', $group->roster_repair_player_ids ?? [])));
+        $repair = self::pruneRosterRepairIdsAgainstMatchRoster($repair, $teamId, $matchId, $gameType);
+        if ($repair !== []) {
+            return true;
+        }
+
+        $n = self::countGroupMembersOnMatchRosterFromPayload($group, $isPractice, $rosterFlip);
+
+        if ($isPractice) {
+            return ! self::practiceGroupActiveMemberCountIsValid($n);
+        }
+
+        return $n !== self::leagueNonPracticePlayerLimitForGroup($group);
     }
 
     /**

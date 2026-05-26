@@ -324,7 +324,7 @@ public function storeAllGroups(Request $request)
 
       if ($teamId && $gameId) {
           $gameType = (int) $isPractice === 1 ? 2 : 1;
-          PersionalGrouping::pruneAllStaleRepairsAfterConfigureSave((int) $teamId, (int) $gameId, $gameType);
+          PersionalGrouping::syncAfterConfigureRosterSave((int) $teamId, (int) $gameId, $gameType);
       }
 
       $groups = PersionalGrouping::query()

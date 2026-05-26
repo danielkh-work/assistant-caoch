@@ -89,6 +89,7 @@ class BroadCastScoreController extends Controller
             'weather' => $request->weather,
             'league_id' => $request->league_id,
             'coverage_category' => $request->coverageCategory,
+            'session_id' => $request->session_id ?: null,
             'timer_remaining' => is_numeric($request->time) ? (int) $request->time : null,
             'sys_time' => now()->toDateTimeString(),
         ];
@@ -115,6 +116,7 @@ class BroadCastScoreController extends Controller
             'action' => $action,
             'isStart'=>$request->isStartTime,
             'time'=>$request->time,
+            'sync_time' => $request->sync_time,
             'sys_time' => now()->toDateTimeString(),
             'quarter' => $request->quarter,
             'down' => $request->down,
@@ -126,6 +128,7 @@ class BroadCastScoreController extends Controller
             'possession' => $request->possession,
             'weather' => $request->weather,
             'coverageCategory' => $request->coverageCategory,
+            'session_id' => $request->session_id,
         ];
 
         try {
@@ -157,7 +160,6 @@ class BroadCastScoreController extends Controller
             'playName' => $request->input('PlayName'),
             'yardageGain' => $request->input('playYardageGain'),
             'sliderDirection' => $request->input('playSliderDirection'),
-            'sliderDirection' => $request->input('playSliderDirection'),
             'targetTeam' => $request->input('targetTeam'),
             'suggestionData' => $request->input('suggestionData'),
             'selectedPlayIds' => $request->input('selectedPlayIds'),
@@ -166,9 +168,7 @@ class BroadCastScoreController extends Controller
             'targetPlayers' => $request->input('targetPlayers'),
             'my_team' => $request->input('my_team'),
             'opponent_team' => $request->input('opponent_team'),
-
-
-
+            'mode' => $request->input('mode'),
         ];
 
         
@@ -350,6 +350,7 @@ class BroadCastScoreController extends Controller
             'weather' => $request->weather,
             'coverage_category' => $request->coverageCategory,
             'league_id' => $request->league_id,
+            'session_id' => $request->session_id ?: null,
             'timer_remaining' => is_numeric($request->time) ? (int) $request->time : null,
             'sys_time' => now()->toDateTimeString(),
         ];
@@ -391,6 +392,7 @@ class BroadCastScoreController extends Controller
             'possession' => $request->possession,
             'weather' => $request->weather,
             'coverageCategory' => $request->coverageCategory,
+            'session_id' => $request->session_id,
         ];
 
         \Log::info(['play_mode'=>$request->is_play_mode]);

@@ -31,7 +31,7 @@ class PracticeScoreUpdated implements ShouldBroadcast
         'userId' => $this->userId,
         'gameId' => $this->gameId,
     ]);
-        return new PrivateChannel("user.{$this->userId}.game.{$this->gameId}");
+        return new PrivateChannel("user.{$this->userId}.practice.{$this->gameId}");
     }
 
     public function broadcastAs()

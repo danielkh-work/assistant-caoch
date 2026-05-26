@@ -19,6 +19,11 @@ class ConfigureController extends Controller
        
         DB::beginTransaction();
         try {
+            $teamId = (int) $request->team_id;
+            $matchId = (int) $request->match_id;
+            $gameType = (int) $request->game_type;
+            $teamType = 1;
+
             $playerIds = $request->input('player_id', []);
             if (! is_array($playerIds)) {
                 $playerIds = $playerIds !== null && $playerIds !== '' ? [$playerIds] : [];
@@ -29,13 +34,20 @@ class ConfigureController extends Controller
                 $types = $types !== null && $types !== '' ? [$types] : [];
             }
 
+            $previousRosterIds = PersionalGrouping::configureRosterPlayerIdsForTeamSide(
+                $teamId,
+                $matchId,
+                $gameType,
+                $teamType
+            );
+
             // Replace the full roster for this match: if we only deleted rows matching
             // the types present in the request, omitted squads (e.g. all offensive
             // removed while saving defensive only) would never be cleared.
-            ConfiguredPlayingTeamPlayer::where('team_id', $request->team_id)
-                ->where('match_id', $request->match_id)
-                ->where('game_type', $request->game_type)
-                ->where('team_type', 1)
+            ConfiguredPlayingTeamPlayer::where('team_id', $teamId)
+                ->where('match_id', $matchId)
+                ->where('game_type', $gameType)
+                ->where('team_type', $teamType)
                 ->delete();
     
          
@@ -43,21 +55,25 @@ class ConfigureController extends Controller
      
 
                     ConfiguredPlayingTeamPlayer::create([
-                        'team_id' => $request->team_id,
-                        'match_id' => $request->match_id,
+                        'team_id' => $teamId,
+                        'match_id' => $matchId,
                         'type' => $types[$index] ?? 'offensive',
-                        'team_type' => 1,
-                        'game_type' => $request->game_type,
-                        'player_id' => $request->game_type == 1 ? $playerId : null,
-                        'practice_player_id' => $request->game_type != 1 ? $playerId : null,
+                        'team_type' => $teamType,
+                        'game_type' => $gameType,
+                        'player_id' => $gameType == 1 ? $playerId : null,
+                        'practice_player_id' => $gameType != 1 ? $playerId : null,
                     ],[] );
             }
+
+            $newRosterIds = array_values(array_unique(array_map('intval', $playerIds)));
+            $removedRosterIds = array_values(array_diff($previousRosterIds, $newRosterIds));
           
            DB::commit();
-           PersionalGrouping::pruneAllStaleRepairsAfterConfigureSave(
-               (int) $request->team_id,
-               (int) $request->match_id,
-               (int) $request->game_type
+           PersionalGrouping::syncAfterConfigureRosterSave(
+               $teamId,
+               $matchId,
+               $gameType,
+               $removedRosterIds
            );
            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "configure Player successFully");
         } catch (\Throwable $th) {
@@ -69,6 +85,11 @@ class ConfigureController extends Controller
     {
         DB::beginTransaction();
         try {
+            $teamId = (int) $request->team_id;
+            $matchId = (int) $request->match_id;
+            $gameType = (int) $request->game_type;
+            $teamType = 2;
+
             $playerIds = $request->input('player_id', []);
             if (! is_array($playerIds)) {
                 $playerIds = $playerIds !== null && $playerIds !== '' ? [$playerIds] : [];
@@ -79,29 +100,41 @@ class ConfigureController extends Controller
                 $types = $types !== null && $types !== '' ? [$types] : [];
             }
 
-            ConfiguredPlayingTeamPlayer::where('team_id', $request->team_id)
-                ->where('match_id', $request->match_id)
-                ->where('game_type', $request->game_type)
-                ->where('team_type', 2)
+            $previousRosterIds = PersionalGrouping::configureRosterPlayerIdsForTeamSide(
+                $teamId,
+                $matchId,
+                $gameType,
+                $teamType
+            );
+
+            ConfiguredPlayingTeamPlayer::where('team_id', $teamId)
+                ->where('match_id', $matchId)
+                ->where('game_type', $gameType)
+                ->where('team_type', $teamType)
                 ->delete();
             foreach ($playerIds as $index => $playerId) {
 
                     ConfiguredPlayingTeamPlayer::create([
-                        'team_id' => $request->team_id,
-                        'match_id' => $request->match_id,
+                        'team_id' => $teamId,
+                        'match_id' => $matchId,
                         'type' => $types[$index] ?? 'offensive',
-                        'team_type' => 2,
-                        'game_type' => $request->game_type,
-                        'player_id' => $request->game_type == 1 ? $playerId : null,
-                        'practice_player_id' => $request->game_type != 1 ? $playerId : null,
+                        'team_type' => $teamType,
+                        'game_type' => $gameType,
+                        'player_id' => $gameType == 1 ? $playerId : null,
+                        'practice_player_id' => $gameType != 1 ? $playerId : null,
                     ],[]);
         
             }
+
+            $newRosterIds = array_values(array_unique(array_map('intval', $playerIds)));
+            $removedRosterIds = array_values(array_diff($previousRosterIds, $newRosterIds));
+
            DB::commit();
-           PersionalGrouping::pruneAllStaleRepairsAfterConfigureSave(
-               (int) $request->team_id,
-               (int) $request->match_id,
-               (int) $request->game_type
+           PersionalGrouping::syncAfterConfigureRosterSave(
+               $teamId,
+               $matchId,
+               $gameType,
+               $removedRosterIds
            );
            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "configure Player successFully");
         } catch (\Throwable $th) {
