@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Models\Game;
+use App\Models\PracticeTeamPlayer;
+use App\Models\TeamPlayer;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -16,6 +18,22 @@ class PersionalGrouping extends Model
 
         static::saving(function (self $group): void {
             $group->applyActiveStatusGuardOnSave();
+        });
+
+        PracticeTeamPlayer::deleted(function (PracticeTeamPlayer $row): void {
+            if (! $row->team_id || ! $row->id) {
+                return;
+            }
+
+            self::removeMemberIdsFromAllTeamGroups((int) $row->team_id, [(int) $row->id], []);
+        });
+
+        TeamPlayer::deleted(function (TeamPlayer $row): void {
+            if (! $row->team_id || ! $row->id) {
+                return;
+            }
+
+            self::removeMemberIdsFromAllTeamGroups((int) $row->team_id, [], [(int) $row->id]);
         });
     }
 
@@ -486,6 +504,70 @@ class PersionalGrouping extends Model
     }
 
     /**
+     * When a player is removed from the pre-season practice team roster (or team_players row
+     * deleted), drop them from every personal group on that team and demote `active` groups
+     * whose on-roster count no longer satisfies practice (7/11/12) or league size rules.
+     *
+     * @param  array<int,mixed>  $removedPracticePlayerIds  practice_team_players.id values
+     * @param  array<int,mixed>  $removedTeamPlayerIds  team_players.id values
+     * @return int Number of groups whose membership payload was updated
+     */
+    public static function removeMemberIdsFromAllTeamGroups(
+        int $teamId,
+        array $removedPracticePlayerIds = [],
+        array $removedTeamPlayerIds = []
+    ): int {
+        $practiceFlip = array_flip(array_values(array_unique(array_map('intval', $removedPracticePlayerIds))));
+        $teamFlip = array_flip(array_values(array_unique(array_map('intval', $removedTeamPlayerIds))));
+
+        if ($practiceFlip === [] && $teamFlip === []) {
+            return 0;
+        }
+
+        $groups = self::query()->where('team_id', $teamId)->get();
+        $updated = 0;
+
+        foreach ($groups as $group) {
+            $isPracticeGroup = (int) ($group->group_level ?? 1) === 2;
+            $removedFlip = $isPracticeGroup ? $practiceFlip : $teamFlip;
+
+            if ($removedFlip === []) {
+                continue;
+            }
+
+            $payloadKey = $isPracticeGroup ? 'practice_players' : 'players';
+            $beforeIds = self::collectIdsFromGroupedPlayersPayload($group->{$payloadKey});
+            $filtered = self::filterGroupedPlayersPayloadRemovingIds($group->{$payloadKey}, $removedFlip);
+            $afterIds = self::collectIdsFromGroupedPlayersPayload($filtered);
+
+            if ($beforeIds === $afterIds) {
+                continue;
+            }
+
+            $group->{$payloadKey} = $filtered === [] ? null : $filtered;
+
+            $removedFromGroup = array_values(array_intersect($beforeIds, array_keys($removedFlip)));
+            if ($removedFromGroup !== []) {
+                $repair = array_values(array_filter(array_map('intval', $group->roster_repair_player_ids ?? [])));
+                $repair = array_values(array_diff($repair, $removedFromGroup));
+                $gameType = $isPracticeGroup ? 2 : 1;
+                $repair = self::pruneRosterRepairIdsAgainstMatchRoster(
+                    $repair,
+                    $teamId,
+                    (int) $group->game_id,
+                    $gameType
+                );
+                $group->roster_repair_player_ids = $repair === [] ? null : $repair;
+            }
+
+            $group->save();
+            $updated++;
+        }
+
+        return $updated;
+    }
+
+    /**
      * Run when opening Configure → Players Grouping: demote invalid `active` groups to `inactive`.
      * Does not modify `draft`. Idempotent.
      *
@@ -698,6 +780,44 @@ class PersionalGrouping extends Model
             'offensive' => array_map('intval', array_keys($offensiveFlip)),
             'defensive' => array_map('intval', array_keys($defensiveFlip)),
         ];
+    }
+
+    /** @param  array<mixed>|string|null  $payload */
+    private static function filterGroupedPlayersPayloadRemovingIds($payload, array $removedFlip): array
+    {
+        if ($payload === null || $payload === '') {
+            return [];
+        }
+        if (! is_array($payload)) {
+            $decoded = json_decode((string) $payload, true);
+            if (! is_array($decoded)) {
+                return [];
+            }
+            $payload = $decoded;
+        }
+        if ($payload === []) {
+            return [];
+        }
+
+        $out = [];
+        foreach ($payload as $entry) {
+            $id = null;
+            if (is_int($entry) || is_float($entry)) {
+                $id = (int) $entry;
+            } elseif (is_string($entry) && ctype_digit($entry)) {
+                $id = (int) $entry;
+            } elseif (is_array($entry) && isset($entry['id'])) {
+                $id = (int) $entry['id'];
+            }
+
+            if ($id !== null && $id > 0 && isset($removedFlip[$id])) {
+                continue;
+            }
+
+            $out[] = $entry;
+        }
+
+        return array_values($out);
     }
 
     /** @param  array<mixed>|string|null  $payload */
