@@ -60,7 +60,23 @@ class PlayGameModeController extends Controller
 
         \Log::info(['value... log data'=>$value]);
 
-        if (empty($value) || !isset($value['game_id'])) {
+        // If game_id is missing (AC's match.value not set yet), look up the HC's active session.
+        if (!isset($value['game_id']) || !$value['game_id']) {
+            $actorUser = auth()->user();
+            $hcId = $actorUser->role === 'head_coach' ? $actorUser->id : $actorUser->head_coach_id;
+            $isPractice = filter_var($value['is_practice'] ?? false, FILTER_VALIDATE_BOOLEAN);
+            $mode = $isPractice ? 'practice' : 'play';
+            $activeGame = PlayGameMode::where('user_id', $hcId)
+                ->where('game_mode', $mode)
+                ->where('status', 2)
+                ->latest('updated_at')
+                ->first();
+            if ($activeGame) {
+                $value['game_id'] = $activeGame->id;
+            }
+        }
+
+        if (empty($value) || !isset($value['game_id']) || !$value['game_id']) {
             return response()->json(['message' => 'Invalid data'], 400);
         }
 
@@ -108,6 +124,11 @@ class PlayGameModeController extends Controller
         $log->reasons = $value['reasons'] ?? '';
         $log->type_of_log = $value['type_of_log'];
 
+        $actorUser = auth()->user();
+        $log->actor_id   = $actorUser->id;
+        $log->actor_role = $actorUser->role;
+        $log->actor_name = $actorUser->name;
+
         $log->save(); // ✅ save() method
 
         DB::commit();
@@ -146,6 +167,11 @@ class PlayGameModeController extends Controller
                     'play'             => $log->target_team,
                     'type_of_log'      => $log->type_of_log,
                     'confirmed'        => $log->confirmed,
+                    'actor_id'         => $log->actor_id,
+                    'actor_role'       => $log->actor_role,
+                    'actor_name'       => $log->actor_name,
+                    'players_out'      => $log->players_out,
+                    'players_in'       => $log->players_in,
                 ];
 
                 broadcast(new MatchLogCreated($logData, (int) $coachGroupId, (int) $value['game_id']));

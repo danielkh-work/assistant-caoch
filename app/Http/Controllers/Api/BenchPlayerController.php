@@ -10,6 +10,9 @@ use App\Http\Responses\BaseResponse;
 use Illuminate\Support\Facades\DB;
 use App\Models\OpponentTeamPackage;
 use App\Models\PersionalGrouping;
+use App\Models\PlayGameLog;
+use App\Models\PlayGameMode;
+use App\Events\MatchLogCreated;
 
 
 
@@ -473,6 +476,7 @@ public function index(Request $request, $gameId, $teamId)
         $benchPlayers   = $request->input('benchPlayers', []);
         $teamId         = $request->input('teamId');
         $gameId         = $request->input('gameId');
+        $sessionId      = $request->input('session_id');   // PlayGameMode.id — used for activity log
         $playerType     = $request->input('playerType');
         $team_type     = $request->input('team_type');
         $leagueId     = $request->input('leagueId');
@@ -600,6 +604,76 @@ public function index(Request $request, $gameId, $teamId)
         $user = auth()->user();
         $headCoachId = $user->head_coach_id ?? $user->id;
         broadcast(new \App\Events\PlayerSubstituted($headCoachId, $gameId, $teamId, $isPractice))->toOthers();
+
+        // Log substitution to the activity feed.
+        // If the frontend didn't send a session_id (AC's matchStore not yet populated),
+        // look up the HC's most recent active PlayGameMode session from the DB.
+        if (!$sessionId) {
+            $mode = $isPractice ? 'practice' : 'play';
+            $activeGame = PlayGameMode::where('user_id', $headCoachId)
+                ->where('game_mode', $mode)
+                ->where('status', 2)
+                ->latest('updated_at')
+                ->first();
+            if ($activeGame) {
+                $sessionId = $activeGame->id;
+            }
+        }
+
+        if ($sessionId) {
+            try {
+                $outPlayers = collect(is_array($offensePlayers) ? $offensePlayers : [])
+                    ->map(fn($p) => [
+                        'id'     => $p['id'] ?? null,
+                        'name'   => $p['name'] ?? $p['player_name'] ?? '',
+                        'jersey' => $p['jersey'] ?? $p['jersey_number'] ?? '',
+                    ])
+                    ->values()
+                    ->toArray();
+
+                $inPlayers = collect(is_array($benchPlayers) ? $benchPlayers : [])
+                    ->map(fn($p) => [
+                        'id'     => $p['id'] ?? null,
+                        'name'   => $p['name'] ?? $p['player_name'] ?? '',
+                        'jersey' => $p['jersey'] ?? $p['jersey_number'] ?? '',
+                    ])
+                    ->values()
+                    ->toArray();
+
+                $subLog = new PlayGameLog();
+                $subLog->game_id     = (int) $sessionId;
+                $subLog->league_id   = $leagueId;
+                $subLog->type_of_log = 'substitute';
+                $subLog->actor_id    = $user->id;
+                $subLog->actor_role  = $user->role;
+                $subLog->actor_name  = $user->name;
+                $subLog->players_out = json_encode($outPlayers);
+                $subLog->players_in  = json_encode($inPlayers);
+                $subLog->sport_id    = $user->sport_id ?? null;
+                $subLog->save();
+
+                $subLog->load('myTeam', 'opponentTeam');
+                $logData = [
+                    'id'             => $subLog->id,
+                    'type_of_log'    => 'substitute',
+                    'actor_id'       => $user->id,
+                    'actor_role'     => $user->role,
+                    'actor_name'     => $user->name,
+                    'players_out'    => $outPlayers,
+                    'players_in'     => $inPlayers,
+                    'my_team'        => $subLog->myTeam,
+                    'opponent_team'  => $subLog->opponentTeam,
+                    'my_points'      => null,
+                    'oponent_points' => null,
+                    'quater'         => null,
+                    'time'           => null,
+                    'downs'          => null,
+                ];
+                broadcast(new MatchLogCreated($logData, (int) $headCoachId, (int) $sessionId));
+            } catch (\Throwable $e) {
+                \Log::error('Substitution log failed: ' . $e->getMessage());
+            }
+        }
 
          return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Player Shuffle  Successfully", []);
 
@@ -822,6 +896,58 @@ public function index(Request $request, $gameId, $teamId)
             $user = auth()->user();
             $headCoachId = $user->head_coach_id ?? $user->id;
             broadcast(new \App\Events\PlayerSubstituted($headCoachId, $game_id, $team_id, $isPractice))->toOthers();
+
+            $sessionId = $request->get('session_id');
+            if (!$sessionId) {
+                $mode = $isPractice ? 'practice' : 'play';
+                $activeGame = PlayGameMode::where('user_id', $headCoachId)
+                    ->where('game_mode', $mode)
+                    ->where('status', 2)
+                    ->latest('updated_at')
+                    ->first();
+                if ($activeGame) {
+                    $sessionId = $activeGame->id;
+                }
+            }
+            if ($sessionId) {
+                try {
+                    $outPlayers = [['id' => $outgoingId, 'name' => $offenseData['name'] ?? $offenseData['player_name'] ?? '']];
+                    $inPlayers  = [['id' => $incomingId, 'name' => $benchData['name'] ?? $benchData['player_name'] ?? '']];
+
+                    $subLog = new PlayGameLog();
+                    $subLog->game_id     = (int) $sessionId;
+                    $subLog->league_id   = $league_id;
+                    $subLog->type_of_log = 'substitute';
+                    $subLog->actor_id    = $user->id;
+                    $subLog->actor_role  = $user->role;
+                    $subLog->actor_name  = $user->name;
+                    $subLog->players_out = json_encode($outPlayers);
+                    $subLog->players_in  = json_encode($inPlayers);
+                    $subLog->sport_id    = $user->sport_id ?? null;
+                    $subLog->save();
+
+                    $subLog->load('myTeam', 'opponentTeam');
+                    $logData = [
+                        'id'             => $subLog->id,
+                        'type_of_log'    => 'substitute',
+                        'actor_id'       => $user->id,
+                        'actor_role'     => $user->role,
+                        'actor_name'     => $user->name,
+                        'players_out'    => $outPlayers,
+                        'players_in'     => $inPlayers,
+                        'my_team'        => $subLog->myTeam,
+                        'opponent_team'  => $subLog->opponentTeam,
+                        'my_points'      => null,
+                        'oponent_points' => null,
+                        'quater'         => null,
+                        'time'           => null,
+                        'downs'          => null,
+                    ];
+                    broadcast(new MatchLogCreated($logData, (int) $headCoachId, (int) $sessionId));
+                } catch (\Throwable $e) {
+                    \Log::error('Substitution log failed: ' . $e->getMessage());
+                }
+            }
 
             return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Bench Player Add Successfully", []);
 
@@ -1050,6 +1176,58 @@ public function index(Request $request, $gameId, $teamId)
             $user = auth()->user();
             $headCoachId = $user->head_coach_id ?? $user->id;
             broadcast(new \App\Events\PlayerSubstituted($headCoachId, $game_id, $team_id, $isPractice))->toOthers();
+
+            $sessionId = $request->get('session_id');
+            if (!$sessionId) {
+                $mode = $isPractice ? 'practice' : 'play';
+                $activeGame = PlayGameMode::where('user_id', $headCoachId)
+                    ->where('game_mode', $mode)
+                    ->where('status', 2)
+                    ->latest('updated_at')
+                    ->first();
+                if ($activeGame) {
+                    $sessionId = $activeGame->id;
+                }
+            }
+            if ($sessionId) {
+                try {
+                    $outPlayers = [['id' => $outgoingId, 'name' => $offenseData['name'] ?? $offenseData['player_name'] ?? '']];
+                    $inPlayers  = [['id' => $incomingId, 'name' => $benchData['name'] ?? $benchData['player_name'] ?? '']];
+
+                    $subLog = new PlayGameLog();
+                    $subLog->game_id     = (int) $sessionId;
+                    $subLog->league_id   = $league_id;
+                    $subLog->type_of_log = 'substitute';
+                    $subLog->actor_id    = $user->id;
+                    $subLog->actor_role  = $user->role;
+                    $subLog->actor_name  = $user->name;
+                    $subLog->players_out = json_encode($outPlayers);
+                    $subLog->players_in  = json_encode($inPlayers);
+                    $subLog->sport_id    = $user->sport_id ?? null;
+                    $subLog->save();
+
+                    $subLog->load('myTeam', 'opponentTeam');
+                    $logData = [
+                        'id'             => $subLog->id,
+                        'type_of_log'    => 'substitute',
+                        'actor_id'       => $user->id,
+                        'actor_role'     => $user->role,
+                        'actor_name'     => $user->name,
+                        'players_out'    => $outPlayers,
+                        'players_in'     => $inPlayers,
+                        'my_team'        => $subLog->myTeam,
+                        'opponent_team'  => $subLog->opponentTeam,
+                        'my_points'      => null,
+                        'oponent_points' => null,
+                        'quater'         => null,
+                        'time'           => null,
+                        'downs'          => null,
+                    ];
+                    broadcast(new MatchLogCreated($logData, (int) $headCoachId, (int) $sessionId));
+                } catch (\Throwable $e) {
+                    \Log::error('Substitution log failed: ' . $e->getMessage());
+                }
+            }
 
             return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Bench Player Add Successfully", []);
 
