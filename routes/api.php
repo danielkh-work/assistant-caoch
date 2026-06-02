@@ -25,6 +25,7 @@ use App\Http\Controllers\QBController;
 use App\Http\Controllers\PersionalGroupingController;
 
 use App\Http\Controllers\Api\WebQrController;
+use App\Http\Controllers\Api\ConfigurationController;
 
 
 
@@ -287,6 +288,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('leagues')->group(function () {
         Route::get('/{league}/get-suggested-plays', [SuggestionController::class, 'getSuggestedPlays']);
     });
+
+    Route::get('/configurations', [ConfigurationController::class, 'index']);
+    Route::post('/configurations', [ConfigurationController::class, 'store']);
+    Route::put('/configurations', [ConfigurationController::class, 'update']);
+    Route::get('/configurations/{key}', [ConfigurationController::class, 'show']);
 });
 
 // start-game-mode
