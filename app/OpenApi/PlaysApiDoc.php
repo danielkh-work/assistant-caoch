@@ -5,7 +5,7 @@ namespace App\OpenApi;
 /**
  * @OA\Tag(
  *     name="Plays",
- *     description="Offensive play create, update, and listing (H-mark images)"
+ *     description="Offensive play create, update, and listing (H-mark images). Includes configured game play lists filtered by down and expected yardage."
  * )
  *
  * @OA\Schema(
@@ -148,6 +148,64 @@ namespace App\OpenApi;
  *         )
  *     ),
  *     @OA\Response(response=200, description="Play updated", @OA\JsonContent(ref="#/components/schemas/PlayBaseResponse")),
+ *     @OA\Response(response=401, description="Unauthenticated"),
+ *     @OA\Response(response=422, description="Validation error")
+ * )
+ *
+ * @OA\Schema(
+ *     schema="ConfiguredOffensivePlay",
+ *     allOf={
+ *         @OA\Schema(ref="#/components/schemas/Play"),
+ *         @OA\Schema(
+ *             type="object",
+ *             @OA\Property(
+ *                 property="image",
+ *                 type="string",
+ *                 nullable=true,
+ *                 description="Mapped from the selected H-mark column (`h_mark_position` query param)",
+ *                 example="uploads/public/abc.png"
+ *             )
+ *         )
+ *     }
+ * )
+ *
+ * @OA\Schema(
+ *     schema="ConfiguredPlayListBaseResponse",
+ *     type="object",
+ *     @OA\Property(property="status", type="integer", example=200),
+ *     @OA\Property(property="message", type="string", example="Configured play list"),
+ *     @OA\Property(
+ *         property="data",
+ *         type="array",
+ *         @OA\Items(ref="#/components/schemas/ConfiguredOffensivePlay")
+ *     ),
+ *     @OA\Property(
+ *         property="pagination",
+ *         type="object",
+ *         @OA\Property(property="total", type="integer", example=12),
+ *         @OA\Property(property="current_page", type="integer", example=1),
+ *         @OA\Property(property="per_page", type="integer", example=9),
+ *         @OA\Property(property="last_page", type="integer", example=3)
+ *     )
+ * )
+ *
+ * @OA\Get(
+ *     path="/api/configured-play-list",
+ *     operationId="listConfiguredPlays",
+ *     tags={"Plays"},
+ *     summary="List configured plays for a game",
+ *     description="Returns only plays configured for the authenticated user, league, and match. Pass `possession=offensive` or `possession=defensive`. Optional filters: down, expectedyard, search. For offensive plays, maps the selected `h_mark_position` column into response field `image` (default `hmark_center`). Defensive plays use the play `image` column.",
+ *     security={{"sanctum":{}}},
+ *     @OA\Parameter(name="league_id", in="query", required=true, @OA\Schema(type="integer", example=22)),
+ *     @OA\Parameter(name="matchId", in="query", required=true, @OA\Schema(type="integer", example=36)),
+ *     @OA\Parameter(name="possession", in="query", required=true, description="Which configured plays to return", @OA\Schema(type="string", enum={"offensive", "defensive"}, example="offensive")),
+ *     @OA\Parameter(name="down", in="query", required=false, description="Filter by preferred down (1-4)", @OA\Schema(type="integer", enum={1, 2, 3, 4}, example=1)),
+ *     @OA\Parameter(name="expectedyard", in="query", required=false, @OA\Schema(type="string", enum={"short", "medium", "long", "open_down"}, example="short")),
+ *     @OA\Parameter(name="h_mark_position", in="query", required=false, description="Offensive only: H-mark column used for response `image`", @OA\Schema(type="string", enum={"hmark_left", "hmark_center", "hmark_right"}, default="hmark_center", example="hmark_center")),
+ *     @OA\Parameter(name="page", in="query", required=false, @OA\Schema(type="integer", example=1)),
+ *     @OA\Parameter(name="per_page", in="query", required=false, @OA\Schema(type="integer", example=9, default=9)),
+ *     @OA\Parameter(name="search", in="query", required=false, description="Offensive: play_name; defensive: name", @OA\Schema(type="string", example="Brazil")),
+ *     @OA\Response(response=200, description="Configured play list", @OA\JsonContent(ref="#/components/schemas/ConfiguredPlayListBaseResponse")),
  *     @OA\Response(response=401, description="Unauthenticated"),
  *     @OA\Response(response=422, description="Validation error")
  * )

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ConfigureController;
+use App\Http\Controllers\Api\ConfiguredPlayListController;
 use App\Http\Controllers\Api\FormationController;
 use App\Http\Controllers\Api\LogController;
 use App\Http\Controllers\Api\MatchController;
@@ -173,6 +174,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/get-play-offensive-target/{id}',[PlayController::class,'getOffensiveTargetsByPlay'])->name('uplaod-play');
     
     Route::get('/upload-play-list',[PlayController::class,'index'])->name('upload-play-list');
+    Route::get('/configured-play-list', [ConfiguredPlayListController::class, 'index']);
     Route::get('/delete-play/{id}',[PlayController::class,'delete'])->name('delete-play');
     Route::get('/get-offense-target-play/{id}',[PlayController::class,'getTargetOffensePosition'])->name('delete-play');
     Route::get('/edit-play/{id}',[PlayController::class,'editPlay'])->name('edit-play');
