@@ -24,11 +24,6 @@
       margin:0;
       background: #fafafa;
     }
-
-    /* Hide Servers dropdown; requests use the current host */
-    .swagger-ui .scheme-container .schemes {
-      display: none !important;
-    }
     </style>
     @if(config('l5-swagger.defaults.ui.display.dark_mode'))
         <style>
