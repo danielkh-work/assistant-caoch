@@ -2,17 +2,18 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Api\Concerns\MapsHmarkPlayImage;
 use App\Http\Controllers\Controller;
-use App\Http\Responses\BaseResponse;
 use App\Models\ConfigureDefensivePlay;
 use App\Models\DefensivePlay;
 use App\Models\Play;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 
 class ConfiguredPlayListController extends Controller
 {
-    private const HMARK_POSITIONS = ['hmark_left', 'hmark_center', 'hmark_right'];
+    use MapsHmarkPlayImage;
 
     private const EXPECTED_YARD_VALUES = ['short', 'medium', 'long', 'open_down'];
 
@@ -22,7 +23,7 @@ class ConfiguredPlayListController extends Controller
         $isOffensive = $validated['possession'] === 'offensive';
 
         if ($isOffensive) {
-            $hMarkPosition = $validated['h_mark_position'] ?? 'hmark_center';
+            $hMarkPosition = $this->resolveHMarkPosition($request);
 
             $query = $this->configuredOffensiveQuery(
                 (int) $validated['league_id'],
@@ -63,7 +64,7 @@ class ConfiguredPlayListController extends Controller
             'page' => 'nullable|integer|min:1',
             'per_page' => 'nullable|integer|min:1|max:100',
             'search' => 'nullable|string',
-            'h_mark_position' => 'nullable|string|in:' . implode(',', self::HMARK_POSITIONS),
+            'h_mark_position' => $this->hMarkPositionValidationRule(),
         ];
 
         return $request->validate($rules);
@@ -142,7 +143,7 @@ class ConfiguredPlayListController extends Controller
         }
     }
 
-    private function paginatedResponse(Builder $query, Request $request, callable $transform): BaseResponse
+    private function paginatedResponse(Builder $query, Request $request, callable $transform): JsonResponse
     {
         $page = max(1, (int) $request->input('page', 1));
         $perPage = max(1, min(100, (int) $request->input('per_page', 9)));
@@ -154,29 +155,15 @@ class ConfiguredPlayListController extends Controller
             ->values()
             ->all();
 
-        $pagination = [
-            'total' => $paginator->total(),
-            'current_page' => $paginator->currentPage(),
-            'per_page' => $paginator->perPage(),
-            'last_page' => $paginator->lastPage(),
-        ];
-
-        return new BaseResponse(
-            STATUS_CODE_OK,
-            STATUS_CODE_OK,
-            'Configured play list',
-            $items,
-            null,
-            null,
-            $pagination,
-        );
+        return response()->json([
+            'data' => $items,
+            'meta' => [
+                'total' => $paginator->total(),
+                'current_page' => $paginator->currentPage(),
+                'per_page' => $paginator->perPage(),
+                'last_page' => $paginator->lastPage(),
+            ],
+        ]);
     }
 
-    private function mapOffensivePlayImage(Play $play, string $hMarkPosition): array
-    {
-        $data = $play->toArray();
-        $data['image'] = $play->{$hMarkPosition} ?? $play->hmark_center ?? null;
-
-        return $data;
-    }
 }

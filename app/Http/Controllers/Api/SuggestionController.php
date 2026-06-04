@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Api\Concerns\MapsHmarkPlayImage;
 use App\Http\Controllers\Controller;
 use App\Models\Play;
 use App\Models\Game;
@@ -12,87 +13,15 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 class SuggestionController extends Controller
 {
-    // comment By noor
-    // public function getSuggestedPlays($league, Request $request)
-    // {
-    //     $validated = $request->validate([
-    //         'zone' => 'required|integer',
-    //         'down' => 'required|integer|in:1,2,3,4',
-    //         'possession' => 'required|string|in:offensive,defensive',
-    //     ]);
+    use MapsHmarkPlayImage;
 
-    //     // Step 1: Match all three
-    //     $plays = Play::where('zone_selection', $validated['zone'])
-    //         ->where('preferred_down', $validated['down'])
-    //         ->where('possession', $validated['possession'])
-    //         ->take(3)
-    //         ->get();
-
-    //     if ($plays->count() >= 3) {
-    //         return $plays;
-    //     }
-
-    //     // Step 2: Match any two
-    //     $bestMatch = collect(); // Will hold the best fallback result
-
-    //     $combinations = [
-    //         ['zone_selection', 'preferred_down'],
-    //         ['zone_selection', 'possession'],
-    //         ['preferred_down', 'possession'],
-    //     ];
-
-    //     foreach ($combinations as $combo) {
-    //         $query = Play::query();
-
-    //         foreach ($combo as $field) {
-    //             if ($field === 'zone_selection') {
-    //                 $query->where($field, $validated['zone']);
-    //             } elseif ($field === 'preferred_down') {
-    //                 $query->where($field, $validated['down']);
-    //             } else {
-    //                 $query->where($field, $validated['possession']);
-    //             }
-    //         }
-
-    //         $result = $query->take(3)->get();
-    //         if ($result->count() >= 3) {
-    //             return $result;
-    //         }
-
-    //         // Store the best result so far
-    //         if ($result->count() > $bestMatch->count()) {
-    //             $bestMatch = $result;
-    //         }
-    //     }
-
-    //     // Step 3: Match any one
-    //     $fields = [
-    //         'zone_selection' => $validated['zone'],
-    //         'preferred_down' => $validated['down'],
-    //         'possession' => $validated['possession'],
-    //     ];
-
-    //     foreach ($fields as $field => $value) {
-    //         $result = Play::where($field, $value)->take(3)->get();
-    //         if ($result->count() >= 3) {
-    //             return $result;
-    //         }
-
-    //         if ($result->count() > $bestMatch->count()) {
-    //             $bestMatch = $result;
-    //         }
-    //     }
-
-    //     // Final fallback
-    //     return $bestMatch;
-    // }
+   
 
      public function getSuggestedPlays($league, Request $request)
     {
-
-
-
-
+        $request->validate([
+            'h_mark_position' => $this->hMarkPositionValidationRule(),
+        ]);
 
         $possession = $request->input('possession');
           \Log::info(['possession'=>$possession ]);
@@ -384,29 +313,17 @@ class SuggestionController extends Controller
     }
    $topByWins = $topByWins->values();
 
+    $hMarkPosition = $this->resolveHMarkPosition($request);
 
     return response()->json([
-            'top_by_score' => $topByScore,
-            'top_by_success' => $topByWins,
+            'top_by_score' => $topByScore
+                ->map(fn (Play $play) => $this->mapOffensivePlayImage($play, $hMarkPosition))
+                ->values(),
+            'top_by_success' => $topByWins
+                ->map(fn (Play $play) => $this->mapOffensivePlayImage($play, $hMarkPosition))
+                ->values(),
     ]);
-    // $remaining = $plays->diff($topByScore);
 
-    // $hasWins = $remaining->where($winField, '>', 0)->count() > 0;
-    // $topByWins = $remaining->sortByDesc('total_score')->take(3);
-    // if ($hasWins) {
-    // $topByWins = $remaining->sortByDesc($winField)->take(3);
-    // } else {
-
-    // $topByWins = $remaining->sortByDesc('total_score')->take(3);
-    // }
-
-   // $finalPlays = $topByScore->concat($topByWins)->values();
-
-
-    // return response()->json([
-    //     'top_by_score' => $topByScore->values(),
-    //     'top_by_wins'  => $topByWins->values(),
-    // ]);
     return response()->json($topByScore);
 
 
@@ -517,31 +434,5 @@ public function getDefensivePlays(Request $request)
     return response()->json($defensivePlays);
 }
 
-
-
-//     protected function getDefensivePlays(Request $request)
-//     {
-//         $leagueId = $request->league_id;
-//         $matchId = $request->match_id;
-// // player=268&opponent_personal_group=3
-//         $query = DefensivePlay::whereHas('configuredLeagues', function ($q) use ($leagueId, $matchId) {
-//             $q->where('configure_defensive_plays.league_id', $leagueId)
-//             ->where('configure_defensive_plays.game_id', $matchId);
-//         });
-
-//         $filters = [
-//             'coverage_type' => $request->input('coverage'),    // example
-//             'rush_count'    => $request->input('rushCount'),   // example
-//             'formation'     => $request->input('formation'),   // example
-//         ];
-
-//         foreach ($filters as $field => $value) {
-//             if (!in_array($value, [null, '', 'null'], true)) {
-//                 $query->where($field, $value);
-//             }
-//         }
-
-//         return response()->json($query->inRandomOrder()->limit(3)->get());
-//     }
 
 }

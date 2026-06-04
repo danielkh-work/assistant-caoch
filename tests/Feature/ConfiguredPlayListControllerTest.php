@@ -159,7 +159,9 @@ class ConfiguredPlayListControllerTest extends TestCase
         $response = $this->getJson($this->offensiveListQuery());
 
         $response->assertStatus(200)
-            ->assertJsonPath('message', 'Configured play list');
+            ->assertJsonStructure(['data', 'meta'])
+            ->assertJsonMissingPath('status')
+            ->assertJsonMissingPath('message');
 
         $ids = collect($response->json('data'))->pluck('id')->all();
         $this->assertContains($configured->id, $ids);
@@ -213,10 +215,12 @@ class ConfiguredPlayListControllerTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJsonPath('data.0.image', 'uploads/public/left-only.png')
-            ->assertJsonPath('data.0.hmark_left', 'uploads/public/left-only.png');
+            ->assertJsonMissingPath('data.0.hmark_left')
+            ->assertJsonMissingPath('data.0.hmark_center')
+            ->assertJsonMissingPath('data.0.hmark_right');
     }
 
-    public function test_offensive_list_includes_pagination_metadata(): void
+    public function test_offensive_list_includes_meta_pagination(): void
     {
         $this->auth();
 
@@ -232,12 +236,13 @@ class ConfiguredPlayListControllerTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJsonStructure([
-                'pagination' => ['total', 'current_page', 'per_page', 'last_page'],
+                'meta' => ['total', 'current_page', 'per_page', 'last_page'],
             ])
-            ->assertJsonPath('pagination.total', 5)
-            ->assertJsonPath('pagination.current_page', 1)
-            ->assertJsonPath('pagination.per_page', 2)
-            ->assertJsonPath('pagination.last_page', 3);
+            ->assertJsonMissingPath('pagination')
+            ->assertJsonPath('meta.total', 5)
+            ->assertJsonPath('meta.current_page', 1)
+            ->assertJsonPath('meta.per_page', 2)
+            ->assertJsonPath('meta.last_page', 3);
 
         $this->assertCount(2, $response->json('data'));
     }
@@ -262,7 +267,8 @@ class ConfiguredPlayListControllerTest extends TestCase
         ]));
 
         $response->assertStatus(200)
-            ->assertJsonPath('message', 'Configured play list');
+            ->assertJsonMissingPath('status')
+            ->assertJsonMissingPath('message');
 
         $ids = collect($response->json('data'))->pluck('id')->all();
         $this->assertContains($configured->id, $ids);

@@ -603,7 +603,7 @@
                     "Plays"
                 ],
                 "summary": "List configured plays for a game",
-                "description": "Returns only plays configured for the authenticated user, league, and match. Pass `possession=offensive` or `possession=defensive`. Optional filters: down, expectedyard, search. For offensive plays, maps the selected `h_mark_position` column into response field `image` (default `hmark_center`). Defensive plays use the play `image` column.",
+                "description": "Returns only plays configured for the authenticated user, league, and match. Pass `possession=offensive` or `possession=defensive`. Optional filters: down, expectedyard, search. Offensive: pass `h_mark_position` (`hmark_left`, `hmark_center`, `hmark_right`; default `hmark_center`) — the response includes only `image` for that selection, not the other hmark columns. Defensive: uses the play `image` column.",
                 "operationId": "listConfiguredPlays",
                 "parameters": [
                     {
@@ -722,6 +722,29 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ConfiguredPlayListBaseResponse"
+                                },
+                                "examples": {
+                                    "offensive_hmark_left": {
+                                        "summary": "Offensive with h_mark_position=hmark_left",
+                                        "value": {
+                                            "data": [
+                                                {
+                                                    "id": 191,
+                                                    "play_name": "Brazil",
+                                                    "image": "uploads/public/left-only.png",
+                                                    "min_expected_yard": "short",
+                                                    "possession": "offensive",
+                                                    "win_result": 3
+                                                }
+                                            ],
+                                            "meta": {
+                                                "total": 1,
+                                                "current_page": 1,
+                                                "per_page": 9,
+                                                "last_page": 1
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -731,6 +754,248 @@
                     },
                     "422": {
                         "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/leagues/{league}/get-suggested-plays": {
+            "get": {
+                "tags": [
+                    "Plays"
+                ],
+                "summary": "Get system-suggested plays for a match",
+                "description": "Used from practice/play scoreboard **System Suggestion** flow (PlaySuggestion component). Returns raw `Play` / `DefensivePlay` JSON (not wrapped in status/message). Offensive: `{ top_by_score, top_by_success }`. Pass `h_mark_position` (`hmark_left`, `hmark_center`, `hmark_right`; default `hmark_center`) to set `image` from that H-mark column; other hmark fields are omitted. Defensive: uses play `image` column.",
+                "operationId": "getSuggestedPlays",
+                "parameters": [
+                    {
+                        "name": "league",
+                        "in": "path",
+                        "description": "League id (same as route param `id` in /practice-mode/{id}/...)",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 22
+                        }
+                    },
+                    {
+                        "name": "league_id",
+                        "in": "query",
+                        "description": "Duplicate of path league id; sent by frontend",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 22
+                        }
+                    },
+                    {
+                        "name": "match_id",
+                        "in": "query",
+                        "description": "Game/match id (route gameId, e.g. 36)",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 36
+                        }
+                    },
+                    {
+                        "name": "possession",
+                        "in": "query",
+                        "description": "Determines offensive vs defensive handler",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "offensive",
+                                "defensive"
+                            ],
+                            "example": "offensive"
+                        }
+                    },
+                    {
+                        "name": "is_practice",
+                        "in": "query",
+                        "description": "true/1 for practice mode; false/0 for play mode",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "example": true
+                        }
+                    },
+                    {
+                        "name": "h_mark_position",
+                        "in": "query",
+                        "description": "Offensive only: H-mark column mapped to response `image` (same as configured-play-list)",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "hmark_center",
+                            "enum": [
+                                "hmark_left",
+                                "hmark_center",
+                                "hmark_right"
+                            ],
+                            "example": "hmark_center"
+                        }
+                    },
+                    {
+                        "name": "down",
+                        "in": "query",
+                        "description": "Current down (1-4); maps to preferred_down filter",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "enum": [
+                                1,
+                                2,
+                                3,
+                                4
+                            ],
+                            "example": 2
+                        }
+                    },
+                    {
+                        "name": "strategy",
+                        "in": "query",
+                        "description": "Scoreboard strategy value; maps to strategies column (FIND_IN_SET)",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "regular"
+                        }
+                    },
+                    {
+                        "name": "expectedyard",
+                        "in": "query",
+                        "description": "Expected yard gain from scoreboard; maps to min_expected_yard",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "45"
+                        }
+                    },
+                    {
+                        "name": "pkg",
+                        "in": "query",
+                        "description": "Opponent team package id (defensive suggestions)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 5
+                        }
+                    },
+                    {
+                        "name": "zone",
+                        "in": "query",
+                        "description": "Legacy zone filter; sent by frontend but not applied in current offensive handler",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 2
+                        }
+                    },
+                    {
+                        "name": "quarter",
+                        "in": "query",
+                        "description": "Sent by frontend; not applied in current offensive handler",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "1st quarter"
+                        }
+                    },
+                    {
+                        "name": "player",
+                        "in": "query",
+                        "description": "Selected offensive players from scoreboard (serialized as query params by the Vue client)",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "properties": {
+                                    "value": {
+                                        "type": "integer"
+                                    },
+                                    "text": {
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    },
+                    {
+                        "name": "opponent_personal_group",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 3
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Suggested plays. Shape depends on possession.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "oneOf": [
+                                        {
+                                            "$ref": "#/components/schemas/SuggestedOffensivePlaysResponse"
+                                        },
+                                        {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/SuggestedDefensivePlay"
+                                            }
+                                        }
+                                    ]
+                                },
+                                "examples": {
+                                    "offensive": {
+                                        "summary": "Offensive possession",
+                                        "value": {
+                                            "top_by_score": [],
+                                            "top_by_success": [
+                                                {
+                                                    "id": 280,
+                                                    "play_name": "IN 25(4)-RAM ALL-CHECK",
+                                                    "image": "uploads/public/918d00bc211bb556a7dcb320952f3a0a.png",
+                                                    "min_expected_yard": "short",
+                                                    "possession": "offensive",
+                                                    "strategies": "regular",
+                                                    "win_result": 0,
+                                                    "practice_win_result": 3,
+                                                    "total_practice_count": 7,
+                                                    "total_score": 0,
+                                                    "matchups": []
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "defensive": {
+                                        "summary": "Defensive possession",
+                                        "value": [
+                                            {
+                                                "id": 55,
+                                                "name": "Cover 2",
+                                                "image": "uploads/public/defense.png",
+                                                "win_result": 2,
+                                                "practice_win_result": 1
+                                            }
+                                        ]
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
                     }
                 },
                 "security": [
@@ -1047,40 +1312,91 @@
                 "type": "object"
             },
             "ConfiguredOffensivePlay": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/Play"
+                "description": "Configured offensive play. Only `image` is returned for the diagram (from `h_mark_position`); hmark_left/center/right are not included in the response.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 191
                     },
-                    {
-                        "properties": {
-                            "image": {
-                                "description": "Mapped from the selected H-mark column (`h_mark_position` query param)",
-                                "type": "string",
-                                "example": "uploads/public/abc.png",
-                                "nullable": true
-                            }
-                        },
-                        "type": "object"
+                    "league_id": {
+                        "type": "integer",
+                        "example": 22
+                    },
+                    "play_name": {
+                        "type": "string",
+                        "example": "Brazil"
+                    },
+                    "play_type": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "zone_selection": {
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "min_expected_yard": {
+                        "type": "string",
+                        "example": "short"
+                    },
+                    "possession": {
+                        "type": "string",
+                        "example": "offensive"
+                    },
+                    "preferred_down": {
+                        "type": "string",
+                        "example": "1,2,3",
+                        "nullable": true
+                    },
+                    "strategies": {
+                        "type": "string",
+                        "example": "regular",
+                        "nullable": true
+                    },
+                    "image": {
+                        "description": "Single diagram path from the `h_mark_position` query param (hmark_left, hmark_center, or hmark_right; default hmark_center)",
+                        "type": "string",
+                        "example": "uploads/public/abc.png",
+                        "nullable": true
+                    },
+                    "win_result": {
+                        "type": "integer",
+                        "example": 3
+                    },
+                    "loss_result": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "practice_win_result": {
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "total_count": {
+                        "type": "integer",
+                        "example": 4
+                    },
+                    "total_practice_count": {
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "yardage_difference": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 12.5,
+                        "nullable": true
                     }
-                ]
+                },
+                "type": "object"
             },
             "ConfiguredPlayListBaseResponse": {
+                "description": "HTTP status conveys success or error; body is only data and meta.",
                 "properties": {
-                    "status": {
-                        "type": "integer",
-                        "example": 200
-                    },
-                    "message": {
-                        "type": "string",
-                        "example": "Configured play list"
-                    },
                     "data": {
                         "type": "array",
                         "items": {
                             "$ref": "#/components/schemas/ConfiguredOffensivePlay"
                         }
                     },
-                    "pagination": {
+                    "meta": {
                         "properties": {
                             "total": {
                                 "type": "integer",
@@ -1100,6 +1416,364 @@
                             }
                         },
                         "type": "object"
+                    }
+                },
+                "type": "object"
+            },
+            "SuggestedPlayBenchPlayer": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 12,
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "John Doe",
+                        "nullable": true
+                    },
+                    "number": {
+                        "type": "string",
+                        "example": "22",
+                        "nullable": true
+                    },
+                    "position_value": {
+                        "type": "string",
+                        "example": "Wide receiver W",
+                        "nullable": true
+                    },
+                    "position": {
+                        "type": "string",
+                        "example": "WR",
+                        "nullable": true
+                    },
+                    "rpp": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 8,
+                        "nullable": true
+                    },
+                    "ofp": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 85,
+                        "nullable": true
+                    },
+                    "speed": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 88,
+                        "nullable": true
+                    },
+                    "strength": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 82,
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "SuggestedPlayMatchup": {
+                "properties": {
+                    "offensive_position": {
+                        "type": "string",
+                        "example": "Wide receiver W"
+                    },
+                    "defensive_position": {
+                        "type": "string",
+                        "example": "Cornerback"
+                    },
+                    "strength": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 75
+                    },
+                    "offensive_rpp": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 16
+                    },
+                    "defensive_rpp": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 12
+                    },
+                    "rpp_difference": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 4
+                    },
+                    "strength_percentage": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 0.75
+                    },
+                    "rpp_difference_percentage": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 3
+                    },
+                    "offensive_players": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/SuggestedPlayBenchPlayer"
+                        }
+                    },
+                    "defensive_players": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/SuggestedPlayBenchPlayer"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "SuggestedOffensivePlay": {
+                "description": "Offensive play enriched with RPP scoring, matchup breakdown, and result counts for the current match context.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 191
+                    },
+                    "league_id": {
+                        "type": "integer",
+                        "example": 22
+                    },
+                    "play_name": {
+                        "type": "string",
+                        "example": "Brazil"
+                    },
+                    "play_type": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "image": {
+                        "description": "Play diagram path from `h_mark_position` query param (default hmark_center). Only `image` is returned; hmark_left/center/right are not in the response.",
+                        "type": "string",
+                        "example": "uploads/public/918d00bc211bb556a7dcb320952f3a0a.png",
+                        "nullable": true
+                    },
+                    "zone_selection": {
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "min_expected_yard": {
+                        "type": "string",
+                        "example": "45"
+                    },
+                    "possession": {
+                        "type": "string",
+                        "enum": [
+                            "offensive",
+                            "defensive"
+                        ],
+                        "example": "offensive"
+                    },
+                    "preferred_down": {
+                        "type": "string",
+                        "example": "1,2",
+                        "nullable": true
+                    },
+                    "strategies": {
+                        "type": "string",
+                        "example": "regular",
+                        "nullable": true
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "read_1": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "read_2": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "total_score": {
+                        "description": "RPP-based score used to rank suggestions",
+                        "type": "number",
+                        "format": "float",
+                        "example": 12.45
+                    },
+                    "win_result": {
+                        "description": "Play-mode wins (is_practice=0)",
+                        "type": "integer",
+                        "example": 3
+                    },
+                    "loss_result": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "practice_win_result": {
+                        "description": "Practice-mode wins (is_practice=1)",
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "practice_loss_result": {
+                        "type": "integer",
+                        "example": 0
+                    },
+                    "total_count": {
+                        "type": "integer",
+                        "example": 4
+                    },
+                    "total_practice_count": {
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "win_result_rain": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "win_result_snow": {
+                        "type": "integer",
+                        "example": 0
+                    },
+                    "total_rain": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "total_snow": {
+                        "type": "integer",
+                        "example": 0
+                    },
+                    "yardage_difference": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 8.5,
+                        "nullable": true
+                    },
+                    "matchups": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/SuggestedPlayMatchup"
+                        }
+                    },
+                    "rpp_percentage_sum_by_offense": {
+                        "type": "object",
+                        "example": {
+                            "Wide receiver W": 3.2
+                        },
+                        "additionalProperties": {
+                            "type": "number",
+                            "format": "float"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "SuggestedOffensivePlaysResponse": {
+                "description": "Returned when possession is offensive (default). Up to 3 plays per bucket.",
+                "properties": {
+                    "top_by_score": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/SuggestedOffensivePlay"
+                        }
+                    },
+                    "top_by_success": {
+                        "description": "Ranked by historical win rate; practice uses practice_win_result when is_practice=true",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/SuggestedOffensivePlay"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "SuggestedDefensivePlay": {
+                "description": "Defensive play suggestion returned when possession=defensive.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 55
+                    },
+                    "league_id": {
+                        "type": "integer",
+                        "example": 22
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Cover 2"
+                    },
+                    "image": {
+                        "type": "string",
+                        "example": "uploads/public/def.png",
+                        "nullable": true
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "coverage_type": {
+                        "type": "string",
+                        "example": "zone",
+                        "nullable": true
+                    },
+                    "coverage_category": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "preferred_down": {
+                        "type": "string",
+                        "example": "1,2,3",
+                        "nullable": true
+                    },
+                    "strategies": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "min_expected_yard": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "opponent_personnel_grouping": {
+                        "type": "integer",
+                        "example": 3,
+                        "nullable": true
+                    },
+                    "win_result": {
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "practice_win_result": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "loss_result": {
+                        "type": "integer",
+                        "example": 0
+                    },
+                    "total_count": {
+                        "type": "integer",
+                        "example": 3
+                    },
+                    "total_practice_count": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "yardage_difference": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 4.2,
+                        "nullable": true
+                    },
+                    "personals": {
+                        "type": "array",
+                        "items": {
+                            "type": "object"
+                        }
+                    },
+                    "formation": {
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "strategyBlitz": {
+                        "type": "object",
+                        "nullable": true
                     }
                 },
                 "type": "object"
@@ -1125,7 +1799,7 @@
         },
         {
             "name": "Plays",
-            "description": "Offensive play create, update, and listing (H-mark images). Includes configured game play lists filtered by down and expected yardage."
+            "description": "Offensive play create, update, and listing (H-mark images). Includes configured game play lists, system-suggested plays for scoreboard/match flow, filtered by down and expected yardage."
         }
     ]
 }

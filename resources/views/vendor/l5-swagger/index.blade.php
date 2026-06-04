@@ -123,6 +123,11 @@
 <script src="{{ l5_swagger_asset($documentation, 'swagger-ui-standalone-preset.js') }}"></script>
 <script>
     window.onload = function() {
+        // Drop legacy deep-link fragments so reload always starts collapsed
+        if (window.location.hash) {
+            history.replaceState(null, '', window.location.pathname + window.location.search);
+        }
+
         // Build a system
         const ui = SwaggerUIBundle({
             dom_id: '#swagger-ui',
@@ -147,8 +152,8 @@
             ],
 
             layout: "StandaloneLayout",
-            docExpansion : "{!! config('l5-swagger.defaults.ui.display.doc_expansion', 'none') !!}",
-            deepLinking: true,
+            docExpansion : "{!! config('l5-swagger.defaults.ui.display.doc_expansion', 'list') !!}",
+            deepLinking: {!! config('l5-swagger.defaults.ui.display.deep_linking', false) ? 'true' : 'false' !!},
             filter: {!! config('l5-swagger.defaults.ui.display.filter') ? 'true' : 'false' !!},
             persistAuthorization: "{!! config('l5-swagger.defaults.ui.authorization.persist_authorization') ? 'true' : 'false' !!}",
 
