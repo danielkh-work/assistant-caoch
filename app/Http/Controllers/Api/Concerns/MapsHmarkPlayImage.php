@@ -7,18 +7,21 @@ use Illuminate\Http\Request;
 
 trait MapsHmarkPlayImage
 {
-    private const HMARK_POSITIONS = ['hmark_left', 'hmark_center', 'hmark_right'];
+    private static function hMarkPositions(): array
+    {
+        return ['hmark_left', 'hmark_center', 'hmark_right'];
+    }
 
     protected function hMarkPositionValidationRule(): string
     {
-        return 'nullable|string|in:' . implode(',', self::HMARK_POSITIONS);
+        return 'nullable|string|in:' . implode(',', self::hMarkPositions());
     }
 
     protected function resolveHMarkPosition(Request $request): string
     {
         $position = $request->input('h_mark_position', 'hmark_center');
 
-        return in_array($position, self::HMARK_POSITIONS, true) ? $position : 'hmark_center';
+        return in_array($position, self::hMarkPositions(), true) ? $position : 'hmark_center';
     }
 
     protected function mapOffensivePlayImage(Play $play, string $hMarkPosition): array
