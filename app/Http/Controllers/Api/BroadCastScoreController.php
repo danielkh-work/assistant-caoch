@@ -18,6 +18,92 @@ use App\Http\Responses\BaseResponse;
 
 class BroadCastScoreController extends Controller
 {
+    private const HMARK_POSITIONS = ['hmark_left', 'hmark_center', 'hmark_right'];
+
+    /**
+     * Normalize API value or scoreboard hash radio alias to `hmark_*`.
+     */
+    private function normalizeHMarkPosition($hMark = null, $hashPosition = null): ?string
+    {
+        if (is_string($hMark) && in_array($hMark, self::HMARK_POSITIONS, true)) {
+            return $hMark;
+        }
+
+        $hash = strtolower((string) ($hashPosition ?? ''));
+        $map = [
+            'h-left' => 'hmark_left',
+            'h-center' => 'hmark_center',
+            'h-right' => 'hmark_right',
+        ];
+
+        return $map[$hash] ?? null;
+    }
+
+    /**
+     * Resolve `h_mark_position` from request body and/or nested suggestion context.
+     */
+    private function resolveBroadcastHMarkPosition(Request $request, ?array $suggestionData = null): ?string
+    {
+        $resolved = $this->normalizeHMarkPosition(
+            $request->input('h_mark_position'),
+            $request->input('hashPosition')
+        );
+
+        if ($resolved !== null) {
+            return $resolved;
+        }
+
+        $suggestion = $suggestionData ?? $request->input('suggestionData');
+        if (is_array($suggestion)) {
+            return $this->normalizeHMarkPosition(
+                $suggestion['h_mark_position'] ?? null,
+                $suggestion['hashPosition'] ?? null
+            );
+        }
+
+        return null;
+    }
+
+    /**
+     * Last persisted H-mark for this coach group / game (practice first, then play mode).
+     */
+    private function scoreboardStoredHMarkPosition(?int $coachGroupId, $gameId = null): ?string
+    {
+        if (!$coachGroupId) {
+            return null;
+        }
+
+        foreach ([WebsocketPracticeScoreboard::class, WebsocketScoreboard::class] as $model) {
+            $query = $model::where('user_id', $coachGroupId);
+
+            if ($gameId !== null && $gameId !== '') {
+                $query->where('game_id', $gameId);
+            }
+
+            $stored = $query->latest('updated_at')->value('h_mark_position');
+
+            if (is_string($stored) && in_array($stored, self::HMARK_POSITIONS, true)) {
+                return $stored;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Resolve H-mark for Pusher payloads: request → stored scoreboard → default center.
+     */
+    private function resolveHMarkForBroadcast(
+        Request $request,
+        ?int $coachGroupId = null,
+        $gameId = null,
+        ?array $suggestionData = null
+    ): string {
+        return $this->resolveBroadcastHMarkPosition($request, $suggestionData)
+            ?? $this->scoreboardStoredHMarkPosition($coachGroupId, $gameId)
+            ?? 'hmark_center';
+    }
+
       public static $scores = [
         'left' => [
             'total' => 0
@@ -75,6 +161,8 @@ class BroadCastScoreController extends Controller
         $shouldRefreshTime = !$existingPractice
             || ($existingPractice->quarter != $request->quarter);
 
+        $hMarkPosition = $this->resolveHMarkForBroadcast($request, $coachGroupId, $request->game_id);
+
         $practiceValues = [
             'left_score' => self::$scores['left']['total'],
             'right_score' => self::$scores['right']['total'],
@@ -91,6 +179,7 @@ class BroadCastScoreController extends Controller
             'weather' => $request->weather,
             'league_id' => $request->league_id,
             'coverage_category' => $request->coverageCategory,
+            'h_mark_position' => $hMarkPosition,
             'session_id' => $request->session_id ?: null,
             'timer_remaining' => is_numeric($request->time) ? (int) $request->time : null,
             'sys_time' => now()->toDateTimeString(),
@@ -131,6 +220,7 @@ class BroadCastScoreController extends Controller
             'weather' => $request->weather,
             'coverageCategory' => $request->coverageCategory,
             'session_id' => $request->session_id,
+            'h_mark_position' => $hMarkPosition,
         ];
 
         try {
@@ -161,12 +251,21 @@ class BroadCastScoreController extends Controller
             return response()->json(['message' => 'Head coach group is not available for this user.'], 422);
         }
 
+        $suggestionData = $request->input('suggestionData');
+        if (!is_array($suggestionData)) {
+            $suggestionData = [];
+        }
+
+        $gameId = $suggestionData['game_id'] ?? $request->input('game_id');
+        $hMarkPosition = $this->resolveHMarkForBroadcast($request, $coachGroupId, $gameId, $suggestionData);
+        $suggestionData['h_mark_position'] = $hMarkPosition;
+
         $payload = [
             'playName' => $request->input('PlayName'),
             'yardageGain' => $request->input('playYardageGain'),
             'sliderDirection' => $request->input('playSliderDirection'),
             'targetTeam' => $request->input('targetTeam'),
-            'suggestionData' => $request->input('suggestionData'),
+            'suggestionData' => $suggestionData,
             'selectedPlayIds' => $request->input('selectedPlayIds'),
             'play' => $request->input('playObject', $request->input('play')),
             'type' => $request->input('type'),
@@ -174,6 +273,7 @@ class BroadCastScoreController extends Controller
             'my_team' => $request->input('my_team'),
             'opponent_team' => $request->input('opponent_team'),
             'mode' => $request->input('mode'),
+            'h_mark_position' => $hMarkPosition,
         ];
 
         try {
@@ -343,32 +443,39 @@ class BroadCastScoreController extends Controller
             'read1' => 'nullable|string',
             'read2' => 'nullable|string',
             'read3' => 'nullable|string',
-             'yardageGain'=> 'nullable|integer',
-             'yard'=> 'nullable|string',
-
-
-
+            'yardageGain' => 'nullable|integer',
+            'yard' => 'nullable|string',
+            'game_id' => 'nullable|integer',
+            'h_mark_position' => 'nullable|string|in:hmark_left,hmark_center,hmark_right',
+            'hashPosition' => 'nullable|string|in:h-left,h-center,h-right',
         ]);
-
-        // Access validated data
-        $payload['title'] = $validated['title'];
-        $payload['image'] = $validated['image'];
-        $payload['type']  = $validated['type'];
-        $payload['read1'] = $validated['read1'] ?? null;
-        $payload['read2'] = $validated['read2'] ?? null;
-        $payload['read3'] = $validated['read3'] ?? null;
-        $payload['yardageGain'] = $validated['yardageGain'] ?? null;
-        $payload['yard'] = $validated['yard'] ?? null;
-
-        \Log::info(['playe suggested broad cast'=>  $payload]);
 
         $user = auth()->user();
         $coachGroupId = $user->role === 'head_coach'
             ? $user->id
             : $user->head_coach_id;
 
+        $suggestionData = is_array($request->input('suggestionData')) ? $request->input('suggestionData') : null;
+        $hMarkPosition = $this->resolveHMarkForBroadcast(
+            $request,
+            $coachGroupId,
+            $validated['game_id'] ?? ($suggestionData['game_id'] ?? null),
+            $suggestionData
+        );
 
+        $payload = [
+            'title' => $validated['title'],
+            'image' => $validated['image'],
+            'type' => $validated['type'],
+            'read1' => $validated['read1'] ?? null,
+            'read2' => $validated['read2'] ?? null,
+            'read3' => $validated['read3'] ?? null,
+            'yardageGain' => $validated['yardageGain'] ?? null,
+            'yard' => $validated['yard'] ?? null,
+            'h_mark_position' => $hMarkPosition,
+        ];
 
+        \Log::info(['playe suggested broad cast'=>  $payload]);
 
          broadcast(new PlaySuggested($payload, $coachGroupId))->toOthers();
 
@@ -418,6 +525,8 @@ class BroadCastScoreController extends Controller
         $shouldRefreshTime = !$existingScoreboard
             || ($existingScoreboard->quarter != $request->quarter);
 
+        $hMarkPosition = $this->resolveHMarkForBroadcast($request, $coachGroupId, $request->game_id);
+
         $scoreboardValues = [
             'left_score' => self::$scores['left']['total'],
             'right_score' => self::$scores['right']['total'],
@@ -434,6 +543,7 @@ class BroadCastScoreController extends Controller
             'possession' => $request->possession,
             'weather' => $request->weather,
             'coverage_category' => $request->coverageCategory,
+            'h_mark_position' => $hMarkPosition,
             'league_id' => $request->league_id,
             'session_id' => $request->session_id ?: null,
             'timer_remaining' => is_numeric($request->time) ? (int) $request->time : null,
@@ -478,6 +588,7 @@ class BroadCastScoreController extends Controller
             'weather' => $request->weather,
             'coverageCategory' => $request->coverageCategory,
             'session_id' => $request->session_id,
+            'h_mark_position' => $hMarkPosition,
         ];
 
         \Log::info(['play_mode'=>$request->is_play_mode]);
