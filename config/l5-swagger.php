@@ -283,6 +283,12 @@ return [
                  */
                 'doc_expansion' => env('L5_SWAGGER_UI_DOC_EXPANSION', 'list'),
 
+                /*
+                 * When true, opening tags/operations updates the URL hash (#/Tag/operationId).
+                 * Set false to keep a stable URL. Use doc_expansion `list` to open tag accordions only on load.
+                 */
+                'deep_linking' => env('L5_SWAGGER_UI_DEEP_LINKING', false),
+
                 /**
                  * If set, enables filtering. The top bar will show an edit box that
                  * you can use to filter the tagged operations that are shown. Can be

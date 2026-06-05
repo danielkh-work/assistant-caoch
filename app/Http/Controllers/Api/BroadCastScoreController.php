@@ -4,12 +4,14 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use App\Events\PracticeScoreUpdated;
 use App\Events\ScoreUpdated;
 use App\Events\MatchStarted;
 use App\Events\TeamScoreUpdated;
 use App\Events\YardageBroadcast;
 use App\Events\PlaySuggested;
+use App\Events\HeadCoachSystemSuggestion;
 use App\Models\WebsocketScoreboard;
 use App\Models\WebsocketPracticeScoreboard;
 use App\Http\Responses\BaseResponse;
@@ -148,13 +150,16 @@ class BroadCastScoreController extends Controller
 
     public function yardagePlaytoAssistant(Request $request)
     {
-
-        \Log::info(['data all'=>$request->all()]);
+        \Log::info(['data all' => $request->all()]);
 
         $user = auth()->user();
         $coachGroupId = $user->role === 'head_coach'
             ? $user->id
             : $user->head_coach_id;
+
+        if (!$coachGroupId) {
+            return response()->json(['message' => 'Head coach group is not available for this user.'], 422);
+        }
 
         $payload = [
             'playName' => $request->input('PlayName'),
@@ -163,7 +168,7 @@ class BroadCastScoreController extends Controller
             'targetTeam' => $request->input('targetTeam'),
             'suggestionData' => $request->input('suggestionData'),
             'selectedPlayIds' => $request->input('selectedPlayIds'),
-            'play' => $request->input('playObject'),
+            'play' => $request->input('playObject', $request->input('play')),
             'type' => $request->input('type'),
             'targetPlayers' => $request->input('targetPlayers'),
             'my_team' => $request->input('my_team'),
@@ -171,11 +176,91 @@ class BroadCastScoreController extends Controller
             'mode' => $request->input('mode'),
         ];
 
-        
-        broadcast(new YardageBroadcast($payload, $coachGroupId))->toOthers();
+        try {
+            broadcast(new YardageBroadcast($payload, (int) $coachGroupId))->toOthers();
+        } catch (\Exception $e) {
+            \Log::error('YardageBroadcast failed: ' . $e->getMessage());
 
+            return response()->json(['message' => 'Broadcast failed'], 500);
+        }
 
+        return response()->json([
+            'status' => 200,
+            'message' => 'Yardage play broadcast sent to assistant coach.',
+            'data' => [
+                'head_coach_id' => (int) $coachGroupId,
+                'channel' => 'coach-group.' . $coachGroupId,
+                'event' => 'assistant.coaches',
+                'payload' => $payload,
+            ],
+        ], 200);
     }
+
+    public function systemSuggestionToHeadCoach(Request $request)
+    {
+        $user = auth()->user();
+
+        if ($user->role !== 'assistant_coach') {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $headCoachId = $user->head_coach_id;
+        if (!$headCoachId) {
+            return response()->json(['message' => 'Head coach is not linked to this assistant.'], 422);
+        }
+
+        $request->merge([
+            'weather' => $request->input('weather', $request->input('weather_status')),
+            'expected_yardage_gain' => $request->input(
+                'expected_yardage_gain',
+                $request->input('expectedyard', $request->input('yardage'))
+            ),
+        ]);
+
+        $validated = $request->validate([
+            'down' => 'required|integer|min:1|max:4',
+            'weather' => 'required|string|in:Normal,Rain,Snow',
+            'strategies' => ['required', 'string', Rule::in(['regular', 'red zone', 'hurry up', 'aggressive', 'chew clock'])],
+            'expected_yardage_gain' => 'required|integer',
+            'h_mark_position' => 'required|string|in:hmark_left,hmark_center,hmark_right',
+            'game_id' => 'nullable|integer',
+            'league_id' => 'nullable|integer',
+            'mode' => 'nullable|string|in:practice,play',
+        ]);
+
+        $payload = [
+            'down' => $validated['down'],
+            'weather' => $validated['weather'],
+            'strategies' => $validated['strategies'],
+            'expected_yardage_gain' => $validated['expected_yardage_gain'],
+            'h_mark_position' => $validated['h_mark_position'],
+            'game_id' => $validated['game_id'] ?? null,
+            'league_id' => $validated['league_id'] ?? null,
+            'mode' => $validated['mode'] ?? null,
+            'actor_id' => $user->id,
+            'actor_name' => $user->name,
+        ];
+
+        try {
+            broadcast(new HeadCoachSystemSuggestion($payload, (int) $headCoachId))->toOthers();
+        } catch (\Exception $e) {
+            \Log::error('HeadCoachSystemSuggestion broadcast failed: ' . $e->getMessage());
+
+            return response()->json(['message' => 'Broadcast failed'], 500);
+        }
+
+        return response()->json([
+            'status' => 200,
+            'message' => 'System suggestion broadcast sent to head coach.',
+            'data' => [
+                'head_coach_id' => (int) $headCoachId,
+                'channel' => 'coach-group.' . $headCoachId,
+                'event' => 'head.coach.suggestion',
+                'payload' => $payload,
+            ],
+        ], 200);
+    }
+
     public function scoreBoardBroadCastQB(Request $request)
     {
 
