@@ -122,6 +122,34 @@ class BroadCastScoreController extends Controller
         ]
     ];
 
+    /**
+     * Scope payload for match.started / match.ended league broadcasts.
+     *
+     * @return array<string, mixed>
+     */
+    private function buildMatchStartedScope(Request $request, bool $isPracticeScoreboard): array
+    {
+        if ($isPracticeScoreboard) {
+            return [
+                'mode' => 'practice',
+                'is_play_mode' => false,
+                'scoreboard' => 'practice',
+                'game_id' => $request->game_id,
+                'session_id' => $request->session_id ?: null,
+            ];
+        }
+
+        $isPlayMode = filter_var($request->input('is_play_mode', false), FILTER_VALIDATE_BOOLEAN);
+
+        return [
+            'mode' => $isPlayMode ? 'real' : 'practice',
+            'is_play_mode' => $isPlayMode,
+            'scoreboard' => $isPlayMode ? 'play' : 'practice',
+            'game_id' => $request->game_id,
+            'session_id' => $request->session_id ?: null,
+        ];
+    }
+
      public function practiceScoreBoardBroadCast(Request $request)
     {
 
@@ -225,7 +253,7 @@ class BroadCastScoreController extends Controller
 
         try {
             if ($request->league_id && in_array($action, ['Start', 'EndMatch'])) {
-                $scope = $request->is_play_mode ? 'real' : 'practice';
+                $scope = $this->buildMatchStartedScope($request, true);
                 $status = ($action === 'Start') ? 'started' : 'ended';
                 broadcast(new MatchStarted($request->league_id, $status, $scope))->toOthers();
             }
@@ -594,7 +622,7 @@ class BroadCastScoreController extends Controller
         \Log::info(['play_mode'=>$request->is_play_mode]);
         try {
             if ($request->league_id && in_array($action, ['Start', 'EndMatch'])) {
-                $scope = $request->is_play_mode ? 'real' : 'practice';
+                $scope = $this->buildMatchStartedScope($request, false);
                 $status = ($action === 'Start') ? 'started' : 'ended';
                 broadcast(new MatchStarted($request->league_id, $status, $scope))->toOthers();
             }
