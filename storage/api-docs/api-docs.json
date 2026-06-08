@@ -845,7 +845,7 @@
                     "Plays"
                 ],
                 "summary": "List configured plays for a game",
-                "description": "Returns only plays configured for the authenticated user, league, and match. Pass `possession=offensive` or `possession=defensive`. Optional filters: down, expectedyard, search. Offensive: pass `h_mark_position` (`hmark_left`, `hmark_center`, `hmark_right`; default `hmark_center`) — the response includes only `image` for that selection, not the other hmark columns. Defensive: uses the play `image` column.",
+                "description": "Returns only plays configured for the authenticated user, league, and match. Pass `possession=offensive` or `possession=defensive`. Optional filters: down, expectedyard, search. Multi-sort via `sort` (comma-separated `field:direction` pairs, applied left-to-right). Rate sorts use SQL ratios; `total_score` uses RPP matchup scoring (meaningful for offensive plays). Plays with zero attempts sort as 0% for rate fields. Offensive: pass `h_mark_position` (`hmark_left`, `hmark_center`, `hmark_right`; default `hmark_center`) — the response includes only `image` for that selection, not the other hmark columns. Defensive: uses the play `image` column.",
                 "operationId": "listConfiguredPlays",
                 "parameters": [
                     {
@@ -954,6 +954,17 @@
                         "schema": {
                             "type": "string",
                             "example": "Brazil"
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "description": "Multi-column sort. Comma-separated clauses `field:direction` applied left-to-right. Allowed fields: play_success_rate, practice_success_rate, rain_success_rate, snow_success_rate, total_score. Directions: asc, desc. Max 5 clauses. Default (omitted): win_result desc.",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "^([a-z_]+:(asc|desc))(,[a-z_]+:(asc|desc))*$",
+                            "example": "play_success_rate:asc,practice_success_rate:asc"
                         }
                     }
                 ],
@@ -2024,6 +2035,10 @@
                         "type": "integer",
                         "example": 2
                     },
+                    "practice_loss_result": {
+                        "type": "integer",
+                        "example": 1
+                    },
                     "total_count": {
                         "type": "integer",
                         "example": 4
@@ -2031,6 +2046,22 @@
                     "total_practice_count": {
                         "type": "integer",
                         "example": 2
+                    },
+                    "win_result_rain": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "win_result_snow": {
+                        "type": "integer",
+                        "example": 0
+                    },
+                    "total_rain": {
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "total_snow": {
+                        "type": "integer",
+                        "example": 1
                     },
                     "yardage_difference": {
                         "type": "number",
@@ -2073,6 +2104,17 @@
                     }
                 },
                 "type": "object"
+            },
+            "ConfiguredPlaySortField": {
+                "description": "Sort field keys for configured-play-list. Rate fields divide win counts by attempt counts (zero attempts = 0). total_score is RPP-based (offensive only; defensive sorts as 0).",
+                "type": "string",
+                "enum": [
+                    "play_success_rate",
+                    "practice_success_rate",
+                    "rain_success_rate",
+                    "snow_success_rate",
+                    "total_score"
+                ]
             },
             "SuggestedPlayBenchPlayer": {
                 "properties": {

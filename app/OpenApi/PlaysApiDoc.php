@@ -175,8 +175,13 @@ namespace App\OpenApi;
  *     @OA\Property(property="win_result", type="integer", example=3),
  *     @OA\Property(property="loss_result", type="integer", example=1),
  *     @OA\Property(property="practice_win_result", type="integer", example=2),
+ *     @OA\Property(property="practice_loss_result", type="integer", example=1),
  *     @OA\Property(property="total_count", type="integer", example=4),
  *     @OA\Property(property="total_practice_count", type="integer", example=2),
+ *     @OA\Property(property="win_result_rain", type="integer", example=1),
+ *     @OA\Property(property="win_result_snow", type="integer", example=0),
+ *     @OA\Property(property="total_rain", type="integer", example=2),
+ *     @OA\Property(property="total_snow", type="integer", example=1),
  *     @OA\Property(property="yardage_difference", type="number", format="float", nullable=true, example=12.5)
  * )
  *
@@ -199,12 +204,19 @@ namespace App\OpenApi;
  *     )
  * )
  *
+ * @OA\Schema(
+ *     schema="ConfiguredPlaySortField",
+ *     type="string",
+ *     enum={"play_success_rate", "practice_success_rate", "rain_success_rate", "snow_success_rate", "total_score"},
+ *     description="Sort field keys for configured-play-list. Rate fields divide win counts by attempt counts (zero attempts = 0). total_score is RPP-based (offensive only; defensive sorts as 0)."
+ * )
+ *
  * @OA\Get(
  *     path="/api/configured-play-list",
  *     operationId="listConfiguredPlays",
  *     tags={"Plays"},
  *     summary="List configured plays for a game",
- *     description="Returns only plays configured for the authenticated user, league, and match. Pass `possession=offensive` or `possession=defensive`. Optional filters: down, expectedyard, search. Offensive: pass `h_mark_position` (`hmark_left`, `hmark_center`, `hmark_right`; default `hmark_center`) — the response includes only `image` for that selection, not the other hmark columns. Defensive: uses the play `image` column.",
+ *     description="Returns only plays configured for the authenticated user, league, and match. Pass `possession=offensive` or `possession=defensive`. Optional filters: down, expectedyard, search. Multi-sort via `sort` (comma-separated `field:direction` pairs, applied left-to-right). Rate sorts use SQL ratios; `total_score` uses RPP matchup scoring (meaningful for offensive plays). Plays with zero attempts sort as 0% for rate fields. Offensive: pass `h_mark_position` (`hmark_left`, `hmark_center`, `hmark_right`; default `hmark_center`) — the response includes only `image` for that selection, not the other hmark columns. Defensive: uses the play `image` column.",
  *     security={{"sanctum":{}}},
  *     @OA\Parameter(name="league_id", in="query", required=true, @OA\Schema(type="integer", example=22)),
  *     @OA\Parameter(name="matchId", in="query", required=true, @OA\Schema(type="integer", example=36)),
@@ -215,6 +227,17 @@ namespace App\OpenApi;
  *     @OA\Parameter(name="page", in="query", required=false, @OA\Schema(type="integer", example=1)),
  *     @OA\Parameter(name="per_page", in="query", required=false, @OA\Schema(type="integer", example=9, default=9)),
  *     @OA\Parameter(name="search", in="query", required=false, description="Offensive: play_name; defensive: name", @OA\Schema(type="string", example="Brazil")),
+ *     @OA\Parameter(
+ *         name="sort",
+ *         in="query",
+ *         required=false,
+ *         description="Multi-column sort. Comma-separated clauses `field:direction` applied left-to-right. Allowed fields: play_success_rate, practice_success_rate, rain_success_rate, snow_success_rate, total_score. Directions: asc, desc. Max 5 clauses. Default (omitted): win_result desc.",
+ *         @OA\Schema(
+ *             type="string",
+ *             example="play_success_rate:asc,practice_success_rate:asc",
+ *             pattern="^([a-z_]+:(asc|desc))(,[a-z_]+:(asc|desc))*$"
+ *         )
+ *     ),
  *     @OA\Response(
  *         response=200,
  *         description="Configured play list",

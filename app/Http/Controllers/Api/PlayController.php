@@ -166,7 +166,7 @@ class PlayController extends Controller
                     $q->where('result', 'win')->where('is_practice', 1);
                 },
                 'playResults as practice_loss_result' => function ($q) {
-                    $q->where('result', 'win')->where('is_practice', 1);
+                    $q->where('result', 'loss')->where('is_practice', 1);
                 },
                 'playResults as total_count' => function ($q) {
                     $q->where('is_practice', 0);
