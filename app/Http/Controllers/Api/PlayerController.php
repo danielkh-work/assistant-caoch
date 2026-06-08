@@ -7,6 +7,7 @@ use App\Http\Responses\BaseResponse;
 use App\Models\Player;
 use App\Models\PracticeTeamPlayer;
 use App\Models\PracticeTeamPlayerPosition;
+use App\Models\PersionalGrouping;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -513,6 +514,12 @@ class PlayerController extends Controller
                 }
             })
             ->pluck('id');
+
+        PersionalGrouping::removeMemberIdsFromAllTeamGroups(
+            $teamId,
+            $practiceRowIds->all(),
+            $teamPlayerIds->all(),
+        );
 
         if ($practiceRowIds->isNotEmpty()) {
             PracticeTeamPlayerPosition::query()

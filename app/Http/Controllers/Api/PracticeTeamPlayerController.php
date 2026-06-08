@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\LeagueTeam;
 use App\Models\PracticeTeamPlayer;
+use App\Models\PersionalGrouping;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use App\Http\Responses\BaseResponse;
@@ -98,6 +99,20 @@ class PracticeTeamPlayerController extends Controller
             }
 
             // Optional: delete players removed from frontend
+            $removedPracticeIds = PracticeTeamPlayer::query()
+                ->where('team_id', $team->id)
+                ->whereNotIn('player_id', $incomingPlayerIds)
+                ->pluck('id')
+                ->all();
+
+            if ($removedPracticeIds !== []) {
+                PersionalGrouping::removeMemberIdsFromAllTeamGroups(
+                    (int) $team->id,
+                    $removedPracticeIds,
+                    [],
+                );
+            }
+
             PracticeTeamPlayer::where('team_id', $team->id)
             ->whereNotIn('player_id', $incomingPlayerIds)
             ->delete();

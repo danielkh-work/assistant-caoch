@@ -72,6 +72,16 @@ Broadcast::channel('league.global', function ($user) {
     ];
 });
 
+Broadcast::channel('presence-match.{hcId}.{gameId}', function ($user, $hcId, $gameId) {
+    $isHC = $user->role === 'head_coach' && $user->id == $hcId;
+    $isCo = in_array($user->role, ['assistant_coach', 'performance_coach'])
+            && $user->head_coach_id == $hcId;
+    if ($isHC || $isCo) {
+        return ['id' => $user->id, 'name' => $user->name, 'role' => $user->role];
+    }
+    return false;
+});
+
 // use App\Http\Controllers\LeagueController;
 
 // Route::get('/league/{leagueId}/state', [LeagueController::class, 'state']);

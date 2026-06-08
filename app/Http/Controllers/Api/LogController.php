@@ -31,26 +31,28 @@ class LogController extends Controller
                     $targetData = null; // fallback if target is not set
                 }
             return [
-
-                'id' => $log->id,
-                'players' => $isPractice
-                ? $log->practice_players
-                : $log->players,
-                'weather_status' => $log->weather_status,
-                'play_yardage_gain' => $log->play_yardage_gain,
-                'quater' => $log->quater,
-                'time' => $log->time,
+                'id'               => $log->id,
+                'players'          => $isPractice ? $log->practice_players : $log->players,
+                'weather_status'   => $log->weather_status,
+                'play_yardage_gain'=> $log->play_yardage_gain,
+                'quater'           => $log->quater,
+                'time'             => $log->time,
                 'current_position' => $log->current_position,
-                'my_points' => $log->my_points,
-                'target' => $log->target, 
-                'oponent_points' => $log->oponent_points,
-                'downs' => $log->downs,
-                'my_team' => $log->myTeam,
-                'opponent_team' => $log->opponentTeam,
-                'targetdata' => $targetData,
-                'play' => $log->target_team,
-                'type_of_log' => $log->type_of_log,
-                'confirmed' => $log->confirmed,
+                'my_points'        => $log->my_points,
+                'target'           => $log->target,
+                'oponent_points'   => $log->oponent_points,
+                'downs'            => $log->downs,
+                'my_team'          => $log->myTeam,
+                'opponent_team'    => $log->opponentTeam,
+                'targetdata'       => $targetData,
+                'play'             => $log->target_team,
+                'type_of_log'      => $log->type_of_log,
+                'confirmed'        => $log->confirmed,
+                'actor_id'         => $log->actor_id,
+                'actor_role'       => $log->actor_role,
+                'actor_name'       => $log->actor_name,
+                'players_out'      => $log->players_out,
+                'players_in'       => $log->players_in,
             ];
         });
 
