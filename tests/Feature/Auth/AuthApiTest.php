@@ -251,7 +251,7 @@ class AuthApiTest extends TestCase
 
 
     /** @test */
-    public function head_coach_can_add_qb()
+    public function head_coach_can_add_league_qb()
     {
         $headCoach = User::create([
             'name' => 'Head Coach',
@@ -261,8 +261,19 @@ class AuthApiTest extends TestCase
             'status' => 'approved'
         ]);
 
+        $sportId = \Illuminate\Support\Facades\DB::table('sports')->insertGetId(['title' => 'Test Sport']);
+        $leagueId = \Illuminate\Support\Facades\DB::table('leagues')->insertGetId([
+            'user_id' => $headCoach->id,
+            'sport_id' => $sportId,
+            'league_rule_id' => \Illuminate\Support\Facades\DB::table('league_rules')->value('id') ?? 1,
+            'title' => 'Test League',
+            'number_of_team' => 2,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
         $response = $this->actingAs($headCoach, 'sanctum')
-                         ->postJson('/api/add-qb', [
+                         ->postJson("/api/leagues/{$leagueId}/qb", [
                              'name' => 'QB User',
                              'email' => 'qb@test.com'
                          ]);
@@ -271,13 +282,14 @@ class AuthApiTest extends TestCase
         $this->assertDatabaseHas('users', [
             'email' => 'qb@test.com',
             'head_coach_id' => $headCoach->id,
+            'league_id' => $leagueId,
             'is_loggin' => 0,
         ]);
         $this->assertFalse((bool) $response->json('data.is_loggin'));
     }
 
     /** @test */
-    public function head_coach_can_get_qb_user()
+    public function head_coach_can_get_league_qb_user()
     {
         $headCoach = User::create([
             'name' => 'Head Coach',
@@ -287,57 +299,31 @@ class AuthApiTest extends TestCase
             'status' => 'approved'
         ]);
 
+        $sportId = \Illuminate\Support\Facades\DB::table('sports')->insertGetId(['title' => 'Test Sport']);
+        $leagueId = \Illuminate\Support\Facades\DB::table('leagues')->insertGetId([
+            'user_id' => $headCoach->id,
+            'sport_id' => $sportId,
+            'league_rule_id' => \Illuminate\Support\Facades\DB::table('league_rules')->value('id') ?? 1,
+            'title' => 'Test League',
+            'number_of_team' => 2,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
         User::create([
             'name' => 'QB User',
             'email' => 'qb@test.com',
             'role' => 'qb',
             'head_coach_id' => $headCoach->id,
+            'league_id' => $leagueId,
             'password' => Hash::make('12345678')
         ]);
 
         $response = $this->actingAs($headCoach, 'sanctum')
-                         ->getJson('/api/get-qb-user');
+                         ->getJson("/api/leagues/{$leagueId}/qb");
 
         $response->assertStatus(200)
                  ->assertJsonFragment(['role' => 'qb']);
-    }
-
-    /** @test */
-    public function get_qb_user_returns_all_qbs_newest_first()
-    {
-        $headCoach = User::create([
-            'name' => 'Head Coach',
-            'email' => 'headmf@test.com',
-            'password' => Hash::make('12345678'),
-            'role' => 'head_coach',
-            'status' => 'approved'
-        ]);
-
-        $first = User::create([
-            'name' => 'QB Old',
-            'email' => 'qb-old@test.com',
-            'role' => 'qb',
-            'head_coach_id' => $headCoach->id,
-            'password' => Hash::make('12345678')
-        ]);
-
-        $second = User::create([
-            'name' => 'QB New',
-            'email' => 'qb-new@test.com',
-            'role' => 'qb',
-            'head_coach_id' => $headCoach->id,
-            'password' => Hash::make('12345678')
-        ]);
-
-        $response = $this->actingAs($headCoach, 'sanctum')
-                         ->getJson('/api/get-qb-user');
-
-        $response->assertStatus(200);
-        $data = $response->json('data');
-        $this->assertIsArray($data);
-        $this->assertCount(2, $data);
-        $this->assertSame($second->id, $data[0]['id']);
-        $this->assertSame($first->id, $data[1]['id']);
     }
 
     /** @test */

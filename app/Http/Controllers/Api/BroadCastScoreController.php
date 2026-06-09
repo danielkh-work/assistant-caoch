@@ -15,6 +15,7 @@ use App\Events\HeadCoachSystemSuggestion;
 use App\Models\WebsocketScoreboard;
 use App\Models\WebsocketPracticeScoreboard;
 use App\Http\Responses\BaseResponse;
+use App\Support\BroadcastLeagueResolver;
 
 class BroadCastScoreController extends Controller
 {
@@ -102,6 +103,21 @@ class BroadCastScoreController extends Controller
         return $this->resolveBroadcastHMarkPosition($request, $suggestionData)
             ?? $this->scoreboardStoredHMarkPosition($coachGroupId, $gameId)
             ?? 'hmark_center';
+    }
+
+    private function resolveBroadcastLeagueId(Request $request, ?array $nested = null): ?int
+    {
+        $leagueId = BroadcastLeagueResolver::fromRequest($request, $nested);
+        if ($leagueId !== null) {
+            return $leagueId;
+        }
+
+        $user = auth()->user();
+        if ($user && $user->role === 'qb' && $user->league_id) {
+            return (int) $user->league_id;
+        }
+
+        return null;
     }
 
       public static $scores = [
@@ -304,8 +320,18 @@ class BroadCastScoreController extends Controller
             'h_mark_position' => $hMarkPosition,
         ];
 
+        $leagueId = $this->resolveBroadcastLeagueId($request, $suggestionData);
+        if ($leagueId === null) {
+            \Log::warning('YardageBroadcast skipped: league_id could not be resolved', [
+                'coach_group_id' => $coachGroupId,
+                'game_id' => $gameId,
+            ]);
+
+            return response()->json(['message' => 'league_id is required for broadcast'], 422);
+        }
+
         try {
-            broadcast(new YardageBroadcast($payload, (int) $coachGroupId))->toOthers();
+            broadcast(new YardageBroadcast($payload, (int) $coachGroupId, $leagueId))->toOthers();
         } catch (\Exception $e) {
             \Log::error('YardageBroadcast failed: ' . $e->getMessage());
 
@@ -317,7 +343,8 @@ class BroadCastScoreController extends Controller
             'message' => 'Yardage play broadcast sent to assistant coach.',
             'data' => [
                 'head_coach_id' => (int) $coachGroupId,
-                'channel' => 'coach-group.' . $coachGroupId,
+                'league_id' => $leagueId,
+                'channel' => 'coach-group.' . $coachGroupId . '.league.' . $leagueId,
                 'event' => 'assistant.coaches',
                 'payload' => $payload,
             ],
@@ -369,8 +396,18 @@ class BroadCastScoreController extends Controller
             'actor_name' => $user->name,
         ];
 
+        $leagueId = $this->resolveBroadcastLeagueId($request);
+        if ($leagueId === null) {
+            \Log::warning('HeadCoachSystemSuggestion skipped: league_id could not be resolved', [
+                'head_coach_id' => $headCoachId,
+                'game_id' => $validated['game_id'] ?? null,
+            ]);
+
+            return response()->json(['message' => 'league_id is required for broadcast'], 422);
+        }
+
         try {
-            broadcast(new HeadCoachSystemSuggestion($payload, (int) $headCoachId))->toOthers();
+            broadcast(new HeadCoachSystemSuggestion($payload, (int) $headCoachId, $leagueId))->toOthers();
         } catch (\Exception $e) {
             \Log::error('HeadCoachSystemSuggestion broadcast failed: ' . $e->getMessage());
 
@@ -382,7 +419,8 @@ class BroadCastScoreController extends Controller
             'message' => 'System suggestion broadcast sent to head coach.',
             'data' => [
                 'head_coach_id' => (int) $headCoachId,
-                'channel' => 'coach-group.' . $headCoachId,
+                'league_id' => $leagueId,
+                'channel' => 'coach-group.' . $headCoachId . '.league.' . $leagueId,
                 'event' => 'head.coach.suggestion',
                 'payload' => $payload,
             ],
@@ -450,10 +488,16 @@ class BroadCastScoreController extends Controller
             ? $user->id
             : $user->head_coach_id;
 
+        $leagueId = $this->resolveBroadcastLeagueId($request);
+        if ($leagueId === null) {
+            \Log::warning('TeamScoreUpdated skipped: league_id could not be resolved', [
+                'coach_group_id' => $coachGroupId,
+            ]);
 
+            return;
+        }
 
-
-         broadcast(new TeamScoreUpdated($payload, $coachGroupId))->toOthers();
+         broadcast(new TeamScoreUpdated($payload, $coachGroupId, $leagueId))->toOthers();
 
 
     }
@@ -505,7 +549,17 @@ class BroadCastScoreController extends Controller
 
         \Log::info(['playe suggested broad cast'=>  $payload]);
 
-         broadcast(new PlaySuggested($payload, $coachGroupId))->toOthers();
+        $leagueId = $this->resolveBroadcastLeagueId($request, $suggestionData);
+        if ($leagueId === null) {
+            \Log::warning('PlaySuggested skipped: league_id could not be resolved', [
+                'coach_group_id' => $coachGroupId,
+                'game_id' => $validated['game_id'] ?? null,
+            ]);
+
+            return;
+        }
+
+         broadcast(new PlaySuggested($payload, $coachGroupId, $leagueId))->toOthers();
 
 
     }

@@ -478,10 +478,11 @@ class AuthController extends Controller
         $user->is_loggin = true;
         $user->save();
 
-        if ($user->head_coach_id) {
+        if ($user->head_coach_id && $user->league_id) {
             broadcast(new QbSessionUpdated(
                 (int) $user->head_coach_id,
-                $user->only(['id', 'name', 'email', 'session_id', 'code', 'head_coach_id', 'is_loggin']),
+                (int) $user->league_id,
+                $user->only(['id', 'name', 'email', 'session_id', 'code', 'head_coach_id', 'league_id', 'is_loggin']),
                 true,
                 'login',
             ));
@@ -493,7 +494,7 @@ class AuthController extends Controller
         return response()->json([
             'status'       => 200,
             'message'      => 'Login successful',
-            'user'         => $user->only(['id', 'name', 'session_id', 'code', 'head_coach_id']),
+            'user'         => $user->only(['id', 'name', 'session_id', 'code', 'head_coach_id', 'league_id']),
             'access_token' => $token,
             'token_type'   => 'Bearer'
         ]);

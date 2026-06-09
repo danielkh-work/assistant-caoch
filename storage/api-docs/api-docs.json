@@ -35,7 +35,7 @@
                                     "message": "Yardage play broadcast sent to assistant coach.",
                                     "data": {
                                         "head_coach_id": 5,
-                                        "channel": "coach-group.5",
+                                        "channel": "coach-group.5.league.22",
                                         "event": "assistant.coaches",
                                         "payload": {
                                             "playName": "IN 25(4)-RAM ALL-CHECK",
@@ -153,7 +153,7 @@
                                     "message": "System suggestion broadcast sent to head coach.",
                                     "data": {
                                         "head_coach_id": 5,
-                                        "channel": "coach-group.5",
+                                        "channel": "coach-group.5.league.22",
                                         "event": "head.coach.suggestion",
                                         "payload": {
                                             "down": 2,
@@ -523,6 +523,182 @@
                 ]
             }
         },
+        "/api/leagues/{league}/qb": {
+            "get": {
+                "tags": [
+                    "League QB"
+                ],
+                "summary": "Get QB for a league",
+                "operationId": "getLeagueQb",
+                "parameters": [
+                    {
+                        "name": "league",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 22
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Zero or one QB user in `data` array"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "League QB"
+                ],
+                "summary": "Create QB for a league",
+                "operationId": "addLeagueQb",
+                "parameters": [
+                    {
+                        "name": "league",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 22
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "name",
+                                    "email"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "NFL QB"
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "nfl-qb@example.com"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "QB created"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/leagues/{league}/qb/logout": {
+            "post": {
+                "tags": [
+                    "League QB"
+                ],
+                "summary": "Head coach force-logout league QB",
+                "operationId": "logoutLeagueQb",
+                "parameters": [
+                    {
+                        "name": "league",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 22
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "id": {
+                                        "type": "integer",
+                                        "example": 78
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "QB logged out"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/leagues/{league}/web/scan-qr": {
+            "post": {
+                "tags": [
+                    "League QB"
+                ],
+                "summary": "Pair mobile session to league QB",
+                "description": "Broadcasts session approval to `qb-user.{session_id}` and session update to `headcoach.{headCoachId}.league.{leagueId}.qb`. Mobile app should subscribe to `coach-group.{headCoachId}.league.{leagueId}` for match notifications.",
+                "operationId": "scanLeagueQbQr",
+                "parameters": [
+                    {
+                        "name": "league",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 22
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "session_id": {
+                                        "type": "string",
+                                        "format": "uuid"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "QB paired and token issued"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/api/logout-qb-applicaion/{id}": {
             "get": {
                 "tags": [
@@ -574,6 +750,10 @@
                                                             "nullable": true
                                                         },
                                                         "head_coach_id": {
+                                                            "type": "integer",
+                                                            "nullable": true
+                                                        },
+                                                        "league_id": {
                                                             "type": "integer",
                                                             "nullable": true
                                                         }
@@ -1503,9 +1683,13 @@
                                 "type": "integer",
                                 "example": 5
                             },
+                            "league_id": {
+                                "type": "integer",
+                                "example": 22
+                            },
                             "channel": {
                                 "type": "string",
-                                "example": "coach-group.5"
+                                "example": "coach-group.5.league.22"
                             },
                             "event": {
                                 "type": "string",
@@ -1656,9 +1840,13 @@
                                 "type": "integer",
                                 "example": 5
                             },
+                            "league_id": {
+                                "type": "integer",
+                                "example": 22
+                            },
                             "channel": {
                                 "type": "string",
-                                "example": "coach-group.5"
+                                "example": "coach-group.5.league.22"
                             },
                             "event": {
                                 "type": "string",
@@ -2492,6 +2680,10 @@
         {
             "name": "Configuration",
             "description": "Application configuration key-value store"
+        },
+        {
+            "name": "League QB",
+            "description": "Per-league QB registration, pairing, and logout (one QB per league per head coach)"
         },
         {
             "name": "QB Logout",

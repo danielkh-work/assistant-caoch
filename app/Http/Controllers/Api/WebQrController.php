@@ -118,9 +118,10 @@ class WebQrController extends Controller
             'user'    => $user->only(['id', 'name', 'session_id', 'code', 'head_coach_id', 'is_loggin']),
         ];
 
-        if ($user->head_coach_id) {
+        if ($user->head_coach_id && $user->league_id) {
             broadcast(new QbSessionUpdated(
                 (int) $user->head_coach_id,
+                (int) $user->league_id,
                 $userData['user'],
                 false,
                 'logout',

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ConfigureController;
+use App\Http\Controllers\Api\LeagueQbController;
 use App\Http\Controllers\Api\MatchPlaysController;
 use App\Http\Controllers\Api\FormationController;
 use App\Http\Controllers\Api\LogController;
@@ -68,11 +69,6 @@ use App\Http\Controllers\Api\ConfigurationController;
 Route::post('/mobile/create-session', [WebQrController::class, 'createSession']); // mobile 
 Route::get('/logout-qb-applicaion/{id}', [WebQrController::class, 'logouQbApplicaion']);
 Route::get('/qb-session-login-status/{session_id}', [WebQrController::class, 'qbSessionLoginStatus']);
-Route::middleware('auth:sanctum')->group(function () {
-   Route::post('/web/scan-qr', [WebQrController::class, 'scanQr']); 
-   Route::post('logout-qb', [WebQrController::class, 'logoutQb']); 
-  
-});
 
 
 // use Illuminate\Support\Str;
@@ -110,8 +106,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('save-sport',[AuthController::class,'saveSport']);
     Route::post('change-password',[AuthController::class,'changePassword'])->name('password.change');
     Route::post('add-assistant-coach',[AuthController::class,'addAssistantCoach'])->name('add.assistantCoach');
-    Route::post('add-qb',[AuthController::class,'addQB'])->name('add.qb');
-    Route::get('get-qb-user',[AuthController::class,'getQBUser'])->name('get.qb.user');
     Route::get('get-assistant-coach',[AuthController::class,'getQAssistantCoach'])->name('get.assistant.coach');
 
       
@@ -290,6 +284,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::prefix('leagues')->group(function () {
         Route::get('/{league}/get-suggested-plays', [SuggestionController::class, 'getSuggestedPlays']);
+        Route::get('/{league}/qb', [LeagueQbController::class, 'show']);
+        Route::post('/{league}/qb', [LeagueQbController::class, 'store']);
+        Route::post('/{league}/qb/logout', [LeagueQbController::class, 'logout']);
+        Route::post('/{league}/web/scan-qr', [LeagueQbController::class, 'scanQr']);
     });
 
     Route::get('/configurations', [ConfigurationController::class, 'index']);

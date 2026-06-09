@@ -14,17 +14,20 @@ class HeadCoachSystemSuggestion implements ShouldBroadcast
 
     public array $data;
 
-    protected int $headCoachId;
+    public int $headCoachId;
 
-    public function __construct(array $data, int $headCoachId)
+    public int $leagueId;
+
+    public function __construct(array $data, int $headCoachId, int $leagueId)
     {
         $this->data = $data;
         $this->headCoachId = $headCoachId;
+        $this->leagueId = $leagueId;
     }
 
     public function broadcastOn(): PrivateChannel
     {
-        return new PrivateChannel("coach-group.{$this->headCoachId}");
+        return new PrivateChannel("coach-group.{$this->headCoachId}.league.{$this->leagueId}");
     }
 
     public function broadcastAs(): string
