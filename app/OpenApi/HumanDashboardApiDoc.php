@@ -58,7 +58,7 @@ namespace App\OpenApi;
  *     path="/api/leagues/{league}/qb/logout",
  *     operationId="logoutLeagueQb",
  *     tags={"League QB"},
- *     summary="Head coach force-logout league QB",
+ *     summary="Log out QB from dashboard",
  *     security={{"sanctum":{}}},
  *     @OA\Parameter(name="league", in="path", required=true, @OA\Schema(type="integer", example=22)),
  *     @OA\RequestBody(

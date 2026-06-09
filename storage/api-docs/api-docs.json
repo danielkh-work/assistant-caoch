@@ -611,7 +611,7 @@
                 "tags": [
                     "League QB"
                 ],
-                "summary": "Head coach force-logout league QB",
+                "summary": "Log out QB from dashboard",
                 "operationId": "logoutLeagueQb",
                 "parameters": [
                     {
