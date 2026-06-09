@@ -839,14 +839,14 @@
                 ]
             }
         },
-        "/api/configured-play-list": {
+        "/api/match-plays": {
             "get": {
                 "tags": [
                     "Plays"
                 ],
-                "summary": "List configured plays for a game",
-                "description": "Returns only plays configured for the authenticated user, league, and match. Pass `possession=offensive` or `possession=defensive`. Optional filters: down, expectedyard, search. Multi-sort via `sort` (comma-separated `field:direction` pairs, applied left-to-right). Rate sorts use SQL ratios; `total_score` uses RPP matchup scoring (meaningful for offensive plays). Plays with zero attempts sort as 0% for rate fields. Offensive: pass `h_mark_position` (`hmark_left`, `hmark_center`, `hmark_right`; default `hmark_center`) — the response includes only `image` for that selection, not the other hmark columns. Defensive: uses the play `image` column.",
-                "operationId": "listConfiguredPlays",
+                "summary": "List match plays with filters and sorting",
+                "description": "Returns all plays for the league (offensive or defensive via `possession`), filtered by optional down, expectedyard, and search. `matchId` is used for RPP `total_score` sorting context. Multi-sort via `sort` (comma-separated `field:direction` pairs, applied left-to-right). Rate sorts use SQL ratios; `total_score` uses RPP matchup scoring (meaningful for offensive plays). Plays with zero attempts sort as 0% for rate fields. Offensive: pass `h_mark_position` (`hmark_left`, `hmark_center`, `hmark_right`; default `hmark_center`) — the response includes only `image` for that selection, not the other hmark columns. Defensive: uses the play `image` column.",
+                "operationId": "listMatchPlays",
                 "parameters": [
                     {
                         "name": "league_id",
@@ -869,7 +869,7 @@
                     {
                         "name": "possession",
                         "in": "query",
-                        "description": "Which configured plays to return",
+                        "description": "Offensive or defensive plays to return",
                         "required": true,
                         "schema": {
                             "type": "string",
@@ -970,11 +970,11 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Configured play list",
+                        "description": "Match play list",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ConfiguredPlayListBaseResponse"
+                                    "$ref": "#/components/schemas/MatchPlaysBaseResponse"
                                 },
                                 "examples": {
                                     "offensive_hmark_left": {
@@ -1082,7 +1082,7 @@
                     {
                         "name": "h_mark_position",
                         "in": "query",
-                        "description": "Offensive only: H-mark column mapped to response `image` (same as configured-play-list)",
+                        "description": "Offensive only: H-mark column mapped to response `image` (same as match-plays)",
                         "required": false,
                         "schema": {
                             "type": "string",
@@ -2072,7 +2072,7 @@
                 },
                 "type": "object"
             },
-            "ConfiguredPlayListBaseResponse": {
+            "MatchPlaysBaseResponse": {
                 "description": "HTTP status conveys success or error; body is only data and meta.",
                 "properties": {
                     "data": {
@@ -2105,8 +2105,8 @@
                 },
                 "type": "object"
             },
-            "ConfiguredPlaySortField": {
-                "description": "Sort field keys for configured-play-list. Rate fields divide win counts by attempt counts (zero attempts = 0). total_score is RPP-based (offensive only; defensive sorts as 0).",
+            "MatchPlaySortField": {
+                "description": "Sort field keys for match-plays. Rate fields divide win counts by attempt counts (zero attempts = 0). total_score is RPP-based (offensive only; defensive sorts as 0).",
                 "type": "string",
                 "enum": [
                     "play_success_rate",

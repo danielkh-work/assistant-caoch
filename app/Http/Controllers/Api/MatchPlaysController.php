@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Api\Concerns\MapsHmarkPlayImage;
 use App\Http\Controllers\Controller;
-use App\Models\ConfigureDefensivePlay;
 use App\Models\DefensivePlay;
 use App\Models\Play;
 use App\Services\PlayRppScoreCalculator;
@@ -14,7 +13,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 
-class ConfiguredPlayListController extends Controller
+class MatchPlaysController extends Controller
 {
     use MapsHmarkPlayImage;
 
@@ -35,10 +34,7 @@ class ConfiguredPlayListController extends Controller
         if ($isOffensive) {
             $hMarkPosition = $this->resolveHMarkPosition($request);
 
-            $query = $this->configuredOffensiveQuery(
-                (int) $validated['league_id'],
-                (int) $validated['matchId']
-            );
+            $query = $this->offensivePlayQuery((int) $validated['league_id']);
 
             $this->applyFilters($query, $validated, 'play_name');
             $this->applySorting($query, $sorts, 'plays');
@@ -53,10 +49,7 @@ class ConfiguredPlayListController extends Controller
             );
         }
 
-        $query = $this->configuredDefensiveQuery(
-            (int) $validated['league_id'],
-            (int) $validated['matchId']
-        );
+        $query = $this->defensivePlayQuery((int) $validated['league_id']);
 
         $this->applyFilters($query, $validated, 'name');
         $this->applySorting($query, $sorts, 'defensive_plays');
@@ -89,33 +82,31 @@ class ConfiguredPlayListController extends Controller
         return $request->validate($rules);
     }
 
-    private function configuredOffensiveQuery(int $leagueId, int $matchId): Builder
+    private function offensivePlayQuery(int $leagueId): Builder
     {
+        $userRoleIds = auth()->user()->roles->pluck('id');
+        $leagueIds = ['1', $leagueId];
+
         return Play::with([
             'roles',
             'playResults',
             'offensiveTargets.offensivePosition',
             'offensiveTargets.defensivePosition',
         ])
-            ->whereHas('configuredLeagues', function ($q) use ($leagueId, $matchId) {
-                $q->where('configure_plays.user_id', auth()->id())
-                    ->where('configure_plays.league_id', $leagueId)
-                    ->where('configure_plays.match_id', $matchId);
+            ->where(function ($sub) use ($leagueIds, $userRoleIds) {
+                $sub->orWhereIn('league_id', $leagueIds)
+                    ->orWhereHas('roles', function ($q) use ($userRoleIds) {
+                        $q->whereIn('roleables.role_id', $userRoleIds);
+                    });
             })
             ->withCount($this->playResultCountDefinitions())
             ->withAvg('playResults as yardage_difference', 'yardage_difference');
     }
 
-    private function configuredDefensiveQuery(int $leagueId, int $matchId): Builder
+    private function defensivePlayQuery(int $leagueId): Builder
     {
-        $configuredPlayIds = ConfigureDefensivePlay::query()
-            ->where('user_id', auth()->id())
-            ->where('league_id', $leagueId)
-            ->where('game_id', $matchId)
-            ->pluck('play_id');
-
         return DefensivePlay::with('playResults', 'strategyBlitz', 'formation', 'personals.teamPlayer.player')
-            ->whereIn('id', $configuredPlayIds)
+            ->where('league_id', $leagueId)
             ->withCount($this->playResultCountDefinitions())
             ->withAvg('playResults as yardage_difference', 'yardage_difference');
     }

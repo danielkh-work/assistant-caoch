@@ -186,7 +186,7 @@ namespace App\OpenApi;
  * )
  *
  * @OA\Schema(
- *     schema="ConfiguredPlayListBaseResponse",
+ *     schema="MatchPlaysBaseResponse",
  *     type="object",
  *     description="HTTP status conveys success or error; body is only data and meta.",
  *     @OA\Property(
@@ -205,22 +205,22 @@ namespace App\OpenApi;
  * )
  *
  * @OA\Schema(
- *     schema="ConfiguredPlaySortField",
+ *     schema="MatchPlaySortField",
  *     type="string",
  *     enum={"play_success_rate", "practice_success_rate", "rain_success_rate", "snow_success_rate", "total_score"},
- *     description="Sort field keys for configured-play-list. Rate fields divide win counts by attempt counts (zero attempts = 0). total_score is RPP-based (offensive only; defensive sorts as 0)."
+ *     description="Sort field keys for match-plays. Rate fields divide win counts by attempt counts (zero attempts = 0). total_score is RPP-based (offensive only; defensive sorts as 0)."
  * )
  *
  * @OA\Get(
- *     path="/api/configured-play-list",
- *     operationId="listConfiguredPlays",
+ *     path="/api/match-plays",
+ *     operationId="listMatchPlays",
  *     tags={"Plays"},
- *     summary="List configured plays for a game",
- *     description="Returns only plays configured for the authenticated user, league, and match. Pass `possession=offensive` or `possession=defensive`. Optional filters: down, expectedyard, search. Multi-sort via `sort` (comma-separated `field:direction` pairs, applied left-to-right). Rate sorts use SQL ratios; `total_score` uses RPP matchup scoring (meaningful for offensive plays). Plays with zero attempts sort as 0% for rate fields. Offensive: pass `h_mark_position` (`hmark_left`, `hmark_center`, `hmark_right`; default `hmark_center`) — the response includes only `image` for that selection, not the other hmark columns. Defensive: uses the play `image` column.",
+ *     summary="List match plays with filters and sorting",
+ *     description="Returns all plays for the league (offensive or defensive via `possession`), filtered by optional down, expectedyard, and search. `matchId` is used for RPP `total_score` sorting context. Multi-sort via `sort` (comma-separated `field:direction` pairs, applied left-to-right). Rate sorts use SQL ratios; `total_score` uses RPP matchup scoring (meaningful for offensive plays). Plays with zero attempts sort as 0% for rate fields. Offensive: pass `h_mark_position` (`hmark_left`, `hmark_center`, `hmark_right`; default `hmark_center`) — the response includes only `image` for that selection, not the other hmark columns. Defensive: uses the play `image` column.",
  *     security={{"sanctum":{}}},
  *     @OA\Parameter(name="league_id", in="query", required=true, @OA\Schema(type="integer", example=22)),
  *     @OA\Parameter(name="matchId", in="query", required=true, @OA\Schema(type="integer", example=36)),
- *     @OA\Parameter(name="possession", in="query", required=true, description="Which configured plays to return", @OA\Schema(type="string", enum={"offensive", "defensive"}, example="offensive")),
+ *     @OA\Parameter(name="possession", in="query", required=true, description="Offensive or defensive plays to return", @OA\Schema(type="string", enum={"offensive", "defensive"}, example="offensive")),
  *     @OA\Parameter(name="down", in="query", required=false, description="Filter by preferred down (1-4)", @OA\Schema(type="integer", enum={1, 2, 3, 4}, example=1)),
  *     @OA\Parameter(name="expectedyard", in="query", required=false, @OA\Schema(type="string", enum={"short", "medium", "long", "open_down"}, example="short")),
  *     @OA\Parameter(name="h_mark_position", in="query", required=false, description="Offensive only: H-mark column used for response `image`", @OA\Schema(type="string", enum={"hmark_left", "hmark_center", "hmark_right"}, default="hmark_center", example="hmark_center")),
@@ -240,9 +240,9 @@ namespace App\OpenApi;
  *     ),
  *     @OA\Response(
  *         response=200,
- *         description="Configured play list",
+ *         description="Match play list",
  *         @OA\JsonContent(
- *             ref="#/components/schemas/ConfiguredPlayListBaseResponse",
+ *             ref="#/components/schemas/MatchPlaysBaseResponse",
  *             @OA\Examples(
  *                 example="offensive_hmark_left",
  *                 summary="Offensive with h_mark_position=hmark_left",
@@ -427,7 +427,7 @@ namespace App\OpenApi;
  *         @OA\Schema(type="string", enum={"offensive", "defensive"}, example="offensive")
  *     ),
  *     @OA\Parameter(name="is_practice", in="query", required=false, description="true/1 for practice mode; false/0 for play mode", @OA\Schema(type="boolean", example=true)),
- *     @OA\Parameter(name="h_mark_position", in="query", required=false, description="Offensive only: H-mark column mapped to response `image` (same as configured-play-list)", @OA\Schema(type="string", enum={"hmark_left", "hmark_center", "hmark_right"}, default="hmark_center", example="hmark_center")),
+ *     @OA\Parameter(name="h_mark_position", in="query", required=false, description="Offensive only: H-mark column mapped to response `image` (same as match-plays)", @OA\Schema(type="string", enum={"hmark_left", "hmark_center", "hmark_right"}, default="hmark_center", example="hmark_center")),
  *     @OA\Parameter(name="down", in="query", required=false, description="Current down (1-4); maps to preferred_down filter", @OA\Schema(type="integer", enum={1, 2, 3, 4}, example=2)),
  *     @OA\Parameter(name="strategy", in="query", required=false, description="Scoreboard strategy value; maps to strategies column (FIND_IN_SET)", @OA\Schema(type="string", example="regular")),
  *     @OA\Parameter(name="expectedyard", in="query", required=false, description="Expected yard gain from scoreboard; maps to min_expected_yard", @OA\Schema(type="string", example="45")),
