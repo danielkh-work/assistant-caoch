@@ -528,8 +528,9 @@
                 "tags": [
                     "League QB"
                 ],
-                "summary": "Get QB for a league",
-                "operationId": "getLeagueQb",
+                "summary": "List all QBs for a league",
+                "description": "Returns every QB user configured for teams in the given league. Each entry includes `team_id` (`league_teams.id`).",
+                "operationId": "listLeagueQbs",
                 "parameters": [
                     {
                         "name": "league",
@@ -538,6 +539,98 @@
                         "schema": {
                             "type": "integer",
                             "example": 22
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Zero or more QB users in `data` array",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "qb list"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": 78
+                                                    },
+                                                    "name": {
+                                                        "type": "string",
+                                                        "example": "Team A QB"
+                                                    },
+                                                    "team_id": {
+                                                        "type": "integer",
+                                                        "example": 10
+                                                    },
+                                                    "league_id": {
+                                                        "type": "integer",
+                                                        "example": 22
+                                                    },
+                                                    "head_coach_id": {
+                                                        "type": "integer",
+                                                        "example": 5
+                                                    },
+                                                    "is_loggin": {
+                                                        "type": "boolean",
+                                                        "example": false
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "League not found or not owned by the authenticated head coach"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/leagues/{league}/teams/{team}/qb": {
+            "get": {
+                "tags": [
+                    "League QB"
+                ],
+                "summary": "Get QB for a league team",
+                "operationId": "getLeagueTeamQb",
+                "parameters": [
+                    {
+                        "name": "league",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 22
+                        }
+                    },
+                    {
+                        "name": "team",
+                        "in": "path",
+                        "description": "`league_teams.id`",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 10
                         }
                     }
                 ],
@@ -556,8 +649,8 @@
                 "tags": [
                     "League QB"
                 ],
-                "summary": "Create QB for a league",
-                "operationId": "addLeagueQb",
+                "summary": "Create QB for a league team",
+                "operationId": "addLeagueTeamQb",
                 "parameters": [
                     {
                         "name": "league",
@@ -566,6 +659,16 @@
                         "schema": {
                             "type": "integer",
                             "example": 22
+                        }
+                    },
+                    {
+                        "name": "team",
+                        "in": "path",
+                        "description": "`league_teams.id`",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 10
                         }
                     }
                 ],
@@ -597,6 +700,9 @@
                 "responses": {
                     "200": {
                         "description": "QB created"
+                    },
+                    "422": {
+                        "description": "A QB already exists for this team"
                     }
                 },
                 "security": [
@@ -606,13 +712,13 @@
                 ]
             }
         },
-        "/api/leagues/{league}/qb/logout": {
+        "/api/leagues/{league}/teams/{team}/qb/logout": {
             "post": {
                 "tags": [
                     "League QB"
                 ],
-                "summary": "Log out QB from dashboard",
-                "operationId": "logoutLeagueQb",
+                "summary": "Log out QB for a league team",
+                "operationId": "logoutLeagueTeamQb",
                 "parameters": [
                     {
                         "name": "league",
@@ -621,6 +727,16 @@
                         "schema": {
                             "type": "integer",
                             "example": 22
+                        }
+                    },
+                    {
+                        "name": "team",
+                        "in": "path",
+                        "description": "`league_teams.id`",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 10
                         }
                     }
                 ],
@@ -652,14 +768,14 @@
                 ]
             }
         },
-        "/api/leagues/{league}/web/scan-qr": {
+        "/api/leagues/{league}/teams/{team}/web/scan-qr": {
             "post": {
                 "tags": [
                     "League QB"
                 ],
-                "summary": "Pair mobile session to league QB",
-                "description": "Broadcasts session approval to `qb-user.{session_id}` and session update to `headcoach.{headCoachId}.league.{leagueId}.qb`. Mobile app should subscribe to `coach-group.{headCoachId}.league.{leagueId}` for match notifications.",
-                "operationId": "scanLeagueQbQr",
+                "summary": "Pair mobile session to a league team QB",
+                "description": "Broadcasts session approval to `qb-user.{session_id}` and session update to `headcoach.{headCoachId}.league.{leagueId}.qb` (payload includes `team_id`). Mobile app should subscribe to `coach-group.{headCoachId}.league.{leagueId}` for match notifications.",
+                "operationId": "scanLeagueTeamQbQr",
                 "parameters": [
                     {
                         "name": "league",
@@ -668,6 +784,16 @@
                         "schema": {
                             "type": "integer",
                             "example": 22
+                        }
+                    },
+                    {
+                        "name": "team",
+                        "in": "path",
+                        "description": "`league_teams.id`",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 10
                         }
                     }
                 ],
@@ -754,6 +880,10 @@
                                                             "nullable": true
                                                         },
                                                         "league_id": {
+                                                            "type": "integer",
+                                                            "nullable": true
+                                                        },
+                                                        "team_id": {
                                                             "type": "integer",
                                                             "nullable": true
                                                         }
@@ -2862,7 +2992,7 @@
         },
         {
             "name": "League QB",
-            "description": "Per-league QB registration, pairing, and logout (one QB per league per head coach)"
+            "description": "Per-team QB registration, pairing, and logout (one QB per league team per head coach)"
         },
         {
             "name": "QB Logout",

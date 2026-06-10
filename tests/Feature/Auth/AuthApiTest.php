@@ -272,8 +272,15 @@ class AuthApiTest extends TestCase
             'updated_at' => now(),
         ]);
 
+        $teamId = \Illuminate\Support\Facades\DB::table('league_teams')->insertGetId([
+            'league_id' => $leagueId,
+            'team_name' => 'Team A',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
         $response = $this->actingAs($headCoach, 'sanctum')
-                         ->postJson("/api/leagues/{$leagueId}/qb", [
+                         ->postJson("/api/leagues/{$leagueId}/teams/{$teamId}/qb", [
                              'name' => 'QB User',
                              'email' => 'qb@test.com'
                          ]);
@@ -283,6 +290,7 @@ class AuthApiTest extends TestCase
             'email' => 'qb@test.com',
             'head_coach_id' => $headCoach->id,
             'league_id' => $leagueId,
+            'team_id' => $teamId,
             'is_loggin' => 0,
         ]);
         $this->assertFalse((bool) $response->json('data.is_loggin'));
@@ -310,12 +318,20 @@ class AuthApiTest extends TestCase
             'updated_at' => now(),
         ]);
 
+        $teamId = \Illuminate\Support\Facades\DB::table('league_teams')->insertGetId([
+            'league_id' => $leagueId,
+            'team_name' => 'Team A',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
         User::create([
             'name' => 'QB User',
             'email' => 'qb@test.com',
             'role' => 'qb',
             'head_coach_id' => $headCoach->id,
             'league_id' => $leagueId,
+            'team_id' => $teamId,
             'password' => Hash::make('12345678')
         ]);
 
@@ -323,7 +339,8 @@ class AuthApiTest extends TestCase
                          ->getJson("/api/leagues/{$leagueId}/qb");
 
         $response->assertStatus(200)
-                 ->assertJsonFragment(['role' => 'qb']);
+                 ->assertJsonFragment(['role' => 'qb'])
+                 ->assertJsonFragment(['team_id' => $teamId]);
     }
 
     /** @test */

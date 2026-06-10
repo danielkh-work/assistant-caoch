@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Event;
 use Tests\TestCase;
 use App\Models\User;
 use App\Models\League;
+use App\Models\LeagueTeam;
 use App\Models\MobileSession;
 use Laravel\Sanctum\Sanctum;
 use Illuminate\Support\Str;
@@ -22,6 +23,7 @@ class WebQrControllerTest extends TestCase
     protected User $user;
     protected User $qbUser;
     protected League $league;
+    protected LeagueTeam $team;
 
     protected function setUp(): void
     {
@@ -45,12 +47,23 @@ class WebQrControllerTest extends TestCase
         $this->league->number_of_team = 2;
         $this->league->save();
 
+        $this->team = LeagueTeam::create([
+            'league_id' => $this->league->id,
+            'team_name' => 'Team A',
+        ]);
+
         $this->qbUser = User::factory()->create([
             'role' => 'qb',
             'head_coach_id' => $this->user->id,
             'league_id' => $this->league->id,
+            'team_id' => $this->team->id,
             'status' => 'approved'
         ]);
+    }
+
+    protected function teamQbPath(string $suffix = 'qb'): string
+    {
+        return "/api/leagues/{$this->league->id}/teams/{$this->team->id}/{$suffix}";
     }
 
     protected function auth()
@@ -80,7 +93,7 @@ class WebQrControllerTest extends TestCase
             'session_id' => Str::uuid()->toString()
         ]);
 
-        $response = $this->postJson("/api/leagues/{$this->league->id}/web/scan-qr", [
+        $response = $this->postJson($this->teamQbPath('web/scan-qr'), [
             'session_id' => $session->session_id
         ]);
 
@@ -98,7 +111,7 @@ class WebQrControllerTest extends TestCase
 
         Event::fake([MobileSessionLogout::class, QbSessionUpdated::class]);
 
-        $response = $this->postJson("/api/leagues/{$this->league->id}/qb/logout", [
+        $response = $this->postJson($this->teamQbPath('qb/logout'), [
             'id' => $this->qbUser->id,
         ]);
 
@@ -107,6 +120,7 @@ class WebQrControllerTest extends TestCase
             ->assertJsonPath('message', 'logout successful')
             ->assertJsonPath('is_loggin', false)
             ->assertJsonPath('user.league_id', $this->league->id)
+            ->assertJsonPath('user.team_id', $this->team->id)
             ->assertJsonPath('user.session_id', $sessionId);
 
         $this->qbUser->refresh();
@@ -144,10 +158,16 @@ class WebQrControllerTest extends TestCase
         $otherLeague->number_of_team = 2;
         $otherLeague->save();
 
+        $otherTeam = LeagueTeam::create([
+            'league_id' => $otherLeague->id,
+            'team_name' => 'Other Team',
+        ]);
+
         $otherQb = User::factory()->create([
             'role' => 'qb',
             'head_coach_id' => $this->user->id,
             'league_id' => $otherLeague->id,
+            'team_id' => $otherTeam->id,
             'is_loggin' => true,
             'session_id' => Str::uuid()->toString(),
             'status' => 'approved',
@@ -159,7 +179,7 @@ class WebQrControllerTest extends TestCase
 
         Event::fake([MobileSessionLogout::class, QbSessionUpdated::class]);
 
-        $this->postJson("/api/leagues/{$this->league->id}/qb/logout", [
+        $this->postJson($this->teamQbPath('qb/logout'), [
             'id' => $this->qbUser->id,
         ])->assertStatus(200);
 
@@ -183,17 +203,23 @@ class WebQrControllerTest extends TestCase
         $otherLeague->number_of_team = 2;
         $otherLeague->save();
 
+        $otherTeam = LeagueTeam::create([
+            'league_id' => $otherLeague->id,
+            'team_name' => 'Other Team',
+        ]);
+
         $otherQb = User::factory()->create([
             'role' => 'qb',
             'head_coach_id' => $this->user->id,
             'league_id' => $otherLeague->id,
+            'team_id' => $otherTeam->id,
             'is_loggin' => true,
             'status' => 'approved',
         ]);
 
         Event::fake([MobileSessionLogout::class, QbSessionUpdated::class]);
 
-        $this->postJson("/api/leagues/{$this->league->id}/qb/logout", [
+        $this->postJson($this->teamQbPath('qb/logout'), [
             'id' => $otherQb->id,
         ])->assertStatus(404);
 

@@ -18,7 +18,7 @@ namespace App\OpenApi;
  *
  * @OA\Tag(
  *     name="League QB",
- *     description="Per-league QB registration, pairing, and logout (one QB per league per head coach)"
+ *     description="Per-team QB registration, pairing, and logout (one QB per league team per head coach)"
  * )
  *
  * @OA\Tag(
@@ -28,21 +28,55 @@ namespace App\OpenApi;
  *
  * @OA\Get(
  *     path="/api/leagues/{league}/qb",
- *     operationId="getLeagueQb",
+ *     operationId="listLeagueQbs",
  *     tags={"League QB"},
- *     summary="Get QB for a league",
+ *     summary="List all QBs for a league",
+ *     description="Returns every QB user configured for teams in the given league. Each entry includes `team_id` (`league_teams.id`).",
  *     security={{"sanctum":{}}},
  *     @OA\Parameter(name="league", in="path", required=true, @OA\Schema(type="integer", example=22)),
+ *     @OA\Response(
+ *         response=200,
+ *         description="Zero or more QB users in `data` array",
+ *         @OA\JsonContent(
+ *             @OA\Property(property="status", type="integer", example=200),
+ *             @OA\Property(property="message", type="string", example="qb list"),
+ *             @OA\Property(
+ *                 property="data",
+ *                 type="array",
+ *                 @OA\Items(
+ *                     type="object",
+ *                     @OA\Property(property="id", type="integer", example=78),
+ *                     @OA\Property(property="name", type="string", example="Team A QB"),
+ *                     @OA\Property(property="team_id", type="integer", example=10),
+ *                     @OA\Property(property="league_id", type="integer", example=22),
+ *                     @OA\Property(property="head_coach_id", type="integer", example=5),
+ *                     @OA\Property(property="is_loggin", type="boolean", example=false)
+ *                 )
+ *             )
+ *         )
+ *     ),
+ *     @OA\Response(response=404, description="League not found or not owned by the authenticated head coach")
+ * )
+ *
+ * @OA\Get(
+ *     path="/api/leagues/{league}/teams/{team}/qb",
+ *     operationId="getLeagueTeamQb",
+ *     tags={"League QB"},
+ *     summary="Get QB for a league team",
+ *     security={{"sanctum":{}}},
+ *     @OA\Parameter(name="league", in="path", required=true, @OA\Schema(type="integer", example=22)),
+ *     @OA\Parameter(name="team", in="path", required=true, description="`league_teams.id`", @OA\Schema(type="integer", example=10)),
  *     @OA\Response(response=200, description="Zero or one QB user in `data` array")
  * )
  *
  * @OA\Post(
- *     path="/api/leagues/{league}/qb",
- *     operationId="addLeagueQb",
+ *     path="/api/leagues/{league}/teams/{team}/qb",
+ *     operationId="addLeagueTeamQb",
  *     tags={"League QB"},
- *     summary="Create QB for a league",
+ *     summary="Create QB for a league team",
  *     security={{"sanctum":{}}},
  *     @OA\Parameter(name="league", in="path", required=true, @OA\Schema(type="integer", example=22)),
+ *     @OA\Parameter(name="team", in="path", required=true, description="`league_teams.id`", @OA\Schema(type="integer", example=10)),
  *     @OA\RequestBody(
  *         required=true,
  *         @OA\JsonContent(
@@ -51,16 +85,18 @@ namespace App\OpenApi;
  *             @OA\Property(property="email", type="string", format="email", example="nfl-qb@example.com")
  *         )
  *     ),
- *     @OA\Response(response=200, description="QB created")
+ *     @OA\Response(response=200, description="QB created"),
+ *     @OA\Response(response=422, description="A QB already exists for this team")
  * )
  *
  * @OA\Post(
- *     path="/api/leagues/{league}/qb/logout",
- *     operationId="logoutLeagueQb",
+ *     path="/api/leagues/{league}/teams/{team}/qb/logout",
+ *     operationId="logoutLeagueTeamQb",
  *     tags={"League QB"},
- *     summary="Log out QB from dashboard",
+ *     summary="Log out QB for a league team",
  *     security={{"sanctum":{}}},
  *     @OA\Parameter(name="league", in="path", required=true, @OA\Schema(type="integer", example=22)),
+ *     @OA\Parameter(name="team", in="path", required=true, description="`league_teams.id`", @OA\Schema(type="integer", example=10)),
  *     @OA\RequestBody(
  *         required=true,
  *         @OA\JsonContent(@OA\Property(property="id", type="integer", example=78))
@@ -69,13 +105,14 @@ namespace App\OpenApi;
  * )
  *
  * @OA\Post(
- *     path="/api/leagues/{league}/web/scan-qr",
- *     operationId="scanLeagueQbQr",
+ *     path="/api/leagues/{league}/teams/{team}/web/scan-qr",
+ *     operationId="scanLeagueTeamQbQr",
  *     tags={"League QB"},
- *     summary="Pair mobile session to league QB",
- *     description="Broadcasts session approval to `qb-user.{session_id}` and session update to `headcoach.{headCoachId}.league.{leagueId}.qb`. Mobile app should subscribe to `coach-group.{headCoachId}.league.{leagueId}` for match notifications.",
+ *     summary="Pair mobile session to a league team QB",
+ *     description="Broadcasts session approval to `qb-user.{session_id}` and session update to `headcoach.{headCoachId}.league.{leagueId}.qb` (payload includes `team_id`). Mobile app should subscribe to `coach-group.{headCoachId}.league.{leagueId}` for match notifications.",
  *     security={{"sanctum":{}}},
  *     @OA\Parameter(name="league", in="path", required=true, @OA\Schema(type="integer", example=22)),
+ *     @OA\Parameter(name="team", in="path", required=true, description="`league_teams.id`", @OA\Schema(type="integer", example=10)),
  *     @OA\RequestBody(
  *         required=true,
  *         @OA\JsonContent(@OA\Property(property="session_id", type="string", format="uuid"))
@@ -111,7 +148,8 @@ namespace App\OpenApi;
  *                         @OA\Property(property="session_id", type="string", nullable=true),
  *                         @OA\Property(property="code", type="string", nullable=true),
  *                         @OA\Property(property="head_coach_id", type="integer", nullable=true),
- *                         @OA\Property(property="league_id", type="integer", nullable=true)
+ *                         @OA\Property(property="league_id", type="integer", nullable=true),
+ *                         @OA\Property(property="team_id", type="integer", nullable=true)
  *                     )
  *                 ),
  *                 @OA\Schema(

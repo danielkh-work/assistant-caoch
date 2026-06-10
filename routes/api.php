@@ -286,10 +286,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('leagues')->group(function () {
         Route::put('/{league}', [LeagueController::class, 'update']);
         Route::get('/{league}/get-suggested-plays', [SuggestionController::class, 'getSuggestedPlays']);
-        Route::get('/{league}/qb', [LeagueQbController::class, 'show']);
-        Route::post('/{league}/qb', [LeagueQbController::class, 'store']);
-        Route::post('/{league}/qb/logout', [LeagueQbController::class, 'logout']);
-        Route::post('/{league}/web/scan-qr', [LeagueQbController::class, 'scanQr']);
+        Route::get('/{league}/qb', [LeagueQbController::class, 'index']);
+        Route::prefix('/{league}/teams/{team}')->group(function () {
+            Route::get('/qb', [LeagueQbController::class, 'show']);
+            Route::post('/qb', [LeagueQbController::class, 'store']);
+            Route::post('/qb/logout', [LeagueQbController::class, 'logout']);
+            Route::post('/web/scan-qr', [LeagueQbController::class, 'scanQr']);
+        });
     });
 
     Route::get('/configurations', [ConfigurationController::class, 'index']);

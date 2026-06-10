@@ -23,6 +23,7 @@ class User extends Authenticatable
         'password',
         'head_coach_id',
         'league_id',
+        'team_id',
         'sport_id',
         'is_subscribe',
         'role',
@@ -45,6 +46,11 @@ class User extends Authenticatable
     public function league()
     {
         return $this->belongsTo(League::class);
+    }
+
+    public function leagueTeam()
+    {
+        return $this->belongsTo(LeagueTeam::class, 'team_id');
     }
     /**
      * The attributes that should be hidden for serialization.

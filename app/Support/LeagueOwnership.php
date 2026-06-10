@@ -3,8 +3,9 @@
 namespace App\Support;
 
 use App\Models\League;
+use App\Models\LeagueTeam;
 use App\Models\User;
-use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Database\Eloquent\Collection;
 
 class LeagueOwnership
 {
@@ -34,7 +35,17 @@ class LeagueOwnership
             ->firstOrFail();
     }
 
-    public static function qbForLeague(int $leagueId, ?User $user = null): ?User
+    public static function teamForLeague(int $teamId, int $leagueId, ?User $user = null): LeagueTeam
+    {
+        self::leagueForHeadCoach($leagueId, $user);
+
+        return LeagueTeam::query()
+            ->whereKey($teamId)
+            ->where('league_id', $leagueId)
+            ->firstOrFail();
+    }
+
+    public static function qbForLeagueTeam(int $leagueId, int $teamId, ?User $user = null): ?User
     {
         $headCoachId = self::resolveHeadCoachId($user);
 
@@ -42,6 +53,21 @@ class LeagueOwnership
             ->where('role', 'qb')
             ->where('head_coach_id', $headCoachId)
             ->where('league_id', $leagueId)
+            ->where('team_id', $teamId)
             ->first();
+    }
+
+    /**
+     * @return Collection<int, User>
+     */
+    public static function qbsForLeague(int $leagueId, ?User $user = null): Collection
+    {
+        $headCoachId = self::resolveHeadCoachId($user);
+
+        return User::query()
+            ->where('role', 'qb')
+            ->where('head_coach_id', $headCoachId)
+            ->where('league_id', $leagueId)
+            ->get();
     }
 }

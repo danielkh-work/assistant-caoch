@@ -14,25 +14,40 @@ use Illuminate\Http\Request;
 
 class LeagueQbController extends Controller
 {
-    public function show(int $league): BaseResponse
+    public function index(int $league): BaseResponse
     {
         $this->authorizeHeadCoach();
         LeagueOwnership::leagueForHeadCoach($league);
 
-        $qb = LeagueOwnership::qbForLeague($league);
+        $qbs = LeagueOwnership::qbsForLeague($league);
 
         return new BaseResponse(
             STATUS_CODE_OK,
             STATUS_CODE_OK,
             'qb list',
-            $qb ? [$qb] : [],
+            $qbs->map(fn (User $qb) => $this->qbFields($qb))->values()->all(),
         );
     }
 
-    public function store(Request $request, int $league): BaseResponse
+    public function show(int $league, int $team): BaseResponse
     {
         $this->authorizeHeadCoach();
-        LeagueOwnership::leagueForHeadCoach($league);
+        LeagueOwnership::teamForLeague($team, $league);
+
+        $qb = LeagueOwnership::qbForLeagueTeam($league, $team);
+
+        return new BaseResponse(
+            STATUS_CODE_OK,
+            STATUS_CODE_OK,
+            'qb list',
+            $qb ? [$this->qbFields($qb)] : [],
+        );
+    }
+
+    public function store(Request $request, int $league, int $team): BaseResponse
+    {
+        $this->authorizeHeadCoach();
+        LeagueOwnership::teamForLeague($team, $league);
 
         $request->validate([
             'name' => 'required|string',
@@ -41,11 +56,11 @@ class LeagueQbController extends Controller
 
         $headCoach = auth()->user();
 
-        if (LeagueOwnership::qbForLeague($league, $headCoach)) {
+        if (LeagueOwnership::qbForLeagueTeam($league, $team, $headCoach)) {
             return new BaseResponse(
                 STATUS_CODE_UNPROCESSABLE,
                 STATUS_CODE_UNPROCESSABLE,
-                'A QB already exists for this league.',
+                'A QB already exists for this team.',
             );
         }
 
@@ -56,6 +71,7 @@ class LeagueQbController extends Controller
             'role' => 'qb',
             'head_coach_id' => $headCoach->id,
             'league_id' => $league,
+            'team_id' => $team,
             'sport_id' => $headCoach->sport_id,
             'is_subscribe' => $headCoach->is_subscribe,
             'subscription_id' => $headCoach->subscription_id,
@@ -75,22 +91,22 @@ class LeagueQbController extends Controller
         );
     }
 
-    public function scanQr(Request $request, int $league): JsonResponse
+    public function scanQr(Request $request, int $league, int $team): JsonResponse
     {
         $this->authorizeHeadCoach();
-        LeagueOwnership::leagueForHeadCoach($league);
+        LeagueOwnership::teamForLeague($team, $league);
 
         $request->validate([
             'session_id' => 'required|string',
         ]);
 
         $headCoachId = (int) auth()->id();
-        $user = LeagueOwnership::qbForLeague($league);
+        $user = LeagueOwnership::qbForLeagueTeam($league, $team);
 
         if (! $user) {
             return response()->json([
                 'status' => 401,
-                'message' => 'No QB configured for this league',
+                'message' => 'No QB configured for this team',
             ], 401);
         }
 
@@ -99,8 +115,7 @@ class LeagueQbController extends Controller
         $user->save();
 
         $token = $user->createToken('QB-App-Token')->plainTextToken;
-
-        $userFields = $user->only(['id', 'name', 'session_id', 'code', 'head_coach_id', 'league_id', 'is_loggin']);
+        $userFields = $this->qbFields($user);
 
         $userData = [
             'status' => 201,
@@ -116,7 +131,7 @@ class LeagueQbController extends Controller
         broadcast(new QbSessionUpdated(
             $headCoachId,
             $league,
-            $user->only(['id', 'name', 'email', 'session_id', 'code', 'head_coach_id', 'league_id', 'is_loggin']),
+            $userFields,
             true,
             'login',
         ))->toOthers();
@@ -124,10 +139,10 @@ class LeagueQbController extends Controller
         return response()->json($userData, 201);
     }
 
-    public function logout(Request $request, int $league): JsonResponse
+    public function logout(Request $request, int $league, int $team): JsonResponse
     {
         $this->authorizeHeadCoach();
-        LeagueOwnership::leagueForHeadCoach($league);
+        LeagueOwnership::teamForLeague($team, $league);
 
         $request->validate([
             'id' => 'required|integer|exists:users,id',
@@ -139,12 +154,13 @@ class LeagueQbController extends Controller
             ->where('role', 'qb')
             ->where('head_coach_id', $coach->id)
             ->where('league_id', $league)
+            ->where('team_id', $team)
             ->first();
 
         if (! $user) {
             return response()->json([
                 'status' => 404,
-                'message' => 'QB user not found for this league',
+                'message' => 'QB user not found for this team',
             ], 404);
         }
 
@@ -152,10 +168,12 @@ class LeagueQbController extends Controller
         $user->is_loggin = false;
         $user->save();
 
+        $userFields = $this->qbFields($user);
+
         $payload = [
             'status' => 200,
             'message' => 'logout successful',
-            'user' => $user->only(['id', 'name', 'session_id', 'code', 'head_coach_id', 'league_id']),
+            'user' => $userFields,
             'is_loggin' => (bool) $user->is_loggin,
         ];
 
@@ -164,7 +182,7 @@ class LeagueQbController extends Controller
                 'status' => 200,
                 'message' => 'logout successful',
                 'user' => array_merge(
-                    $user->only(['id', 'name', 'code', 'head_coach_id', 'league_id']),
+                    $user->only(['id', 'name', 'code', 'head_coach_id', 'league_id', 'team_id']),
                     ['session_id' => $sessionId]
                 ),
             ]))->toOthers();
@@ -173,12 +191,31 @@ class LeagueQbController extends Controller
         broadcast(new QbSessionUpdated(
             (int) $coach->id,
             $league,
-            $user->only(['id', 'name', 'email', 'session_id', 'code', 'head_coach_id', 'league_id', 'is_loggin']),
+            $userFields,
             false,
             'logout',
         ))->toOthers();
 
         return response()->json($payload);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function qbFields(User $user): array
+    {
+        return $user->only([
+            'id',
+            'name',
+            'email',
+            'role',
+            'session_id',
+            'code',
+            'head_coach_id',
+            'league_id',
+            'team_id',
+            'is_loggin',
+        ]);
     }
 
     private function authorizeHeadCoach(): void

@@ -482,7 +482,7 @@ class AuthController extends Controller
             broadcast(new QbSessionUpdated(
                 (int) $user->head_coach_id,
                 (int) $user->league_id,
-                $user->only(['id', 'name', 'email', 'session_id', 'code', 'head_coach_id', 'league_id', 'is_loggin']),
+                $user->only(['id', 'name', 'email', 'session_id', 'code', 'head_coach_id', 'league_id', 'team_id', 'is_loggin']),
                 true,
                 'login',
             ));
@@ -494,7 +494,7 @@ class AuthController extends Controller
         return response()->json([
             'status'       => 200,
             'message'      => 'Login successful',
-            'user'         => $user->only(['id', 'name', 'session_id', 'code', 'head_coach_id', 'league_id']),
+            'user'         => $user->only(['id', 'name', 'session_id', 'code', 'head_coach_id', 'league_id', 'team_id']),
             'access_token' => $token,
             'token_type'   => 'Bearer'
         ]);

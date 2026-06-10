@@ -51,6 +51,7 @@ class QbSessionUpdated implements ShouldBroadcast
             'action' => $this->action,
             'is_loggin' => $this->isLoggedIn,
             'league_id' => $this->leagueId,
+            'team_id' => $this->user['team_id'] ?? null,
             'user' => $this->user,
         ];
     }
