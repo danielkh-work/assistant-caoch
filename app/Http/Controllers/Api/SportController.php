@@ -25,38 +25,38 @@ class SportController extends Controller
 
     public function league(Request $request)
     {
-        // "role":"assistant_coach","head_coach_id":30
-        \Log::info('Authenticated user:', ['user' => auth()->user()->assistant_coach]);
-        $id =  auth()->user()->id;
-        $user=auth()->user();
-        $userRoleIds = auth()->user()->roles->pluck('id');
-        $league = League::with([
-            'teams',  // Selecting only 'id' and 'name' from teams
-            'league_rule:id,title', // Selecting only 'id' and 'title' from leaque_rule
-            'sport:id,title',
-            'roles' 
-        ])
-        ->when(in_array($user->role, ['assistant_coach', 'performance_coach']), function ($query) use ($user) {
-                return $query->where(function ($q) use ($user) {
-                    $q->where('user_id', $user->id)
-                    ->orWhere('user_id', $user->head_coach_id);
-                });
+        $user = auth()->user();
 
-            }, function ($query) use ($user) {
-                return $query->orWhere('user_id', $user->id);
-        })
-        ->where('sport_id',$request->sport_id)
-        ->orWhereHas('roles', function ($query) use ($userRoleIds) {
-            $query->where(function ($q) use ($userRoleIds) {
-                $q->whereIn('roleables.role_id', $userRoleIds);
+        $query = League::with([
+            'teams',
+            'league_rule:id,title',
+            'sport:id,title',
+            'roles',
+        ]);
+
+        if (in_array($user->role, ['assistant_coach', 'performance_coach'], true)) {
+            $headCoachId = (int) $user->head_coach_id;
+            $query->where(function ($q) use ($user, $headCoachId) {
+                $q->where('user_id', $user->id)
+                    ->orWhere('user_id', $headCoachId);
             });
-       })
-       ->get();
-        
-        
-       
-        
-        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "leauqe List  ", $league);
+        } else {
+            $userRoleIds = $user->roles->pluck('id');
+            $query->where(function ($q) use ($user, $userRoleIds) {
+                $q->where('user_id', $user->id)
+                    ->orWhereHas('roles', function ($roleQuery) use ($userRoleIds) {
+                        $roleQuery->whereIn('roleables.role_id', $userRoleIds);
+                    });
+            });
+        }
+
+        if ($request->filled('sport_id') && $request->sport_id !== 'all') {
+            $query->where('sport_id', $request->sport_id);
+        }
+
+        $league = $query->get();
+
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'leauqe List  ', $league);
     }
     public function leagueRule(Request $request)
     {

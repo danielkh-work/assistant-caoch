@@ -26,13 +26,17 @@ class LeagueOwnership
 
     public static function leagueForHeadCoach(int $leagueId, ?User $user = null): League
     {
+        return League::query()->whereKey($leagueId)->firstOrFail();
+    }
+
+    public static function assertLeagueOwnedByHeadCoach(League $league, ?User $user = null): void
+    {
         $user ??= auth()->user();
         $headCoachId = self::resolveHeadCoachId($user);
 
-        return League::query()
-            ->whereKey($leagueId)
-            ->where('user_id', $headCoachId)
-            ->firstOrFail();
+        if ((int) $league->user_id !== $headCoachId) {
+            abort(403, 'You do not have access to manage this league.');
+        }
     }
 
     public static function teamForLeague(int $teamId, int $leagueId, ?User $user = null): LeagueTeam

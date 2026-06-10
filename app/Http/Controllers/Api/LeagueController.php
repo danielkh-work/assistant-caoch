@@ -70,6 +70,7 @@ class LeagueController extends Controller
         }
 
         $leagueModel = LeagueOwnership::leagueForHeadCoach($league);
+        LeagueOwnership::assertLeagueOwnedByHeadCoach($leagueModel);
 
         DB::beginTransaction();
 
