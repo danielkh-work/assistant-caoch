@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ConfigureController;
+use App\Http\Controllers\Api\LeagueController;
 use App\Http\Controllers\Api\LeagueQbController;
 use App\Http\Controllers\Api\MatchPlaysController;
 use App\Http\Controllers\Api\FormationController;
@@ -283,6 +284,7 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::prefix('leagues')->group(function () {
+        Route::put('/{league}', [LeagueController::class, 'update']);
         Route::get('/{league}/get-suggested-plays', [SuggestionController::class, 'getSuggestedPlays']);
         Route::get('/{league}/qb', [LeagueQbController::class, 'show']);
         Route::post('/{league}/qb', [LeagueQbController::class, 'store']);

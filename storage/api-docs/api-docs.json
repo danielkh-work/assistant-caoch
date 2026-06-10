@@ -854,6 +854,185 @@
                 }
             }
         },
+        "/api/leagues/{league}": {
+            "put": {
+                "tags": [
+                    "Leagues"
+                ],
+                "summary": "Update league",
+                "description": "Partial update: only fields included in the request body are changed. Omitted fields are left unchanged. Requires the league to belong to the authenticated head coach.",
+                "operationId": "updateLeague",
+                "parameters": [
+                    {
+                        "name": "league",
+                        "in": "path",
+                        "description": "League primary key",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 22
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "title": {
+                                        "type": "string",
+                                        "example": "Updated League"
+                                    },
+                                    "sport_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "league_rule_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "location": {
+                                        "type": "string",
+                                        "example": "Toronto",
+                                        "nullable": true
+                                    },
+                                    "number_of_team": {
+                                        "type": "integer",
+                                        "example": 4,
+                                        "nullable": true
+                                    },
+                                    "number_of_downs": {
+                                        "type": "string",
+                                        "example": "4",
+                                        "nullable": true
+                                    },
+                                    "length_of_field": {
+                                        "type": "string",
+                                        "example": "100",
+                                        "nullable": true
+                                    },
+                                    "number_of_timeouts": {
+                                        "type": "integer",
+                                        "example": 3,
+                                        "nullable": true
+                                    },
+                                    "clock_time": {
+                                        "type": "string",
+                                        "example": "NFL",
+                                        "nullable": true
+                                    },
+                                    "number_of_quarters": {
+                                        "type": "integer",
+                                        "example": 4,
+                                        "nullable": true
+                                    },
+                                    "length_of_quarters": {
+                                        "type": "integer",
+                                        "example": 15,
+                                        "nullable": true
+                                    },
+                                    "stop_time_reason": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "overtime_rules": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "number_of_players": {
+                                        "type": "integer",
+                                        "example": 11,
+                                        "nullable": true
+                                    },
+                                    "practice_number_players": {
+                                        "type": "integer",
+                                        "example": 7,
+                                        "nullable": true
+                                    },
+                                    "warning_time_minutes": {
+                                        "type": "integer",
+                                        "example": 2,
+                                        "nullable": true
+                                    },
+                                    "flag_tbd": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "rpp_configuration": {
+                                        "type": "string",
+                                        "enum": [
+                                            "with_rpp",
+                                            "without_rpp"
+                                        ],
+                                        "example": "with_rpp",
+                                        "nullable": true
+                                    },
+                                    "team_name": {
+                                        "type": "array",
+                                        "items": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 10,
+                                                    "nullable": true
+                                                },
+                                                "name": {
+                                                    "type": "string",
+                                                    "example": "Team A"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "League updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "League updated successfully"
+                                        },
+                                        "data": {
+                                            "description": "Updated league with teams, league_rule, and sport relations",
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "404": {
+                        "description": "League not found or not owned by the authenticated head coach"
+                    },
+                    "422": {
+                        "description": "Validation error or empty payload"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/api/upload-play-list": {
             "get": {
                 "tags": [
@@ -2688,6 +2867,10 @@
         {
             "name": "QB Logout",
             "description": "QB application logout and session login status"
+        },
+        {
+            "name": "Leagues",
+            "description": "League settings and configuration"
         },
         {
             "name": "Plays",
