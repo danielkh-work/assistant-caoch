@@ -26,12 +26,25 @@ class TeamScoreUpdated implements ShouldBroadcast
         $this->leagueId = $leagueId;
     }
 
-    public function broadcastOn()
+    /**
+     * @return array<int, PrivateChannel>
+     */
+    public function broadcastOn(): array
     {
-        return new PrivateChannel("headcoach.{$this->coachGroupId}.league.{$this->leagueId}.qb");
+        $channels = [
+            new PrivateChannel("headcoach.{$this->coachGroupId}.qb"),
+        ];
+
+        if ($this->leagueId > 0) {
+            $channels[] = new PrivateChannel(
+                "headcoach.{$this->coachGroupId}.league.{$this->leagueId}.qb"
+            );
+        }
+
+        return $channels;
     }
 
-    public function broadcastAs()
+    public function broadcastAs(): string
     {
         return 'team.score.updated';
     }
