@@ -29,6 +29,17 @@ Broadcast::channel('user.{userId}.practice.{gameId}', function ($user, $userId, 
     return false;
 });
 
+Broadcast::channel('headcoach.{headCoachId}.qb', function ($user, $headCoachId) {
+    if ($user->role === 'head_coach' && (int) $user->id === (int) $headCoachId) {
+        return true;
+    }
+    if (in_array($user->role, ['assistant_coach', 'performance_coach'], true)
+        && (int) $user->head_coach_id === (int) $headCoachId) {
+        return true;
+    }
+
+    return false;
+});
 Broadcast::channel('headcoach.{headCoachId}.league.{leagueId}.qb', function ($user, $headCoachId, $leagueId) {
     return true;
 });

@@ -121,14 +121,15 @@ class WebQrControllerTest extends TestCase
             ->assertJsonPath('is_loggin', false)
             ->assertJsonPath('user.league_id', $this->league->id)
             ->assertJsonPath('user.team_id', $this->team->id)
-            ->assertJsonPath('user.session_id', $sessionId);
+            ->assertJsonPath('user.session_id', null);
 
         $this->qbUser->refresh();
         $this->assertFalse((bool) $this->qbUser->is_loggin);
-        $this->assertSame($sessionId, $this->qbUser->session_id);
+        $this->assertNull($this->qbUser->session_id);
 
         Event::assertDispatched(MobileSessionLogout::class, function (MobileSessionLogout $event) use ($sessionId) {
-            return $event->user['status'] === 200
+            return $event->sessionId === $sessionId
+                && $event->user['status'] === 200
                 && $event->user['user']['session_id'] === $sessionId
                 && $event->user['user']['league_id'] === $this->league->id
                 && $event->user['user']['id'] === $this->qbUser->id;
@@ -143,6 +144,33 @@ class WebQrControllerTest extends TestCase
                 && $event->user['league_id'] === $this->league->id
                 && $event->user['is_loggin'] === false;
         });
+    }
+
+    public function test_logout_broadcasts_to_stale_and_linked_mobile_sessions()
+    {
+        $this->auth();
+
+        $staleSessionId = Str::uuid()->toString();
+        $activeSessionId = Str::uuid()->toString();
+
+        $this->qbUser->session_id = $staleSessionId;
+        $this->qbUser->is_loggin = true;
+        $this->qbUser->save();
+
+        MobileSession::create([
+            'session_id' => $activeSessionId,
+            'mobile_user_id' => $this->qbUser->id,
+            'status' => 'approved',
+        ]);
+
+        Event::fake([MobileSessionLogout::class, QbSessionUpdated::class]);
+
+        $this->postJson($this->teamQbPath('qb/logout'), [
+            'id' => $this->qbUser->id,
+        ])->assertStatus(200);
+
+        Event::assertDispatched(MobileSessionLogout::class, fn (MobileSessionLogout $event) => $event->sessionId === $staleSessionId);
+        Event::assertDispatched(MobileSessionLogout::class, fn (MobileSessionLogout $event) => $event->sessionId === $activeSessionId);
     }
 
     public function test_league_logout_only_affects_target_league_qb()
@@ -261,5 +289,48 @@ class WebQrControllerTest extends TestCase
         $logged = $this->getJson("/api/qb-session-login-status/{$sessionId}");
         $logged->assertStatus(200)
             ->assertJsonPath('logged_in', true);
+    }
+
+    public function test_qb_session_login_status_refreshes_session_for_authenticated_qb()
+    {
+        $this->qbUser->session_id = Str::uuid()->toString();
+        $this->qbUser->is_loggin = true;
+        $this->qbUser->save();
+
+        $newSessionId = Str::uuid()->toString();
+        Sanctum::actingAs($this->qbUser);
+
+        $response = $this->getJson("/api/qb-session-login-status/{$newSessionId}");
+
+        $response->assertStatus(200)
+            ->assertJsonPath('session_id', $newSessionId)
+            ->assertJsonPath('logged_in', true);
+
+        $this->qbUser->refresh();
+        $this->assertSame($newSessionId, $this->qbUser->session_id);
+        $this->assertDatabaseHas('mobile_sessions', [
+            'session_id' => $newSessionId,
+            'mobile_user_id' => $this->qbUser->id,
+            'status' => 'approved',
+        ]);
+    }
+
+    public function test_create_session_refreshes_session_for_logged_in_qb()
+    {
+        $oldSessionId = Str::uuid()->toString();
+        $this->qbUser->session_id = $oldSessionId;
+        $this->qbUser->is_loggin = true;
+        $this->qbUser->save();
+
+        Sanctum::actingAs($this->qbUser);
+
+        $response = $this->postJson('/api/mobile/create-session');
+
+        $response->assertStatus(200);
+        $newSessionId = $response->json('session_id');
+        $this->assertNotSame($oldSessionId, $newSessionId);
+
+        $this->qbUser->refresh();
+        $this->assertSame($newSessionId, $this->qbUser->session_id);
     }
 }

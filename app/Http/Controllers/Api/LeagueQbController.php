@@ -3,12 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Events\MobileSessionApproved;
-use App\Events\MobileSessionLogout;
 use App\Events\QbSessionUpdated;
 use App\Http\Controllers\Controller;
 use App\Http\Responses\BaseResponse;
 use App\Models\User;
 use App\Support\LeagueOwnership;
+use App\Support\QbLogoutBroadcaster;
+use App\Support\QbMobileSession;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -110,7 +111,7 @@ class LeagueQbController extends Controller
             ], 401);
         }
 
-        $user->session_id = $request->session_id;
+        QbMobileSession::bind($user, $request->session_id);
         $user->is_loggin = true;
         $user->save();
 
@@ -146,6 +147,7 @@ class LeagueQbController extends Controller
 
         $request->validate([
             'id' => 'required|integer|exists:users,id',
+            'session_id' => 'sometimes|nullable|string|uuid',
         ]);
 
         $coach = auth()->user();
@@ -154,49 +156,20 @@ class LeagueQbController extends Controller
             ->where('role', 'qb')
             ->where('head_coach_id', $coach->id)
             ->where('league_id', $league)
-            ->where('team_id', $team)
             ->first();
 
-        if (! $user) {
+        if (! $user || (int) $user->team_id !== (int) $team) {
             return response()->json([
                 'status' => 404,
                 'message' => 'QB user not found for this team',
             ], 404);
         }
 
-        $sessionId = $user->session_id;
-        $user->is_loggin = false;
-        $user->save();
-
-        $userFields = $this->qbFields($user);
-
-        $payload = [
-            'status' => 200,
-            'message' => 'logout successful',
-            'user' => $userFields,
-            'is_loggin' => (bool) $user->is_loggin,
-        ];
-
-        if ($sessionId) {
-            broadcast(new MobileSessionLogout([
-                'status' => 200,
-                'message' => 'logout successful',
-                'user' => array_merge(
-                    $user->only(['id', 'name', 'code', 'head_coach_id', 'league_id', 'team_id']),
-                    ['session_id' => $sessionId]
-                ),
-            ]))->toOthers();
-        }
-
-        broadcast(new QbSessionUpdated(
-            (int) $coach->id,
-            $league,
-            $userFields,
-            false,
-            'logout',
-        ))->toOthers();
-
-        return response()->json($payload);
+        return response()->json(QbLogoutBroadcaster::logoutAndBroadcast(
+            $user,
+            $coach,
+            array_filter([$request->input('session_id')]),
+        ));
     }
 
     /**

@@ -10,7 +10,8 @@ use Illuminate\Queue\SerializesModels;
 
 /**
  * Notifies the head coach dashboard when a QB mobile session starts or ends.
- * Listened on private channel headcoach.{headCoachId}.league.{leagueId}.qb as .qb.session.updated
+ * Broadcasts on legacy headcoach.{headCoachId}.qb (mobile app) and
+ * headcoach.{headCoachId}.league.{leagueId}.qb (league-scoped web).
  */
 class QbSessionUpdated implements ShouldBroadcast
 {
@@ -32,9 +33,17 @@ class QbSessionUpdated implements ShouldBroadcast
      */
     public function broadcastOn(): array
     {
-        return [
-            new PrivateChannel('headcoach.'.$this->headCoachId.'.league.'.$this->leagueId.'.qb'),
+        $channels = [
+            new PrivateChannel('headcoach.'.$this->headCoachId.'.qb'),
         ];
+
+        if ($this->leagueId > 0) {
+            $channels[] = new PrivateChannel(
+                'headcoach.'.$this->headCoachId.'.league.'.$this->leagueId.'.qb'
+            );
+        }
+
+        return $channels;
     }
 
     public function broadcastAs(): string

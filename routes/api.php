@@ -94,7 +94,7 @@ Route::get('/qb-session-login-status/{session_id}', [WebQrController::class, 'qb
 
 Route::prefix('qb')->group(function () {
   
-    Route::get('login-with-session', [AuthController::class, 'loginWithSession']);
+    Route::match(['get', 'post'], 'login-with-session', [AuthController::class, 'loginWithSession']);
      Route::middleware('auth:sanctum')->post('/scoreboard/broadcast', [BroadCastScoreController::class, 'scoreBoardBroadCastQB']);
      Route::middleware('auth:sanctum')->post('/play/scoreboard/broadcast', [BroadCastScoreController::class, 'scoreBoardBroadCastPlay']);
     //Route::post('/scoreboard/broadcast', [BroadCastScoreController::class, 'scoreBoardBroadCastQB']);
@@ -255,6 +255,7 @@ Route::middleware('auth:sanctum')->group(function () {
    Route::post('/assistant-coach/system-suggestion/broadcast', [BroadCastScoreController::class, 'systemSuggestionToHeadCoach']);
    Route::post('/scoreboard/broadcast', [BroadCastScoreController::class, 'scoreBoardBroadCast']);
    Route::post('/practice/scoreboard/broadcast', [BroadCastScoreController::class, 'practiceScoreBoardBroadCast']);
+   Route::post('logout-qb', [WebQrController::class, 'logoutQb']);
    Route::get('/scoreboard', [BroadCastScoreController::class, 'getWebSocketScoreBoard']); 
    Route::get('/practice-scoreboard', [BroadCastScoreController::class, 'getPracticeWebSocketScoreBoard']); 
    Route::get('/delete-scoreboard/{gameId}',[BroadCastScoreController::class,'delete'])->name('deleteScoreBoard');
