@@ -4,6 +4,8 @@ namespace App\Support;
 
 use App\Models\PlayGameMode;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 class ActiveGameModeGuard
@@ -40,11 +42,59 @@ class ActiveGameModeGuard
             ->first();
     }
 
+    /**
+     * Complete same-mode sessions that have no live scoreboard row (orphaned DB rows only).
+     * Never touches the other game_mode — that would bypass cross-mode validation.
+     */
+    public static function reconcileOrphanedSessionsForMode(int $headCoachId, string $gameMode): void
+    {
+        $sessions = PlayGameMode::query()
+            ->where('user_id', $headCoachId)
+            ->where('status', self::STATUS_ACTIVE)
+            ->where('game_mode', $gameMode)
+            ->get();
+
+        foreach ($sessions as $session) {
+            if (! self::sessionHasLiveScoreboard($headCoachId, $session)) {
+                PlayGameMode::query()
+                    ->whereKey($session->id)
+                    ->where('status', self::STATUS_ACTIVE)
+                    ->update(['status' => self::STATUS_COMPLETED]);
+            }
+        }
+    }
+
+    private static function sessionHasLiveScoreboard(int $headCoachId, PlayGameMode $session): bool
+    {
+        $table = $session->game_mode === 'practice'
+            ? 'websocket_practice_scoreboards'
+            : 'websocket_scoreboards';
+
+        if (! Schema::hasTable($table)) {
+            return false;
+        }
+
+        $query = DB::table($table)
+            ->where('user_id', $headCoachId)
+            ->where('is_start', true);
+
+        if (Schema::hasColumn($table, 'session_id')) {
+            $query->where('session_id', $session->id);
+        } elseif ($session->league_id) {
+            $query->where('league_id', $session->league_id);
+        } else {
+            return false;
+        }
+
+        return $query->exists();
+    }
+
     public static function assertCanStart(int $headCoachId, bool $isPractice): void
     {
         self::assertNoOtherModeActive($headCoachId, $isPractice);
 
         $targetMode = self::targetMode($isPractice);
+        self::reconcileOrphanedSessionsForMode($headCoachId, $targetMode);
 
         if (self::activeSession($headCoachId, $targetMode)) {
             throw ValidationException::withMessages([
@@ -66,6 +116,94 @@ class ActiveGameModeGuard
                     : 'Practice mode is in progress. Please end it before starting game mode.',
             ]);
         }
+
+        if (self::scoreboardLiveForMode($headCoachId, $otherMode)) {
+            throw ValidationException::withMessages([
+                'game_mode' => $isPractice
+                    ? 'Game mode is in progress. Please end it before starting practice mode.'
+                    : 'Practice mode is in progress. Please end it before starting game mode.',
+            ]);
+        }
+    }
+
+    public static function scoreboardLiveForMode(int $headCoachId, string $gameMode): bool
+    {
+        $table = $gameMode === 'practice'
+            ? 'websocket_practice_scoreboards'
+            : 'websocket_scoreboards';
+
+        if (! Schema::hasTable($table)) {
+            return false;
+        }
+
+        $rows = DB::table($table)
+            ->where('user_id', $headCoachId)
+            ->where('is_start', true)
+            ->get();
+
+        foreach ($rows as $row) {
+            if (self::scoreboardIndicatesLive($row, $headCoachId, $gameMode)) {
+                return true;
+            }
+
+            self::clearStaleScoreboardRow($row, $table);
+        }
+
+        return false;
+    }
+
+    public static function scoreboardIndicatesLive(object $row, int $headCoachId, string $gameMode): bool
+    {
+        if (! $row->is_start) {
+            return false;
+        }
+
+        if (($row->action ?? null) === 'EndMatch') {
+            return false;
+        }
+
+        $query = PlayGameMode::query()
+            ->where('user_id', $headCoachId)
+            ->where('status', self::STATUS_ACTIVE)
+            ->where('game_mode', $gameMode);
+
+        if (! empty($row->session_id)) {
+            $query->where('id', $row->session_id);
+        } elseif (! empty($row->league_id)) {
+            $query->where('league_id', $row->league_id);
+        } else {
+            return false;
+        }
+
+        return $query->exists();
+    }
+
+    public static function clearStaleScoreboardRow(object $row, string $table): void
+    {
+        DB::table($table)
+            ->where('id', $row->id)
+            ->update([
+                'is_start' => false,
+                'action' => 'EndMatch',
+                'updated_at' => now(),
+            ]);
+    }
+
+    public static function reconcileScoreboardRow(?object $row, int $headCoachId, string $gameMode, string $table): ?object
+    {
+        if (! $row) {
+            return null;
+        }
+
+        if (! self::scoreboardIndicatesLive($row, $headCoachId, $gameMode)) {
+            if ($row->is_start) {
+                self::clearStaleScoreboardRow($row, $table);
+            }
+
+            return null;
+        }
+
+        return $row;
     }
 
     public static function completeSession(int $headCoachId, int $gameId): void

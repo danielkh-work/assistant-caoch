@@ -260,7 +260,11 @@ class SportController extends Controller
         $q->where('type', 1)
           ->orWhereNull('type');
       })->where('is_practice',0)->get();
-      $matches = PlayGameMode::where('league_id', $leauqe->id)->where('status', 4)->get();
+      $matches = PlayGameMode::query()
+          ->where('league_id', $leauqe->id)
+          ->where('status', 4)
+          ->where('game_mode', 'play')
+          ->get();
  
       $pointsTable = [];
  
@@ -281,8 +285,17 @@ class SportController extends Controller
       foreach ($matches as $match) {
           $teamA = $match->my_team_id;
           $teamB = $match->oponent_team_id;
+
+          if (! isset($pointsTable[$teamA], $pointsTable[$teamB])) {
+              continue;
+          }
+
           $scoreA = $match->my_team_score;
           $scoreB = $match->oponent_team_score;
+
+          if ($scoreA === null || $scoreB === null) {
+              continue;
+          }
  
           // Increment played
           $pointsTable[$teamA]['played']++;

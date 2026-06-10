@@ -17,6 +17,7 @@ use App\Models\WebsocketPracticeScoreboard;
 use App\Http\Responses\BaseResponse;
 use App\Support\ActiveGameModeGuard;
 use App\Support\BroadcastLeagueResolver;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 class BroadCastScoreController extends Controller
@@ -77,6 +78,12 @@ class BroadCastScoreController extends Controller
         }
 
         foreach ([WebsocketPracticeScoreboard::class, WebsocketScoreboard::class] as $model) {
+            $table = (new $model)->getTable();
+
+            if (! Schema::hasColumn($table, 'h_mark_position')) {
+                continue;
+            }
+
             $query = $model::where('user_id', $coachGroupId);
 
             if ($gameId !== null && $gameId !== '') {
@@ -181,6 +188,23 @@ class BroadCastScoreController extends Controller
         return null;
     }
 
+    private function resolveIsStartForBroadcast(string $action, Request $request, $existingRow): bool
+    {
+        if ($action === 'EndMatch') {
+            return false;
+        }
+
+        if (in_array($action, ['Start', 'Stop', 'Resume'], true)) {
+            return filter_var($request->isStartTime, FILTER_VALIDATE_BOOLEAN);
+        }
+
+        if ($existingRow) {
+            return (bool) $existingRow->is_start;
+        }
+
+        return filter_var($request->isStartTime, FILTER_VALIDATE_BOOLEAN);
+    }
+
     private function completeSessionOnEndMatch(int $coachGroupId, string $action, mixed $gameId): void
     {
         if ($action !== 'EndMatch' || ! $gameId) {
@@ -247,7 +271,7 @@ class BroadCastScoreController extends Controller
             'right_score' => self::$scores['right']['total'],
             'action' => $action,
             'quarter' => $request->quarter,
-            'is_start' => $request->isStartTime,
+            'is_start' => $this->resolveIsStartForBroadcast($action, $request, $existingPractice),
             'down' => $request->down,
             'team_position' => $request->teamPosition,
             'expected_yard_gain' => $request->expectedyardgain,
@@ -661,7 +685,7 @@ class BroadCastScoreController extends Controller
             'action' => $action,
             'sync_time' => $request->sync_time,
             'quarter' => $request->quarter,
-            'is_start' => $request->isStartTime,
+            'is_start' => $this->resolveIsStartForBroadcast($action, $request, $existingScoreboard),
             'down' => $request->down,
             'team_position' => $request->teamPosition,
             'expected_yard_gain' => $request->expectedyardgain,
@@ -745,6 +769,8 @@ class BroadCastScoreController extends Controller
 
         if ($request->has('game_id')) {
             $query->where('game_id', $request->game_id);
+        } else {
+            $query->where('is_start', true);
         }
 
         $webSocketScorboard = $query->latest('updated_at')->first();
@@ -756,7 +782,18 @@ class BroadCastScoreController extends Controller
             return response()->noContent();
         }
 
-        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "scoreboardList", $webSocketScorboard);
+        $reconciled = ActiveGameModeGuard::reconcileScoreboardRow(
+            $webSocketScorboard,
+            (int) $coachGroupId,
+            'play',
+            'websocket_scoreboards',
+        );
+
+        if (! $reconciled) {
+            return response()->noContent();
+        }
+
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "scoreboardList", $reconciled);
     }
 
     public function getPracticeWebSocketScoreBoard(Request $request){
@@ -770,6 +807,8 @@ class BroadCastScoreController extends Controller
 
         if ($request->has('game_id')) {
             $query->where('game_id', $request->game_id);
+        } else {
+            $query->where('is_start', true);
         }
 
         $webSocketScorboard = $query->latest('updated_at')->first();
@@ -782,7 +821,18 @@ class BroadCastScoreController extends Controller
             return response()->noContent();
         }
 
-        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "scoreboardList", $webSocketScorboard);
+        $reconciled = ActiveGameModeGuard::reconcileScoreboardRow(
+            $webSocketScorboard,
+            (int) $coachGroupId,
+            'practice',
+            'websocket_practice_scoreboards',
+        );
+
+        if (! $reconciled) {
+            return response()->noContent();
+        }
+
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "scoreboardList", $reconciled);
     }
 
 
