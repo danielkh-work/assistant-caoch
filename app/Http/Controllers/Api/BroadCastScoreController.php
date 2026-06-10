@@ -15,7 +15,9 @@ use App\Events\HeadCoachSystemSuggestion;
 use App\Models\WebsocketScoreboard;
 use App\Models\WebsocketPracticeScoreboard;
 use App\Http\Responses\BaseResponse;
+use App\Support\ActiveGameModeGuard;
 use App\Support\BroadcastLeagueResolver;
+use Illuminate\Validation\ValidationException;
 
 class BroadCastScoreController extends Controller
 {
@@ -166,6 +168,28 @@ class BroadCastScoreController extends Controller
         ];
     }
 
+    private function rejectConflictingGameMode(int $coachGroupId, bool $isPractice): ?\Illuminate\Http\JsonResponse
+    {
+        try {
+            ActiveGameModeGuard::assertNoOtherModeActive($coachGroupId, $isPractice);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'message' => collect($e->errors())->flatten()->first(),
+            ], 422);
+        }
+
+        return null;
+    }
+
+    private function completeSessionOnEndMatch(int $coachGroupId, string $action, mixed $gameId): void
+    {
+        if ($action !== 'EndMatch' || ! $gameId) {
+            return;
+        }
+
+        ActiveGameModeGuard::completeSession($coachGroupId, (int) $gameId);
+    }
+
      public function practiceScoreBoardBroadCast(Request $request)
     {
 
@@ -196,6 +220,17 @@ class BroadCastScoreController extends Controller
                 'role' => $user->role,
             ]);
             return response()->json(['error' => 'missing coach group id'], 400);
+        }
+
+        if ($action === 'Start') {
+            $conflictResponse = $this->rejectConflictingGameMode($coachGroupId, true);
+            if ($conflictResponse) {
+                return $conflictResponse;
+            }
+        }
+
+        if ($action === 'EndMatch') {
+            $this->completeSessionOnEndMatch($coachGroupId, $action, $request->game_id);
         }
 
         $existingPractice = WebsocketPracticeScoreboard::where('user_id', $coachGroupId)
@@ -598,6 +633,17 @@ class BroadCastScoreController extends Controller
                 'role' => $user->role,
             ]);
             return response()->json(['error' => 'missing coach group id'], 400);
+        }
+
+        if ($action === 'Start') {
+            $conflictResponse = $this->rejectConflictingGameMode($coachGroupId, false);
+            if ($conflictResponse) {
+                return $conflictResponse;
+            }
+        }
+
+        if ($action === 'EndMatch') {
+            $this->completeSessionOnEndMatch($coachGroupId, $action, $request->game_id);
         }
 
         $existingScoreboard = WebsocketScoreboard::where('user_id', $coachGroupId)
