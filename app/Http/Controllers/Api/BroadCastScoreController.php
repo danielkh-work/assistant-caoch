@@ -205,13 +205,23 @@ class BroadCastScoreController extends Controller
         return filter_var($request->isStartTime, FILTER_VALIDATE_BOOLEAN);
     }
 
-    private function completeSessionOnEndMatch(int $coachGroupId, string $action, mixed $gameId): void
+    private function completeSessionOnEndMatch(int $coachGroupId, string $action, Request $request, string $gameMode): void
     {
-        if ($action !== 'EndMatch' || ! $gameId) {
+        if ($action !== 'EndMatch') {
             return;
         }
 
-        ActiveGameModeGuard::completeSession($coachGroupId, (int) $gameId);
+        if ($request->session_id) {
+            ActiveGameModeGuard::completeSession($coachGroupId, (int) $request->session_id);
+
+            return;
+        }
+
+        ActiveGameModeGuard::completeActiveSessionsForMode(
+            $coachGroupId,
+            $gameMode,
+            $request->league_id ? (int) $request->league_id : null,
+        );
     }
 
      public function practiceScoreBoardBroadCast(Request $request)
@@ -254,7 +264,7 @@ class BroadCastScoreController extends Controller
         }
 
         if ($action === 'EndMatch') {
-            $this->completeSessionOnEndMatch($coachGroupId, $action, $request->game_id);
+            $this->completeSessionOnEndMatch($coachGroupId, $action, $request, 'practice');
         }
 
         $existingPractice = WebsocketPracticeScoreboard::where('user_id', $coachGroupId)
@@ -667,7 +677,7 @@ class BroadCastScoreController extends Controller
         }
 
         if ($action === 'EndMatch') {
-            $this->completeSessionOnEndMatch($coachGroupId, $action, $request->game_id);
+            $this->completeSessionOnEndMatch($coachGroupId, $action, $request, 'play');
         }
 
         $existingScoreboard = WebsocketScoreboard::where('user_id', $coachGroupId)

@@ -206,12 +206,26 @@ class ActiveGameModeGuard
         return $row;
     }
 
-    public static function completeSession(int $headCoachId, int $gameId): void
+    public static function completeSession(int $headCoachId, int $sessionId): void
     {
         PlayGameMode::query()
-            ->whereKey($gameId)
+            ->whereKey($sessionId)
             ->where('user_id', $headCoachId)
             ->where('status', self::STATUS_ACTIVE)
             ->update(['status' => self::STATUS_COMPLETED]);
+    }
+
+    public static function completeActiveSessionsForMode(int $headCoachId, string $gameMode, ?int $leagueId = null): void
+    {
+        $query = PlayGameMode::query()
+            ->where('user_id', $headCoachId)
+            ->where('status', self::STATUS_ACTIVE)
+            ->where('game_mode', $gameMode);
+
+        if ($leagueId) {
+            $query->where('league_id', $leagueId);
+        }
+
+        $query->update(['status' => self::STATUS_COMPLETED]);
     }
 }
