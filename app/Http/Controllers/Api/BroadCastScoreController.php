@@ -194,6 +194,14 @@ class BroadCastScoreController extends Controller
             return false;
         }
 
+        if ($existingRow && (bool) $existingRow->is_start) {
+            if ($action === 'Start') {
+                return filter_var($request->isStartTime, FILTER_VALIDATE_BOOLEAN) ?: true;
+            }
+
+            return true;
+        }
+
         if (in_array($action, ['Start', 'Stop', 'Resume'], true)) {
             return filter_var($request->isStartTime, FILTER_VALIDATE_BOOLEAN);
         }
@@ -205,14 +213,32 @@ class BroadCastScoreController extends Controller
         return filter_var($request->isStartTime, FILTER_VALIDATE_BOOLEAN);
     }
 
-    private function completeSessionOnEndMatch(int $coachGroupId, string $action, Request $request, string $gameMode): void
+    /**
+     * @param  WebsocketScoreboard|WebsocketPracticeScoreboard|null  $existing
+     * @return array{session_id: int|string|null, is_start: bool}
+     */
+    private function mergeScoreboardSessionFields($existing, Request $request, string $action): array
+    {
+        return [
+            'session_id' => $request->filled('session_id')
+                ? $request->session_id
+                : ($existing?->session_id ?? null),
+            'is_start' => $this->resolveIsStartForBroadcast($action, $request, $existing),
+        ];
+    }
+
+    private function completeSessionOnEndMatch(int $coachGroupId, string $action, Request $request, string $gameMode, $existingRow = null): void
     {
         if ($action !== 'EndMatch') {
             return;
         }
 
-        if ($request->session_id) {
-            ActiveGameModeGuard::completeSession($coachGroupId, (int) $request->session_id);
+        $sessionId = $request->filled('session_id')
+            ? (int) $request->session_id
+            : ($existingRow?->session_id ? (int) $existingRow->session_id : null);
+
+        if ($sessionId) {
+            ActiveGameModeGuard::completeSession($coachGroupId, $sessionId);
 
             return;
         }
@@ -263,13 +289,15 @@ class BroadCastScoreController extends Controller
             }
         }
 
-        if ($action === 'EndMatch') {
-            $this->completeSessionOnEndMatch($coachGroupId, $action, $request, 'practice');
-        }
-
         $existingPractice = WebsocketPracticeScoreboard::where('user_id', $coachGroupId)
             ->where('game_id', $request->game_id)
             ->first();
+
+        if ($action === 'EndMatch') {
+            $this->completeSessionOnEndMatch($coachGroupId, $action, $request, 'practice', $existingPractice);
+        }
+
+        $sessionFields = $this->mergeScoreboardSessionFields($existingPractice, $request, $action);
 
         $shouldRefreshTime = !$existingPractice
             || ($existingPractice->quarter != $request->quarter);
@@ -281,7 +309,7 @@ class BroadCastScoreController extends Controller
             'right_score' => self::$scores['right']['total'],
             'action' => $action,
             'quarter' => $request->quarter,
-            'is_start' => $this->resolveIsStartForBroadcast($action, $request, $existingPractice),
+            'is_start' => $sessionFields['is_start'],
             'down' => $request->down,
             'team_position' => $request->teamPosition,
             'expected_yard_gain' => $request->expectedyardgain,
@@ -293,7 +321,7 @@ class BroadCastScoreController extends Controller
             'league_id' => $request->league_id,
             'coverage_category' => $request->coverageCategory,
             'h_mark_position' => $hMarkPosition,
-            'session_id' => $request->session_id ?: null,
+            'session_id' => $sessionFields['session_id'],
             'timer_remaining' => is_numeric($request->time) ? (int) $request->time : null,
             'sys_time' => now()->toDateTimeString(),
         ];
@@ -318,7 +346,7 @@ class BroadCastScoreController extends Controller
             'user_id' => auth()->id(),
             'points' => $points,
             'action' => $action,
-            'isStart'=>$request->isStartTime,
+            'isStart' => $sessionFields['is_start'],
             'time'=>$request->time,
             'sync_time' => $request->sync_time,
             'sys_time' => now()->toDateTimeString(),
@@ -332,7 +360,7 @@ class BroadCastScoreController extends Controller
             'possession' => $request->possession,
             'weather' => $request->weather,
             'coverageCategory' => $request->coverageCategory,
-            'session_id' => $request->session_id,
+            'session_id' => $sessionFields['session_id'],
             'h_mark_position' => $hMarkPosition,
         ];
 
@@ -676,13 +704,15 @@ class BroadCastScoreController extends Controller
             }
         }
 
-        if ($action === 'EndMatch') {
-            $this->completeSessionOnEndMatch($coachGroupId, $action, $request, 'play');
-        }
-
         $existingScoreboard = WebsocketScoreboard::where('user_id', $coachGroupId)
             ->where('game_id', $request->game_id)
             ->first();
+
+        if ($action === 'EndMatch') {
+            $this->completeSessionOnEndMatch($coachGroupId, $action, $request, 'play', $existingScoreboard);
+        }
+
+        $sessionFields = $this->mergeScoreboardSessionFields($existingScoreboard, $request, $action);
 
         $shouldRefreshTime = !$existingScoreboard
             || ($existingScoreboard->quarter != $request->quarter);
@@ -695,7 +725,7 @@ class BroadCastScoreController extends Controller
             'action' => $action,
             'sync_time' => $request->sync_time,
             'quarter' => $request->quarter,
-            'is_start' => $this->resolveIsStartForBroadcast($action, $request, $existingScoreboard),
+            'is_start' => $sessionFields['is_start'],
             'down' => $request->down,
             'team_position' => $request->teamPosition,
             'expected_yard_gain' => $request->expectedyardgain,
@@ -707,7 +737,7 @@ class BroadCastScoreController extends Controller
             'coverage_category' => $request->coverageCategory,
             'h_mark_position' => $hMarkPosition,
             'league_id' => $request->league_id,
-            'session_id' => $request->session_id ?: null,
+            'session_id' => $sessionFields['session_id'],
             'timer_remaining' => is_numeric($request->time) ? (int) $request->time : null,
             'sys_time' => now()->toDateTimeString(),
         ];
@@ -736,7 +766,7 @@ class BroadCastScoreController extends Controller
             'points' => $points,
             'action' => $action,
             'sync_time' => $request->sync_time,
-            'isStart'=>$request->isStartTime,
+            'isStart' => $sessionFields['is_start'],
             'time'=>$request->time,
             'sys_time' => now()->toDateTimeString(),
             'quarter' => $request->quarter,
@@ -749,7 +779,7 @@ class BroadCastScoreController extends Controller
             'possession' => $request->possession,
             'weather' => $request->weather,
             'coverageCategory' => $request->coverageCategory,
-            'session_id' => $request->session_id,
+            'session_id' => $sessionFields['session_id'],
             'h_mark_position' => $hMarkPosition,
         ];
 

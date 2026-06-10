@@ -162,20 +162,22 @@ class ActiveGameModeGuard
             return false;
         }
 
-        $query = PlayGameMode::query()
+        $baseQuery = PlayGameMode::query()
             ->where('user_id', $headCoachId)
             ->where('status', self::STATUS_ACTIVE)
             ->where('game_mode', $gameMode);
 
         if (! empty($row->session_id)) {
-            $query->where('id', $row->session_id);
-        } elseif (! empty($row->league_id)) {
-            $query->where('league_id', $row->league_id);
-        } else {
-            return false;
+            if ((clone $baseQuery)->where('id', $row->session_id)->exists()) {
+                return true;
+            }
         }
 
-        return $query->exists();
+        if (! empty($row->league_id)) {
+            return (clone $baseQuery)->where('league_id', $row->league_id)->exists();
+        }
+
+        return false;
     }
 
     public static function clearStaleScoreboardRow(object $row, string $table): void
@@ -184,7 +186,7 @@ class ActiveGameModeGuard
             ->where('id', $row->id)
             ->update([
                 'is_start' => false,
-                'action' => 'EndMatch',
+                'action' => 'INFO',
                 'updated_at' => now(),
             ]);
     }
@@ -193,6 +195,16 @@ class ActiveGameModeGuard
     {
         if (! $row) {
             return null;
+        }
+
+        if (isset($row->updated_at)) {
+            $updatedAt = $row->updated_at instanceof \DateTimeInterface
+                ? $row->updated_at
+                : \Carbon\Carbon::parse($row->updated_at);
+
+            if ($updatedAt->diffInSeconds(now()) < 30) {
+                return $row;
+            }
         }
 
         if (! self::scoreboardIndicatesLive($row, $headCoachId, $gameMode)) {
