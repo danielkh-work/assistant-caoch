@@ -250,7 +250,7 @@ class ScoreboardSessionPreserveTest extends TestCase
             'points' => 0,
             'action' => 'INFO',
             'isStartTime' => true,
-            'time' => 600,
+            'time' => 450,
             'quarter' => 1,
             'teamPosition' => 2,
         ])->assertNoContent();
@@ -265,6 +265,8 @@ class ScoreboardSessionPreserveTest extends TestCase
             'position_number' => 35,
             'team_position' => 2,
             'is_start' => true,
+            'sync_time' => 450,
+            'timer_remaining' => 450,
         ]);
 
         $this->getJson('/api/scoreboard?game_id=' . $gameId)
@@ -272,7 +274,37 @@ class ScoreboardSessionPreserveTest extends TestCase
             ->assertJsonPath('data.down', 2)
             ->assertJsonPath('data.strategies', 'aggressive')
             ->assertJsonPath('data.position_number', 35)
-            ->assertJsonPath('data.session_id', $session->id);
+            ->assertJsonPath('data.session_id', $session->id)
+            ->assertJsonPath('data.sync_time', 450);
+    }
+
+    public function test_info_broadcast_persists_sync_time_from_time_field(): void
+    {
+        $user = $this->authAsCoach();
+        [$league, $team1, $team2] = $this->createLeagueWithTeams($user);
+        $this->createActiveSession($user, $league, $team1, $team2);
+        $gameId = 1001;
+
+        WebsocketScoreboard::create([
+            'user_id' => $user->id,
+            'game_id' => $gameId,
+            'league_id' => $league->id,
+            'left_score' => 0,
+            'right_score' => 0,
+            'is_start' => true,
+            'action' => 'Start',
+        ]);
+
+        $this->postJson('/api/scoreboard/broadcast', $this->scoreboardBroadcastPayload($gameId, $league->id, [
+            'action' => 'INFO',
+            'time' => 450,
+        ]))->assertNoContent();
+
+        $this->assertDatabaseHas('websocket_scoreboards', [
+            'game_id' => $gameId,
+            'sync_time' => 450,
+            'timer_remaining' => 450,
+        ]);
     }
 
     public function test_stale_reconcile_cleanup_does_not_use_end_match_action(): void
