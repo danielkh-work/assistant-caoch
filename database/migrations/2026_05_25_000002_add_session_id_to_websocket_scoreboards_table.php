@@ -9,9 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('websocket_scoreboards', function (Blueprint $table) {
-            if (! Schema::hasColumn('websocket_scoreboards', 'session_id')) {
-                $table->unsignedBigInteger('session_id')->nullable()->after('game_id');
-            }
+            $table->unsignedBigInteger('session_id')->nullable()->after('game_id');
         });
     }
 

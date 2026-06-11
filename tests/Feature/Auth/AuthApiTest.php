@@ -251,7 +251,7 @@ class AuthApiTest extends TestCase
 
 
     /** @test */
-    public function head_coach_can_add_league_qb()
+    public function head_coach_can_add_qb()
     {
         $headCoach = User::create([
             'name' => 'Head Coach',
@@ -261,26 +261,8 @@ class AuthApiTest extends TestCase
             'status' => 'approved'
         ]);
 
-        $sportId = \Illuminate\Support\Facades\DB::table('sports')->insertGetId(['title' => 'Test Sport']);
-        $leagueId = \Illuminate\Support\Facades\DB::table('leagues')->insertGetId([
-            'user_id' => $headCoach->id,
-            'sport_id' => $sportId,
-            'league_rule_id' => \Illuminate\Support\Facades\DB::table('league_rules')->value('id') ?? 1,
-            'title' => 'Test League',
-            'number_of_team' => 2,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        $teamId = \Illuminate\Support\Facades\DB::table('league_teams')->insertGetId([
-            'league_id' => $leagueId,
-            'team_name' => 'Team A',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
         $response = $this->actingAs($headCoach, 'sanctum')
-                         ->postJson("/api/leagues/{$leagueId}/teams/{$teamId}/qb", [
+                         ->postJson('/api/add-qb', [
                              'name' => 'QB User',
                              'email' => 'qb@test.com'
                          ]);
@@ -289,15 +271,13 @@ class AuthApiTest extends TestCase
         $this->assertDatabaseHas('users', [
             'email' => 'qb@test.com',
             'head_coach_id' => $headCoach->id,
-            'league_id' => $leagueId,
-            'team_id' => $teamId,
             'is_loggin' => 0,
         ]);
         $this->assertFalse((bool) $response->json('data.is_loggin'));
     }
 
     /** @test */
-    public function head_coach_can_get_league_qb_user()
+    public function head_coach_can_get_qb_user()
     {
         $headCoach = User::create([
             'name' => 'Head Coach',
@@ -307,40 +287,57 @@ class AuthApiTest extends TestCase
             'status' => 'approved'
         ]);
 
-        $sportId = \Illuminate\Support\Facades\DB::table('sports')->insertGetId(['title' => 'Test Sport']);
-        $leagueId = \Illuminate\Support\Facades\DB::table('leagues')->insertGetId([
-            'user_id' => $headCoach->id,
-            'sport_id' => $sportId,
-            'league_rule_id' => \Illuminate\Support\Facades\DB::table('league_rules')->value('id') ?? 1,
-            'title' => 'Test League',
-            'number_of_team' => 2,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        $teamId = \Illuminate\Support\Facades\DB::table('league_teams')->insertGetId([
-            'league_id' => $leagueId,
-            'team_name' => 'Team A',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
         User::create([
             'name' => 'QB User',
             'email' => 'qb@test.com',
             'role' => 'qb',
             'head_coach_id' => $headCoach->id,
-            'league_id' => $leagueId,
-            'team_id' => $teamId,
             'password' => Hash::make('12345678')
         ]);
 
         $response = $this->actingAs($headCoach, 'sanctum')
-                         ->getJson("/api/leagues/{$leagueId}/qb");
+                         ->getJson('/api/get-qb-user');
 
         $response->assertStatus(200)
-                 ->assertJsonFragment(['role' => 'qb'])
-                 ->assertJsonFragment(['team_id' => $teamId]);
+                 ->assertJsonFragment(['role' => 'qb']);
+    }
+
+    /** @test */
+    public function get_qb_user_returns_all_qbs_newest_first()
+    {
+        $headCoach = User::create([
+            'name' => 'Head Coach',
+            'email' => 'headmf@test.com',
+            'password' => Hash::make('12345678'),
+            'role' => 'head_coach',
+            'status' => 'approved'
+        ]);
+
+        $first = User::create([
+            'name' => 'QB Old',
+            'email' => 'qb-old@test.com',
+            'role' => 'qb',
+            'head_coach_id' => $headCoach->id,
+            'password' => Hash::make('12345678')
+        ]);
+
+        $second = User::create([
+            'name' => 'QB New',
+            'email' => 'qb-new@test.com',
+            'role' => 'qb',
+            'head_coach_id' => $headCoach->id,
+            'password' => Hash::make('12345678')
+        ]);
+
+        $response = $this->actingAs($headCoach, 'sanctum')
+                         ->getJson('/api/get-qb-user');
+
+        $response->assertStatus(200);
+        $data = $response->json('data');
+        $this->assertIsArray($data);
+        $this->assertCount(2, $data);
+        $this->assertSame($second->id, $data[0]['id']);
+        $this->assertSame($first->id, $data[1]['id']);
     }
 
     /** @test */
@@ -393,10 +390,8 @@ class AuthApiTest extends TestCase
         'code' => '1234'
     ]);
 
-    $sessionId = '550e8400-e29b-41d4-a716-446655440000';
-
     // ✅ Send GET request with query parameters
-    $response = $this->getJson("/api/qb/login-with-session?code=1234&session_id={$sessionId}");
+    $response = $this->getJson('/api/qb/login-with-session?code=1234&session_id=abc123');
 
     $response->assertStatus(200)
              ->assertJson([
@@ -404,7 +399,7 @@ class AuthApiTest extends TestCase
                  'user' => [
                      'id' => $qb->id,
                      'name' => 'QB User',
-                     'session_id' => $sessionId,
+                     'session_id' => 'abc123',
                      'code' => '1234',
                      'head_coach_id' => $headCoach->id
                  ]
@@ -412,18 +407,13 @@ class AuthApiTest extends TestCase
 
     $this->assertDatabaseHas('users', [
         'id' => $qb->id,
-        'session_id' => $sessionId,
-    ]);
-    $this->assertDatabaseHas('mobile_sessions', [
-        'session_id' => $sessionId,
-        'mobile_user_id' => $qb->id,
-        'status' => 'approved',
+        'session_id' => 'abc123',
     ]);
     $this->assertTrue($qb->fresh()->is_loggin);
 }
 
 /** @test */
-public function qb_login_without_session_id_is_rejected()
+public function qb_login_with_code_without_session_still_sets_is_loggin()
 {
     $headCoach = User::create([
         'name' => 'Head Coach',
@@ -444,8 +434,8 @@ public function qb_login_without_session_id_is_rejected()
 
     $response = $this->getJson('/api/qb/login-with-session?code=5678');
 
-    $response->assertStatus(422);
-    $this->assertFalse((bool) $qb->fresh()->is_loggin);
+    $response->assertStatus(200);
+    $this->assertTrue($qb->fresh()->is_loggin);
     $this->assertNull($qb->fresh()->session_id);
 }
 

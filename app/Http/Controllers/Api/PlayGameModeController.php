@@ -7,66 +7,45 @@ use App\Http\Controllers\Controller;
 use App\Http\Responses\BaseResponse;
 use App\Models\PlayGameLog;
 use App\Models\PlayGameMode;
-use App\Support\ActiveGameModeGuard;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 
 class PlayGameModeController extends Controller
 {
     public function startGameGode(Request $request)
     {
-        $request->validate([
-            'league_id' => 'required|integer',
-            'my_team_id' => 'required|integer',
-            'oponent_team_id' => 'required|integer',
-            'is_practice' => 'sometimes|boolean',
-        ]);
-
         $user = auth()->user();
-        $headCoachId = ActiveGameModeGuard::resolveHeadCoachId($user);
+
         $isPractice = filter_var($request->is_practice, FILTER_VALIDATE_BOOLEAN);
-
-        try {
-            ActiveGameModeGuard::assertCanStart($headCoachId, $isPractice);
-        } catch (ValidationException $e) {
-            return new BaseResponse(
-                STATUS_CODE_UNPROCESSABLE,
-                STATUS_CODE_UNPROCESSABLE,
-                collect($e->errors())->flatten()->first() ?? 'Cannot start game mode.',
-            );
-        }
-
         if ($isPractice) {
             DB::table('websocket_scoreboards')
-                ->where('user_id', $headCoachId)
+                ->where('user_id', $user->id)
                 ->delete();
         } else {
             DB::table('websocket_practice_scoreboards')
-                ->where('user_id', $headCoachId)
+                ->where('user_id', $user->id)
                 ->delete();
         }
 
         DB::beginTransaction();
         try {
             $game = new PlayGameMode();
-            $game->sport_id = $user->sport_id;
+            $game->sport_id =$user->sport_id;
             $game->league_id = $request->league_id;
-            $game->my_team_id = $request->my_team_id;
-            $game->oponent_team_id = $request->oponent_team_id;
-            $game->game_mode = ActiveGameModeGuard::targetMode($isPractice);
-            $game->user_id = $headCoachId;
+            $game->my_team_id =$request->my_team_id;
+            $game->oponent_team_id =$request->oponent_team_id;
+            $game->game_mode = $request->is_practice ? 'practice' :'play';
+            $game->user_id = auth()->id();
             $game->quater = '';
-            $game->downs = '';
-            $game->status = ActiveGameModeGuard::STATUS_ACTIVE;
+            $game->downs ='';
+            $game->status = 2;
             $game->save();
             DB::commit();
-
-            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Game Start SuccessFully ', $game);
+            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Game Start SuccessFully ", $game);
         } catch (\Throwable $th) {
-            DB::rollBack();
-
+           DB::rollBack();
             return new BaseResponse(STATUS_CODE_BADREQUEST, STATUS_CODE_BADREQUEST, $th->getMessage());
+
         }
     }
 

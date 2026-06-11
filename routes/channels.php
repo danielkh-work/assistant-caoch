@@ -30,21 +30,16 @@ Broadcast::channel('user.{userId}.practice.{gameId}', function ($user, $userId, 
 });
 
 Broadcast::channel('headcoach.{headCoachId}.qb', function ($user, $headCoachId) {
-    if ($user->role === 'head_coach' && (int) $user->id === (int) $headCoachId) {
-        return true;
-    }
-    if (in_array($user->role, ['assistant_coach', 'performance_coach'], true)
-        && (int) $user->head_coach_id === (int) $headCoachId) {
-        return true;
-    }
 
-    return false;
+     return true;
+   // return $user->role === 'head_coach' ;
+
 });
-Broadcast::channel('headcoach.{headCoachId}.league.{leagueId}.qb', function ($user, $headCoachId, $leagueId) {
-    return true;
-});
-Broadcast::channel('headcoach.{headCoachId}.league.{leagueId}.play', function ($user, $headCoachId, $leagueId) {
-    return true;
+Broadcast::channel('headcoach.{headCoachId}.play', function ($user, $headCoachId) {
+
+     return true;
+   // return $user->role === 'head_coach' ;
+
 });
 
 Broadcast::channel('headcoach.{userId}', function ($user, $userId) {
@@ -56,8 +51,9 @@ Broadcast::channel('qb-user', function ($user) {
 Broadcast::channel('mobile.{mobileUserId}', function ($user, $mobileUserId) {
     return (int)$user->id === (int)$mobileUserId;
 });
-Broadcast::channel('coach-group.{headCoachId}.league.{leagueId}', function ($user, $headCoachId, $leagueId) {
+Broadcast::channel('coach-group.{headCoachId}', function ($user, $headCoachId) {
     return true;
+
 });
 
 

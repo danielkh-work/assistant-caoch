@@ -90,8 +90,7 @@ class AssistantSystemSuggestionBroadcastTest extends TestCase
                 'message' => 'System suggestion broadcast sent to head coach.',
                 'data' => [
                     'head_coach_id' => $headCoach->id,
-                    'league_id' => 22,
-                    'channel' => 'coach-group.' . $headCoach->id . '.league.22',
+                    'channel' => 'coach-group.' . $headCoach->id,
                     'event' => 'head.coach.suggestion',
                     'payload' => [
                         'down' => 2,
@@ -109,8 +108,7 @@ class AssistantSystemSuggestionBroadcastTest extends TestCase
             ]);
 
         Event::assertDispatched(HeadCoachSystemSuggestion::class, function (HeadCoachSystemSuggestion $event) use ($headCoach, $assistant) {
-            return $event->leagueId === 22
-                && $event->data['down'] === 2
+            return $event->data['down'] === 2
                 && $event->data['weather'] === 'Rain'
                 && $event->data['strategies'] === 'regular'
                 && $event->data['expected_yardage_gain'] === 10
@@ -138,7 +136,6 @@ class AssistantSystemSuggestionBroadcastTest extends TestCase
             'strategies' => 'aggressive',
             'yardage' => 15,
             'h_mark_position' => 'hmark_left',
-            'league_id' => 22,
         ]);
 
         $response->assertOk()

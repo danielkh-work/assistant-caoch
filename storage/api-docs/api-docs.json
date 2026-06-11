@@ -35,7 +35,7 @@
                                     "message": "Yardage play broadcast sent to assistant coach.",
                                     "data": {
                                         "head_coach_id": 5,
-                                        "channel": "coach-group.5.league.22",
+                                        "channel": "coach-group.5",
                                         "event": "assistant.coaches",
                                         "payload": {
                                             "playName": "IN 25(4)-RAM ALL-CHECK",
@@ -153,7 +153,7 @@
                                     "message": "System suggestion broadcast sent to head coach.",
                                     "data": {
                                         "head_coach_id": 5,
-                                        "channel": "coach-group.5.league.22",
+                                        "channel": "coach-group.5",
                                         "event": "head.coach.suggestion",
                                         "payload": {
                                             "down": 2,
@@ -523,308 +523,6 @@
                 ]
             }
         },
-        "/api/leagues/{league}/qb": {
-            "get": {
-                "tags": [
-                    "League QB"
-                ],
-                "summary": "List all QBs for a league",
-                "description": "Returns every QB user configured for teams in the given league. Each entry includes `team_id` (`league_teams.id`).",
-                "operationId": "listLeagueQbs",
-                "parameters": [
-                    {
-                        "name": "league",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "integer",
-                            "example": 22
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Zero or more QB users in `data` array",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "status": {
-                                            "type": "integer",
-                                            "example": 200
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "qb list"
-                                        },
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "properties": {
-                                                    "id": {
-                                                        "type": "integer",
-                                                        "example": 78
-                                                    },
-                                                    "name": {
-                                                        "type": "string",
-                                                        "example": "Team A QB"
-                                                    },
-                                                    "team_id": {
-                                                        "type": "integer",
-                                                        "example": 10
-                                                    },
-                                                    "league_id": {
-                                                        "type": "integer",
-                                                        "example": 22
-                                                    },
-                                                    "head_coach_id": {
-                                                        "type": "integer",
-                                                        "example": 5
-                                                    },
-                                                    "is_loggin": {
-                                                        "type": "boolean",
-                                                        "example": false
-                                                    }
-                                                },
-                                                "type": "object"
-                                            }
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "League not found or not owned by the authenticated head coach"
-                    }
-                },
-                "security": [
-                    {
-                        "sanctum": []
-                    }
-                ]
-            }
-        },
-        "/api/leagues/{league}/teams/{team}/qb": {
-            "get": {
-                "tags": [
-                    "League QB"
-                ],
-                "summary": "Get QB for a league team",
-                "operationId": "getLeagueTeamQb",
-                "parameters": [
-                    {
-                        "name": "league",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "integer",
-                            "example": 22
-                        }
-                    },
-                    {
-                        "name": "team",
-                        "in": "path",
-                        "description": "`league_teams.id`",
-                        "required": true,
-                        "schema": {
-                            "type": "integer",
-                            "example": 10
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Zero or one QB user in `data` array"
-                    }
-                },
-                "security": [
-                    {
-                        "sanctum": []
-                    }
-                ]
-            },
-            "post": {
-                "tags": [
-                    "League QB"
-                ],
-                "summary": "Create QB for a league team",
-                "operationId": "addLeagueTeamQb",
-                "parameters": [
-                    {
-                        "name": "league",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "integer",
-                            "example": 22
-                        }
-                    },
-                    {
-                        "name": "team",
-                        "in": "path",
-                        "description": "`league_teams.id`",
-                        "required": true,
-                        "schema": {
-                            "type": "integer",
-                            "example": 10
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "required": [
-                                    "name",
-                                    "email"
-                                ],
-                                "properties": {
-                                    "name": {
-                                        "type": "string",
-                                        "example": "NFL QB"
-                                    },
-                                    "email": {
-                                        "type": "string",
-                                        "format": "email",
-                                        "example": "nfl-qb@example.com"
-                                    }
-                                },
-                                "type": "object"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "QB created"
-                    },
-                    "422": {
-                        "description": "A QB already exists for this team"
-                    }
-                },
-                "security": [
-                    {
-                        "sanctum": []
-                    }
-                ]
-            }
-        },
-        "/api/leagues/{league}/teams/{team}/qb/logout": {
-            "post": {
-                "tags": [
-                    "League QB"
-                ],
-                "summary": "Log out QB for a league team",
-                "operationId": "logoutLeagueTeamQb",
-                "parameters": [
-                    {
-                        "name": "league",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "integer",
-                            "example": 22
-                        }
-                    },
-                    {
-                        "name": "team",
-                        "in": "path",
-                        "description": "`league_teams.id`",
-                        "required": true,
-                        "schema": {
-                            "type": "integer",
-                            "example": 10
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "properties": {
-                                    "id": {
-                                        "type": "integer",
-                                        "example": 78
-                                    }
-                                },
-                                "type": "object"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "QB logged out"
-                    }
-                },
-                "security": [
-                    {
-                        "sanctum": []
-                    }
-                ]
-            }
-        },
-        "/api/leagues/{league}/teams/{team}/web/scan-qr": {
-            "post": {
-                "tags": [
-                    "League QB"
-                ],
-                "summary": "Pair mobile session to a league team QB",
-                "description": "Broadcasts session approval to `qb-user.{session_id}` and session update to `headcoach.{headCoachId}.league.{leagueId}.qb` (payload includes `team_id`). Mobile app should subscribe to `coach-group.{headCoachId}.league.{leagueId}` for match notifications.",
-                "operationId": "scanLeagueTeamQbQr",
-                "parameters": [
-                    {
-                        "name": "league",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "integer",
-                            "example": 22
-                        }
-                    },
-                    {
-                        "name": "team",
-                        "in": "path",
-                        "description": "`league_teams.id`",
-                        "required": true,
-                        "schema": {
-                            "type": "integer",
-                            "example": 10
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "properties": {
-                                    "session_id": {
-                                        "type": "string",
-                                        "format": "uuid"
-                                    }
-                                },
-                                "type": "object"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "201": {
-                        "description": "QB paired and token issued"
-                    }
-                },
-                "security": [
-                    {
-                        "sanctum": []
-                    }
-                ]
-            }
-        },
         "/api/logout-qb-applicaion/{id}": {
             "get": {
                 "tags": [
@@ -876,14 +574,6 @@
                                                             "nullable": true
                                                         },
                                                         "head_coach_id": {
-                                                            "type": "integer",
-                                                            "nullable": true
-                                                        },
-                                                        "league_id": {
-                                                            "type": "integer",
-                                                            "nullable": true
-                                                        },
-                                                        "team_id": {
                                                             "type": "integer",
                                                             "nullable": true
                                                         }
@@ -982,185 +672,6 @@
                         }
                     }
                 }
-            }
-        },
-        "/api/leagues/{league}": {
-            "put": {
-                "tags": [
-                    "Leagues"
-                ],
-                "summary": "Update league",
-                "description": "Partial update: only fields included in the request body are changed. Omitted fields are left unchanged. Requires the league to belong to the authenticated head coach.",
-                "operationId": "updateLeague",
-                "parameters": [
-                    {
-                        "name": "league",
-                        "in": "path",
-                        "description": "League primary key",
-                        "required": true,
-                        "schema": {
-                            "type": "integer",
-                            "example": 22
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "properties": {
-                                    "title": {
-                                        "type": "string",
-                                        "example": "Updated League"
-                                    },
-                                    "sport_id": {
-                                        "type": "integer",
-                                        "example": 1
-                                    },
-                                    "league_rule_id": {
-                                        "type": "integer",
-                                        "example": 1
-                                    },
-                                    "location": {
-                                        "type": "string",
-                                        "example": "Toronto",
-                                        "nullable": true
-                                    },
-                                    "number_of_team": {
-                                        "type": "integer",
-                                        "example": 4,
-                                        "nullable": true
-                                    },
-                                    "number_of_downs": {
-                                        "type": "string",
-                                        "example": "4",
-                                        "nullable": true
-                                    },
-                                    "length_of_field": {
-                                        "type": "string",
-                                        "example": "100",
-                                        "nullable": true
-                                    },
-                                    "number_of_timeouts": {
-                                        "type": "integer",
-                                        "example": 3,
-                                        "nullable": true
-                                    },
-                                    "clock_time": {
-                                        "type": "string",
-                                        "example": "NFL",
-                                        "nullable": true
-                                    },
-                                    "number_of_quarters": {
-                                        "type": "integer",
-                                        "example": 4,
-                                        "nullable": true
-                                    },
-                                    "length_of_quarters": {
-                                        "type": "integer",
-                                        "example": 15,
-                                        "nullable": true
-                                    },
-                                    "stop_time_reason": {
-                                        "type": "string",
-                                        "nullable": true
-                                    },
-                                    "overtime_rules": {
-                                        "type": "integer",
-                                        "nullable": true
-                                    },
-                                    "number_of_players": {
-                                        "type": "integer",
-                                        "example": 11,
-                                        "nullable": true
-                                    },
-                                    "practice_number_players": {
-                                        "type": "integer",
-                                        "example": 7,
-                                        "nullable": true
-                                    },
-                                    "warning_time_minutes": {
-                                        "type": "integer",
-                                        "example": 2,
-                                        "nullable": true
-                                    },
-                                    "flag_tbd": {
-                                        "type": "string",
-                                        "nullable": true
-                                    },
-                                    "rpp_configuration": {
-                                        "type": "string",
-                                        "enum": [
-                                            "with_rpp",
-                                            "without_rpp"
-                                        ],
-                                        "example": "with_rpp",
-                                        "nullable": true
-                                    },
-                                    "team_name": {
-                                        "type": "array",
-                                        "items": {
-                                            "properties": {
-                                                "id": {
-                                                    "type": "integer",
-                                                    "example": 10,
-                                                    "nullable": true
-                                                },
-                                                "name": {
-                                                    "type": "string",
-                                                    "example": "Team A"
-                                                }
-                                            },
-                                            "type": "object"
-                                        }
-                                    }
-                                },
-                                "type": "object"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "League updated",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "status": {
-                                            "type": "integer",
-                                            "example": 200
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "League updated successfully"
-                                        },
-                                        "data": {
-                                            "description": "Updated league with teams, league_rule, and sport relations",
-                                            "type": "object"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthenticated"
-                    },
-                    "404": {
-                        "description": "League not found or not owned by the authenticated head coach"
-                    },
-                    "422": {
-                        "description": "Validation error or empty payload"
-                    }
-                },
-                "security": [
-                    {
-                        "sanctum": []
-                    }
-                ]
             }
         },
         "/api/upload-play-list": {
@@ -1992,13 +1503,9 @@
                                 "type": "integer",
                                 "example": 5
                             },
-                            "league_id": {
-                                "type": "integer",
-                                "example": 22
-                            },
                             "channel": {
                                 "type": "string",
-                                "example": "coach-group.5.league.22"
+                                "example": "coach-group.5"
                             },
                             "event": {
                                 "type": "string",
@@ -2149,13 +1656,9 @@
                                 "type": "integer",
                                 "example": 5
                             },
-                            "league_id": {
-                                "type": "integer",
-                                "example": 22
-                            },
                             "channel": {
                                 "type": "string",
-                                "example": "coach-group.5.league.22"
+                                "example": "coach-group.5"
                             },
                             "event": {
                                 "type": "string",
@@ -2991,16 +2494,8 @@
             "description": "Application configuration key-value store"
         },
         {
-            "name": "League QB",
-            "description": "Per-team QB registration, pairing, and logout (one QB per league team per head coach)"
-        },
-        {
             "name": "QB Logout",
             "description": "QB application logout and session login status"
-        },
-        {
-            "name": "Leagues",
-            "description": "League settings and configuration"
         },
         {
             "name": "Plays",

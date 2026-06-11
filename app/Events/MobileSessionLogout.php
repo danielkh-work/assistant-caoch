@@ -2,49 +2,41 @@
 
 namespace App\Events;
 
-use Illuminate\Broadcasting\Channel;
+use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
+use App\Models\MobileSession;
+use Illuminate\Broadcasting\Channel;
 
 class MobileSessionLogout implements ShouldBroadcast
 {
     use Dispatchable, SerializesModels;
 
-    /** @var array<string, mixed> */
-    public array $user;
+     public $user;
 
-    public string $sessionId;
-
-    /**
-     * @param  array<string, mixed>  $user
-     */
-    public function __construct(array $user, string $sessionId)
+    public function __construct(array $user)
     {
+    
         $this->user = $user;
-        $this->sessionId = $sessionId;
+          \Log::info('log info', [
+        'session_id' => $this->user['user']['session_id']
+    ]);
     }
 
-    /**
-     * @return array<int, Channel>
-     */
-    public function broadcastOn(): array
+
+     public function broadcastOn()
     {
-        return [
-            new Channel("qb-logout.{$this->sessionId}"),
-            new Channel("qb-user.{$this->sessionId}"),
-        ];
+        
+        return new Channel("qb-logout.{$this->user['user']['session_id']}");
     }
 
-    public function broadcastAs(): string
+    public function broadcastAs()
     {
         return 'session.logout';
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    public function broadcastWith(): array
+    public function broadcastWith()
     {
         return $this->user;
     }

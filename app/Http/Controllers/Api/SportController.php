@@ -25,38 +25,38 @@ class SportController extends Controller
 
     public function league(Request $request)
     {
-        $user = auth()->user();
-
-        $query = League::with([
-            'teams',
-            'league_rule:id,title',
+        // "role":"assistant_coach","head_coach_id":30
+        \Log::info('Authenticated user:', ['user' => auth()->user()->assistant_coach]);
+        $id =  auth()->user()->id;
+        $user=auth()->user();
+        $userRoleIds = auth()->user()->roles->pluck('id');
+        $league = League::with([
+            'teams',  // Selecting only 'id' and 'name' from teams
+            'league_rule:id,title', // Selecting only 'id' and 'title' from leaque_rule
             'sport:id,title',
-            'roles',
-        ]);
+            'roles' 
+        ])
+        ->when(in_array($user->role, ['assistant_coach', 'performance_coach']), function ($query) use ($user) {
+                return $query->where(function ($q) use ($user) {
+                    $q->where('user_id', $user->id)
+                    ->orWhere('user_id', $user->head_coach_id);
+                });
 
-        if (in_array($user->role, ['assistant_coach', 'performance_coach'], true)) {
-            $headCoachId = (int) $user->head_coach_id;
-            $query->where(function ($q) use ($user, $headCoachId) {
-                $q->where('user_id', $user->id)
-                    ->orWhere('user_id', $headCoachId);
+            }, function ($query) use ($user) {
+                return $query->orWhere('user_id', $user->id);
+        })
+        ->where('sport_id',$request->sport_id)
+        ->orWhereHas('roles', function ($query) use ($userRoleIds) {
+            $query->where(function ($q) use ($userRoleIds) {
+                $q->whereIn('roleables.role_id', $userRoleIds);
             });
-        } else {
-            $userRoleIds = $user->roles->pluck('id');
-            $query->where(function ($q) use ($user, $userRoleIds) {
-                $q->where('user_id', $user->id)
-                    ->orWhereHas('roles', function ($roleQuery) use ($userRoleIds) {
-                        $roleQuery->whereIn('roleables.role_id', $userRoleIds);
-                    });
-            });
-        }
-
-        if ($request->filled('sport_id') && $request->sport_id !== 'all') {
-            $query->where('sport_id', $request->sport_id);
-        }
-
-        $league = $query->get();
-
-        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'leauqe List  ', $league);
+       })
+       ->get();
+        
+        
+       
+        
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "leauqe List  ", $league);
     }
     public function leagueRule(Request $request)
     {
@@ -260,11 +260,7 @@ class SportController extends Controller
         $q->where('type', 1)
           ->orWhereNull('type');
       })->where('is_practice',0)->get();
-      $matches = PlayGameMode::query()
-          ->where('league_id', $leauqe->id)
-          ->where('status', 4)
-          ->where('game_mode', 'play')
-          ->get();
+      $matches = PlayGameMode::where('league_id', $leauqe->id)->where('status', 4)->get();
  
       $pointsTable = [];
  
@@ -285,17 +281,8 @@ class SportController extends Controller
       foreach ($matches as $match) {
           $teamA = $match->my_team_id;
           $teamB = $match->oponent_team_id;
-
-          if (! isset($pointsTable[$teamA], $pointsTable[$teamB])) {
-              continue;
-          }
-
           $scoreA = $match->my_team_score;
           $scoreB = $match->oponent_team_score;
-
-          if ($scoreA === null || $scoreB === null) {
-              continue;
-          }
  
           // Increment played
           $pointsTable[$teamA]['played']++;
