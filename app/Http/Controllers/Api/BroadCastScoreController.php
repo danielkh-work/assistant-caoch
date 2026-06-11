@@ -196,7 +196,8 @@ class BroadCastScoreController extends Controller
             'possession' => ['request' => 'possession', 'aliases' => []],
             'weather' => ['request' => 'weather', 'aliases' => []],
             'coverage_category' => ['request' => 'coverageCategory', 'aliases' => ['coverage_category']],
-            'sync_time' => ['request' => 'sync_time', 'aliases' => []],
+            // Frontend sends elapsed seconds as `time`; SyncTime uses `sync_time`.
+            'sync_time' => ['request' => 'sync_time', 'aliases' => ['time']],
         ];
 
         $merged = [];
@@ -213,7 +214,29 @@ class BroadCastScoreController extends Controller
                 : ($existing?->{$column} ?? null);
         }
 
+        if ($merged['sync_time'] === null && $existing?->timer_remaining !== null) {
+            $merged['sync_time'] = (int) $existing->timer_remaining;
+        }
+
         return $merged;
+    }
+
+    /**
+     * @param  WebsocketScoreboard|WebsocketPracticeScoreboard|null  $existing
+     */
+    private function resolvePersistedTimerRemaining($existing, Request $request, array $persistedFields): ?int
+    {
+        if (is_numeric($request->input('time'))) {
+            return (int) $request->time;
+        }
+
+        if ($persistedFields['sync_time'] !== null) {
+            return (int) $persistedFields['sync_time'];
+        }
+
+        return $existing?->timer_remaining !== null
+            ? (int) $existing->timer_remaining
+            : null;
     }
 
     /**
@@ -264,6 +287,7 @@ class BroadCastScoreController extends Controller
 
         $persistedFields = $this->mergeScoreboardPersistedFields($existingPractice, $request);
         $sessionId = $this->resolvePersistedSessionId($existingPractice, $request);
+        $timerRemaining = $this->resolvePersistedTimerRemaining($existingPractice, $request, $persistedFields);
 
         $shouldRefreshTime = !$existingPractice
             || ($existingPractice->quarter != $request->quarter);
@@ -290,7 +314,7 @@ class BroadCastScoreController extends Controller
             'coverage_category' => $persistedFields['coverage_category'],
             'h_mark_position' => $hMarkPosition,
             'session_id' => $sessionId,
-            'timer_remaining' => is_numeric($request->time) ? (int) $request->time : null,
+            'timer_remaining' => $timerRemaining,
             'sys_time' => now()->toDateTimeString(),
         ];
 
@@ -316,7 +340,7 @@ class BroadCastScoreController extends Controller
             'action' => $action,
             'isStart'=>$request->isStartTime,
             'time'=>$request->time,
-            'sync_time' => $request->sync_time,
+            'sync_time' => $persistedFields['sync_time'],
             'sys_time' => now()->toDateTimeString(),
             'quarter' => $request->quarter,
             'down' => $persistedFields['down'],
@@ -633,6 +657,7 @@ class BroadCastScoreController extends Controller
 
         $persistedFields = $this->mergeScoreboardPersistedFields($existingScoreboard, $request);
         $sessionId = $this->resolvePersistedSessionId($existingScoreboard, $request);
+        $timerRemaining = $this->resolvePersistedTimerRemaining($existingScoreboard, $request, $persistedFields);
 
         $shouldRefreshTime = !$existingScoreboard
             || ($existingScoreboard->quarter != $request->quarter);
@@ -660,7 +685,7 @@ class BroadCastScoreController extends Controller
             'h_mark_position' => $hMarkPosition,
             'league_id' => $persistedFields['league_id'],
             'session_id' => $sessionId,
-            'timer_remaining' => is_numeric($request->time) ? (int) $request->time : null,
+            'timer_remaining' => $timerRemaining,
             'sys_time' => now()->toDateTimeString(),
         ];
 
@@ -687,7 +712,7 @@ class BroadCastScoreController extends Controller
 
             'points' => $points,
             'action' => $action,
-            'sync_time' => $request->sync_time,
+            'sync_time' => $persistedFields['sync_time'],
             'isStart'=>$request->isStartTime,
             'time'=>$request->time,
             'sys_time' => now()->toDateTimeString(),

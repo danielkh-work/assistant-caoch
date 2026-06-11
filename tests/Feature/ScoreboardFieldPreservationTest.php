@@ -115,7 +115,7 @@ class ScoreboardFieldPreservationTest extends TestCase
             'points' => 0,
             'action' => 'INFO',
             'isStartTime' => true,
-            'time' => 600,
+            'time' => 450,
             'quarter' => 1,
             'teamPosition' => 2,
         ])->assertNoContent();
@@ -130,6 +130,7 @@ class ScoreboardFieldPreservationTest extends TestCase
             'position_number' => 35,
             'team_position' => 2,
             'is_start' => true,
+            'sync_time' => 450,
         ]);
 
         $this->getJson('/api/scoreboard?game_id=' . $gameId)
@@ -137,6 +138,46 @@ class ScoreboardFieldPreservationTest extends TestCase
             ->assertJsonPath('data.down', 2)
             ->assertJsonPath('data.strategies', 'aggressive')
             ->assertJsonPath('data.position_number', 35)
-            ->assertJsonPath('data.session_id', $session->id);
+            ->assertJsonPath('data.session_id', $session->id)
+            ->assertJsonPath('data.sync_time', 450);
+    }
+
+    public function test_info_broadcast_persists_sync_time_from_time_field(): void
+    {
+        $user = $this->createHeadCoachUser();
+        Sanctum::actingAs($user);
+        $this->actingAs($user, 'api');
+
+        [$league] = $this->createLeagueWithTeams($user);
+        $gameId = 1001;
+
+        WebsocketScoreboard::create([
+            'user_id' => $user->id,
+            'game_id' => $gameId,
+            'league_id' => $league->id,
+            'left_score' => 0,
+            'right_score' => 0,
+            'is_start' => true,
+            'action' => 'Start',
+        ]);
+
+        $this->postJson('/api/scoreboard/broadcast', [
+            'game_id' => $gameId,
+            'team' => 'both',
+            'teamLeftScore' => 0,
+            'teamRightScore' => 0,
+            'points' => 0,
+            'action' => 'INFO',
+            'isStartTime' => true,
+            'time' => 450,
+            'quarter' => 1,
+            'league_id' => $league->id,
+        ])->assertNoContent();
+
+        $this->assertDatabaseHas('websocket_scoreboards', [
+            'game_id' => $gameId,
+            'sync_time' => 450,
+            'timer_remaining' => 450,
+        ]);
     }
 }
