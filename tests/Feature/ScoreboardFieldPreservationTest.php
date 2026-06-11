@@ -7,6 +7,7 @@ use App\Models\LeagueTeam;
 use App\Models\PlayGameMode;
 use App\Models\Sport;
 use App\Models\User;
+use App\Models\WebsocketPracticeScoreboard;
 use App\Models\WebsocketScoreboard;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
@@ -178,6 +179,105 @@ class ScoreboardFieldPreservationTest extends TestCase
             'game_id' => $gameId,
             'sync_time' => 450,
             'timer_remaining' => 450,
+        ]);
+    }
+
+    public function test_info_broadcast_preserves_practice_scores_quarter_and_timer(): void
+    {
+        $user = $this->createHeadCoachUser();
+        Sanctum::actingAs($user);
+        $this->actingAs($user, 'api');
+
+        [$league] = $this->createLeagueWithTeams($user);
+        $gameId = 36;
+
+        WebsocketPracticeScoreboard::create([
+            'user_id' => $user->id,
+            'game_id' => $gameId,
+            'league_id' => $league->id,
+            'left_score' => 7,
+            'right_score' => 7,
+            'is_start' => true,
+            'action' => 'RED',
+            'quarter' => 2,
+            'down' => 1,
+            'strategies' => 'regular',
+            'position_number' => 12,
+            'timer_remaining' => 833,
+        ]);
+
+        $this->postJson('/api/practice/scoreboard/broadcast', [
+            'game_id' => $gameId,
+            'team' => 'both',
+            'teamLeftScore' => 0,
+            'teamRightScore' => 0,
+            'points' => 0,
+            'action' => 'INFO',
+            'isStartTime' => true,
+            'time' => 0,
+            'quarter' => 1,
+            'strategies' => 'red zone',
+            'positionNumber' => 14,
+            'league_id' => $league->id,
+        ])->assertNoContent();
+
+        $this->assertDatabaseHas('websocket_practice_scoreboards', [
+            'user_id' => $user->id,
+            'game_id' => $gameId,
+            'left_score' => 7,
+            'right_score' => 7,
+            'quarter' => 2,
+            'timer_remaining' => 833,
+            'strategies' => 'red zone',
+            'position_number' => 14,
+        ]);
+
+        $this->getJson('/api/practice-scoreboard?game_id=' . $gameId)
+            ->assertStatus(200)
+            ->assertJsonPath('data.left_score', 7)
+            ->assertJsonPath('data.right_score', 7)
+            ->assertJsonPath('data.quarter', '2')
+            ->assertJsonPath('data.timer_remaining', 833);
+    }
+
+    public function test_scoring_broadcast_still_updates_practice_scores(): void
+    {
+        $user = $this->createHeadCoachUser();
+        Sanctum::actingAs($user);
+        $this->actingAs($user, 'api');
+
+        [$league] = $this->createLeagueWithTeams($user);
+        $gameId = 37;
+
+        WebsocketPracticeScoreboard::create([
+            'user_id' => $user->id,
+            'game_id' => $gameId,
+            'league_id' => $league->id,
+            'left_score' => 6,
+            'right_score' => 0,
+            'is_start' => true,
+            'action' => 'TD',
+            'quarter' => 1,
+        ]);
+
+        $this->postJson('/api/practice/scoreboard/broadcast', [
+            'game_id' => $gameId,
+            'team' => 'right',
+            'teamLeftScore' => 6,
+            'teamRightScore' => 7,
+            'points' => 7,
+            'action' => 'RED',
+            'isStartTime' => true,
+            'time' => 600,
+            'quarter' => 1,
+            'league_id' => $league->id,
+        ])->assertNoContent();
+
+        $this->assertDatabaseHas('websocket_practice_scoreboards', [
+            'game_id' => $gameId,
+            'left_score' => 6,
+            'right_score' => 7,
+            'action' => 'RED',
         ]);
     }
 }

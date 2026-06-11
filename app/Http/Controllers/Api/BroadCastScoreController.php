@@ -224,10 +224,27 @@ class BroadCastScoreController extends Controller
     /**
      * @param  WebsocketScoreboard|WebsocketPracticeScoreboard|null  $existing
      */
-    private function resolvePersistedTimerRemaining($existing, Request $request, array $persistedFields): ?int
-    {
+    private function resolvePersistedTimerRemaining(
+        $existing,
+        Request $request,
+        array $persistedFields,
+        string $action,
+        int $points,
+    ): ?int {
         if (is_numeric($request->input('time'))) {
-            return (int) $request->time;
+            $incoming = (int) $request->time;
+
+            if ($existing && $this->isNonScoringStateBroadcast($action, $points)) {
+                $existingTimer = $existing->timer_remaining !== null
+                    ? (int) $existing->timer_remaining
+                    : null;
+
+                if ($existingTimer > 0 && $incoming === 0) {
+                    return $existingTimer;
+                }
+            }
+
+            return $incoming;
         }
 
         if ($persistedFields['sync_time'] !== null) {
@@ -249,6 +266,68 @@ class BroadCastScoreController extends Controller
             : ($existing?->session_id ?? null);
     }
 
+    private const SCORING_BROADCAST_ACTIONS = [
+        'TD', 'RED', 'SAFTEY', 'SAFETY', 'FIELD GOAL', 'PAT1', 'PAT2',
+    ];
+
+    /**
+     * State-sync broadcasts (INFO, Stop, etc.) must not wipe persisted match data when
+     * the client sends default zeros before session restore completes.
+     */
+    private function isNonScoringStateBroadcast(string $action, int $points): bool
+    {
+        if (in_array($action, self::SCORING_BROADCAST_ACTIONS, true)) {
+            return false;
+        }
+
+        if (in_array($action, ['Start', 'EndMatch'], true)) {
+            return false;
+        }
+
+        return $points === 0;
+    }
+
+    /**
+     * @param  WebsocketScoreboard|WebsocketPracticeScoreboard|null  $existing
+     * @return array{left: int, right: int}
+     */
+    private function resolvePersistedScores($existing, Request $request, string $action, int $points): array
+    {
+        $left = max(0, (int) $request->teamLeftScore);
+        $right = max(0, (int) $request->teamRightScore);
+
+        if ($existing && $this->isNonScoringStateBroadcast($action, $points)) {
+            $existingLeft = (int) $existing->left_score;
+            $existingRight = (int) $existing->right_score;
+
+            if (($existingLeft > 0 || $existingRight > 0) && $left === 0 && $right === 0) {
+                $left = $existingLeft;
+                $right = $existingRight;
+            }
+        }
+
+        return ['left' => $left, 'right' => $right];
+    }
+
+    /**
+     * @param  WebsocketScoreboard|WebsocketPracticeScoreboard|null  $existing
+     */
+    private function resolvePersistedQuarter($existing, Request $request, string $action, int $points): mixed
+    {
+        $incoming = $request->input('quarter');
+
+        if ($existing && $this->isNonScoringStateBroadcast($action, $points)) {
+            $existingQuarter = (int) $existing->quarter;
+            $incomingQuarter = (int) $incoming;
+
+            if ($existingQuarter > 0 && $incomingQuarter > 0 && $incomingQuarter < $existingQuarter) {
+                return (string) $existingQuarter;
+            }
+        }
+
+        return $incoming;
+    }
+
      public function practiceScoreBoardBroadCast(Request $request)
     {
 
@@ -262,11 +341,6 @@ class BroadCastScoreController extends Controller
         $team = $validated['team'];
         $points = $validated['points'];
         $action = $validated['action'];
-
-        // Frontend already computes final scores optimistically before sending.
-        // Backend just accepts them and broadcasts — no double-counting.
-        self::$scores['left']['total'] = max(0, (int) $request->teamLeftScore);
-        self::$scores['right']['total'] = max(0, (int) $request->teamRightScore);
 
         $user = auth()->user();
         $coachGroupId = $user->role === 'head_coach'
@@ -285,12 +359,23 @@ class BroadCastScoreController extends Controller
             ->where('game_id', $request->game_id)
             ->first();
 
+        $scores = $this->resolvePersistedScores($existingPractice, $request, $action, $points);
+        self::$scores['left']['total'] = $scores['left'];
+        self::$scores['right']['total'] = $scores['right'];
+
         $persistedFields = $this->mergeScoreboardPersistedFields($existingPractice, $request);
         $sessionId = $this->resolvePersistedSessionId($existingPractice, $request);
-        $timerRemaining = $this->resolvePersistedTimerRemaining($existingPractice, $request, $persistedFields);
+        $quarter = $this->resolvePersistedQuarter($existingPractice, $request, $action, $points);
+        $timerRemaining = $this->resolvePersistedTimerRemaining(
+            $existingPractice,
+            $request,
+            $persistedFields,
+            $action,
+            $points,
+        );
 
         $shouldRefreshTime = !$existingPractice
-            || ($existingPractice->quarter != $request->quarter);
+            || ((int) $existingPractice->quarter != (int) $quarter);
 
         $hMarkPosition = $this->resolveHMarkForBroadcast($request, $coachGroupId, $request->game_id);
 
@@ -298,7 +383,7 @@ class BroadCastScoreController extends Controller
             'left_score' => self::$scores['left']['total'],
             'right_score' => self::$scores['right']['total'],
             'action' => $action,
-            'quarter' => $request->quarter,
+            'quarter' => $quarter,
             'is_start' => $action === 'EndMatch'
                 ? false
                 : filter_var($request->isStartTime, FILTER_VALIDATE_BOOLEAN),
@@ -339,10 +424,10 @@ class BroadCastScoreController extends Controller
             'points' => $points,
             'action' => $action,
             'isStart'=>$request->isStartTime,
-            'time'=>$request->time,
+            'time'=>$timerRemaining ?? $request->time,
             'sync_time' => $persistedFields['sync_time'],
             'sys_time' => now()->toDateTimeString(),
-            'quarter' => $request->quarter,
+            'quarter' => $quarter,
             'down' => $persistedFields['down'],
             'strategies' => $persistedFields['strategies'],
             'teamPosition' => $persistedFields['team_position'],
@@ -633,11 +718,6 @@ class BroadCastScoreController extends Controller
         $points = $validated['points'];
         $action = $validated['action'];
 
-        // Frontend already applies the score change optimistically before sending;
-        // accept the final totals directly to avoid double-counting.
-        self::$scores['left']['total']  = max(0, (int) $request->teamLeftScore);
-        self::$scores['right']['total'] = max(0, (int) $request->teamRightScore);
-
         $user = auth()->user();
         $coachGroupId = $user->role === 'head_coach'
             ? $user->id
@@ -655,12 +735,23 @@ class BroadCastScoreController extends Controller
             ->where('game_id', $request->game_id)
             ->first();
 
+        $scores = $this->resolvePersistedScores($existingScoreboard, $request, $action, $points);
+        self::$scores['left']['total'] = $scores['left'];
+        self::$scores['right']['total'] = $scores['right'];
+
         $persistedFields = $this->mergeScoreboardPersistedFields($existingScoreboard, $request);
         $sessionId = $this->resolvePersistedSessionId($existingScoreboard, $request);
-        $timerRemaining = $this->resolvePersistedTimerRemaining($existingScoreboard, $request, $persistedFields);
+        $quarter = $this->resolvePersistedQuarter($existingScoreboard, $request, $action, $points);
+        $timerRemaining = $this->resolvePersistedTimerRemaining(
+            $existingScoreboard,
+            $request,
+            $persistedFields,
+            $action,
+            $points,
+        );
 
         $shouldRefreshTime = !$existingScoreboard
-            || ($existingScoreboard->quarter != $request->quarter);
+            || ((int) $existingScoreboard->quarter != (int) $quarter);
 
         $hMarkPosition = $this->resolveHMarkForBroadcast($request, $coachGroupId, $request->game_id);
 
@@ -668,8 +759,8 @@ class BroadCastScoreController extends Controller
             'left_score' => self::$scores['left']['total'],
             'right_score' => self::$scores['right']['total'],
             'action' => $action,
-            'sync_time' => $persistedFields['sync_time'],
-            'quarter' => $request->quarter,
+            'sync_time' => $timerRemaining ?? $persistedFields['sync_time'],
+            'quarter' => $quarter,
             'is_start' => $action === 'EndMatch'
                 ? false
                 : filter_var($request->isStartTime, FILTER_VALIDATE_BOOLEAN),
@@ -714,9 +805,9 @@ class BroadCastScoreController extends Controller
             'action' => $action,
             'sync_time' => $persistedFields['sync_time'],
             'isStart'=>$request->isStartTime,
-            'time'=>$request->time,
+            'time'=>$timerRemaining ?? $request->time,
             'sys_time' => now()->toDateTimeString(),
-            'quarter' => $request->quarter,
+            'quarter' => $quarter,
             'down' => $persistedFields['down'],
             'strategies' => $persistedFields['strategies'],
             'teamPosition' => $persistedFields['team_position'],
