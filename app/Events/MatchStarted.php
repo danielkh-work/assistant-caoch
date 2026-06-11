@@ -65,29 +65,12 @@ class MatchStarted implements ShouldBroadcast
         ];
     }
 
-    /**
-     * Staging/mobile expect scope as the string "real" or "practice".
-     */
-    protected function legacyScopeString(): string
-    {
-        $scope = $this->normalizedScope();
-
-        if (($scope['is_play_mode'] ?? false) === true || ($scope['mode'] ?? '') === 'real') {
-            return 'real';
-        }
-
-        return 'practice';
-    }
-
     public function broadcastWith()
     {
-        $scopeDetail = $this->normalizedScope();
-
         return [
             'league_id' => $this->leagueId,
             'type' => $this->type,
-            'scope' => $this->legacyScopeString(),
-            'scope_detail' => $scopeDetail,
+            'scope' => $this->normalizedScope(),
             'message' => $this->type === 'started'
                 ? 'Match has started'
                 : 'Match has ended',

@@ -75,8 +75,7 @@ namespace App\OpenApi;
  *         property="data",
  *         type="object",
  *         @OA\Property(property="head_coach_id", type="integer", example=5),
- *         @OA\Property(property="league_id", type="integer", example=22),
- *         @OA\Property(property="channel", type="string", example="coach-group.5.league.22"),
+ *         @OA\Property(property="channel", type="string", example="coach-group.5"),
  *         @OA\Property(property="event", type="string", example="assistant.coaches"),
  *         @OA\Property(property="payload", ref="#/components/schemas/YardagePlayBroadcastPayload")
  *     )
@@ -102,7 +101,7 @@ namespace App\OpenApi;
  *                 "message": "Yardage play broadcast sent to assistant coach.",
  *                 "data": {
  *                     "head_coach_id": 5,
- *                     "channel": "coach-group.5.league.22",
+ *                     "channel": "coach-group.5",
  *                     "event": "assistant.coaches",
  *                     "payload": {
  *                         "playName": "IN 25(4)-RAM ALL-CHECK",
@@ -186,8 +185,7 @@ namespace App\OpenApi;
  *         property="data",
  *         type="object",
  *         @OA\Property(property="head_coach_id", type="integer", example=5),
- *         @OA\Property(property="league_id", type="integer", example=22),
- *         @OA\Property(property="channel", type="string", example="coach-group.5.league.22"),
+ *         @OA\Property(property="channel", type="string", example="coach-group.5"),
  *         @OA\Property(property="event", type="string", example="head.coach.suggestion"),
  *         @OA\Property(property="payload", ref="#/components/schemas/HeadCoachSystemSuggestionPayload")
  *     )
@@ -213,7 +211,7 @@ namespace App\OpenApi;
  *                 "message": "System suggestion broadcast sent to head coach.",
  *                 "data": {
  *                     "head_coach_id": 5,
- *                     "channel": "coach-group.5.league.22",
+ *                     "channel": "coach-group.5",
  *                     "event": "head.coach.suggestion",
  *                     "payload": {
  *                         "down": 2,
