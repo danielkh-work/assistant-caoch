@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Mail;
 use App\Mail\UserLoggedIn;
 use App\Models\PendingUser;
 use App\Mail\UserApprovalRequest;
+use App\Support\QbMobileSession;
 use Illuminate\Support\Str;
 class AuthController extends Controller
 {
@@ -451,8 +452,8 @@ class AuthController extends Controller
         
        
         $request->validate([
-            'session_id' => 'nullable|string',  // optional string
-            'code'       => 'required|digits:4' // required 4-digit code
+            'session_id' => 'required|string|uuid',
+            'code' => 'required|digits:4',
         ]);
       
         \Log::info(['code'=>$request->code]);
@@ -471,17 +472,16 @@ class AuthController extends Controller
             ], 401);
         }
 
-        // QB is on the device once code auth succeeds; dashboards use is_loggin (see get-qb-user).
-        if ($request->filled('session_id')) {
-            $user->session_id = $request->session_id;
-        }
+        // Bind mobile createSession UUID so logout reaches qb-logout.{session_id}.
+        QbMobileSession::bind($user, $request->session_id);
         $user->is_loggin = true;
         $user->save();
 
         if ($user->head_coach_id) {
             broadcast(new QbSessionUpdated(
                 (int) $user->head_coach_id,
-                $user->only(['id', 'name', 'email', 'session_id', 'code', 'head_coach_id', 'is_loggin']),
+                (int) ($user->league_id ?? 0),
+                $user->only(['id', 'name', 'email', 'session_id', 'code', 'head_coach_id', 'league_id', 'team_id', 'is_loggin']),
                 true,
                 'login',
             ));
@@ -493,7 +493,7 @@ class AuthController extends Controller
         return response()->json([
             'status'       => 200,
             'message'      => 'Login successful',
-            'user'         => $user->only(['id', 'name', 'session_id', 'code', 'head_coach_id']),
+            'user'         => $user->only(['id', 'name', 'session_id', 'code', 'head_coach_id', 'league_id', 'team_id']),
             'access_token' => $token,
             'token_type'   => 'Bearer'
         ]);

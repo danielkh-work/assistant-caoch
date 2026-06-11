@@ -7,24 +7,35 @@ use Illuminate\Http\Request;
 use App\Models\MobileSession;
 use App\Models\User;
 use App\Events\MobileSessionApproved;
-use App\Events\MobileSessionLogout;
 use App\Events\QbSessionUpdated;
+use App\Support\QbLogoutBroadcaster;
+use App\Support\QbMobileSession;
 use Illuminate\Support\Str;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class WebQrController extends Controller
 {
     // Mobile generates session
     public function createSession(Request $request)
     {
-        // $user = $request->user(); // mobile user authenticated
+        $sessionId = Str::uuid()->toString();
 
-        $session = MobileSession::create([
-            'mobile_user_id' => null,
-            'session_id' => Str::uuid()->toString(),
-        ]);
+        if (\Illuminate\Support\Facades\Schema::hasTable('mobile_sessions')) {
+            MobileSession::create([
+                'mobile_user_id' => null,
+                'session_id' => $sessionId,
+                'status' => 'pending',
+            ]);
+        }
+
+        // Returning QB: app opens create-session, subscribes qb-logout.{sessionId}, keeps bearer token.
+        $qb = $this->optionalSanctumUser($request);
+        if ($qb && $qb->role === 'qb' && $qb->is_loggin) {
+            QbMobileSession::refreshActiveSession($qb, $sessionId);
+        }
 
         return response()->json([
-            'session_id' => $session->session_id,
+            'session_id' => $sessionId,
         ]);
     }
 
@@ -70,7 +81,7 @@ class WebQrController extends Controller
             ], 401);
         }
 
-        $user->session_id = $request->session_id;
+        QbMobileSession::bind($user, $request->session_id);
         $user->is_loggin = true;
         $user->save();
 
@@ -89,7 +100,8 @@ class WebQrController extends Controller
 
         broadcast(new QbSessionUpdated(
             (int) $authId,
-            $user->only(['id', 'name', 'email', 'session_id', 'code', 'head_coach_id', 'is_loggin']),
+            (int) ($user->league_id ?? 0),
+            $user->only(['id', 'name', 'email', 'session_id', 'code', 'head_coach_id', 'league_id', 'team_id', 'is_loggin']),
             true,
             'login',
         ))->toOthers();
@@ -101,40 +113,44 @@ class WebQrController extends Controller
     {
         $user = User::find($id);
 
-        if (!$user) {
+        if (! $user) {
             return response()->json([
                 'status' => 404,
-                'message' => 'User not found'
+                'message' => 'User not found',
             ]);
+        }
+
+        $coach = $user->head_coach_id
+            ? User::find($user->head_coach_id)
+            : null;
+
+        if ($coach && $user->role === 'qb') {
+            return response()->json(QbLogoutBroadcaster::logoutAndBroadcast($user, $coach));
         }
 
         $user->session_id = null;
         $user->is_loggin = false;
         $user->save();
 
-        $userData = [
-            'status'  => 200,
+        return response()->json([
+            'status' => 200,
             'message' => 'logout successful',
-            'user'    => $user->only(['id', 'name', 'session_id', 'code', 'head_coach_id', 'is_loggin']),
-        ];
-
-        if ($user->head_coach_id) {
-            broadcast(new QbSessionUpdated(
-                (int) $user->head_coach_id,
-                $userData['user'],
-                false,
-                'logout',
-            ))->toOthers();
-        }
-
-        return response()->json($userData);
+            'user' => $user->only(['id', 'name', 'session_id', 'code', 'head_coach_id', 'is_loggin']),
+        ]);
     }
 
-    public function qbSessionLoginStatus(string $session_id)
+    public function qbSessionLoginStatus(Request $request, string $session_id)
     {
         $user = User::where('session_id', $session_id)
             ->where('role', 'qb')
             ->first();
+
+        if ($user === null) {
+            $tokenUser = $this->optionalSanctumUser($request);
+            if ($tokenUser && $tokenUser->role === 'qb' && $tokenUser->is_loggin) {
+                $user = QbMobileSession::refreshActiveSession($tokenUser, $session_id);
+            }
+        }
 
         if ($user === null) {
             return response()->json([
@@ -154,6 +170,7 @@ class WebQrController extends Controller
     {
         $request->validate([
             'id' => 'required|integer|exists:users,id',
+            'session_id' => 'sometimes|nullable|string|uuid',
         ]);
 
         $coach = $request->user();
@@ -177,37 +194,29 @@ class WebQrController extends Controller
             ], 404);
         }
 
-        $sessionId = $user->session_id;
+        return response()->json(QbLogoutBroadcaster::logoutAndBroadcast(
+            $user,
+            $coach,
+            array_filter([$request->input('session_id')]),
+        ));
+    }
 
-        $user->is_loggin = false;
-        $user->save();
-
-        $payload = [
-            'status' => 200,
-            'message' => 'logout successful',
-            'user' => $user->only(['id', 'name', 'session_id', 'code', 'head_coach_id']),
-            'is_loggin' => (bool) $user->is_loggin,
-        ];
-
-        if ($sessionId) {
-            broadcast(new MobileSessionLogout([
-                'status' => 200,
-                'message' => 'logout successful',
-                'user' => array_merge(
-                    $user->only(['id', 'name', 'code', 'head_coach_id']),
-                    ['session_id' => $sessionId]
-                ),
-            ]))->toOthers();
+    private function optionalSanctumUser(Request $request): ?User
+    {
+        $user = $request->user('sanctum');
+        if ($user instanceof User) {
+            return $user;
         }
 
-        broadcast(new QbSessionUpdated(
-            (int) $coach->id,
-            $user->only(['id', 'name', 'email', 'session_id', 'code', 'head_coach_id', 'is_loggin']),
-            false,
-            'logout',
-        ))->toOthers();
+        $token = $request->bearerToken();
+        if (! $token) {
+            return null;
+        }
 
-        return response()->json($payload);
+        $accessToken = PersonalAccessToken::findToken($token);
+        $tokenable = $accessToken?->tokenable;
+
+        return $tokenable instanceof User ? $tokenable : null;
     }
 
 

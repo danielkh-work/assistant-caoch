@@ -2,48 +2,50 @@
 
 namespace App\Events;
 
-use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Broadcasting\PresenceChannel;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
+
 class TeamScoreUpdated implements ShouldBroadcast
 {
-    use SerializesModels;
-    public $score;
-    public $coachGroupId;
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    /**
-     * Create a new event instance.
-     */
-    public function __construct($score, $coachGroupId)
-    {
-          
-        \Log::info(['score'=>$score]);
-         $this->score = $score;
-         $this->coachGroupId = $coachGroupId;
+    public $score;
 
-        
+    public $coachGroupId;
+
+    public int $leagueId;
+
+    public function __construct($score, $coachGroupId, int $leagueId)
+    {
+        \Log::info(['score' => $score]);
+        $this->score = $score;
+        $this->coachGroupId = $coachGroupId;
+        $this->leagueId = $leagueId;
     }
 
     /**
-     * Get the channels the event should broadcast on.
-     *
-     * @return array<int, \Illuminate\Broadcasting\Channel>
+     * @return array<int, PrivateChannel>
      */
-    public function broadcastOn()
+    public function broadcastOn(): array
     {
-    //    {$this->coachGroupId}
-        return new PrivateChannel("headcoach.{$this->coachGroupId}.qb");
-        //return new PrivateChannel('headcoach.' . $this->coachGroupId . '.qb');
+        $channels = [
+            new PrivateChannel("headcoach.{$this->coachGroupId}.qb"),
+        ];
+
+        if ($this->leagueId > 0) {
+            $channels[] = new PrivateChannel(
+                "headcoach.{$this->coachGroupId}.league.{$this->leagueId}.qb"
+            );
+        }
+
+        return $channels;
     }
 
-     public function broadcastAs()
+    public function broadcastAs(): string
     {
         return 'team.score.updated';
     }
 }
-
