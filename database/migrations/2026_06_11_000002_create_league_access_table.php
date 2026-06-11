@@ -1,7 +1,7 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -13,24 +13,46 @@ return new class extends Migration
     public function up(): void
     {
         if (Schema::hasTable('league_access')) {
-            return;
+            Schema::drop('league_access');
         }
 
-        Schema::create('league_access', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('league_id');
-            $table->unsignedBigInteger('user_id');
-            $table->string('access_type')->default('shared');
-            $table->timestamps();
+        $leagueIdType = $this->referenceIdColumnType('leagues');
+        $userIdType = $this->referenceIdColumnType('users');
 
-            $table->foreign('league_id')->references('id')->on('leagues')->cascadeOnDelete();
-            $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
-            $table->unique(['league_id', 'user_id']);
-        });
+        DB::statement("
+            CREATE TABLE `league_access` (
+                `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+                `league_id` {$leagueIdType} NOT NULL,
+                `user_id` {$userIdType} NOT NULL,
+                `access_type` varchar(255) NOT NULL DEFAULT 'shared',
+                `created_at` timestamp NULL DEFAULT NULL,
+                `updated_at` timestamp NULL DEFAULT NULL,
+                PRIMARY KEY (`id`),
+                UNIQUE KEY `league_access_league_id_user_id_unique` (`league_id`, `user_id`),
+                CONSTRAINT `league_access_league_id_foreign`
+                    FOREIGN KEY (`league_id`) REFERENCES `leagues` (`id`) ON DELETE CASCADE,
+                CONSTRAINT `league_access_user_id_foreign`
+                    FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ");
     }
 
     public function down(): void
     {
         Schema::dropIfExists('league_access');
+    }
+
+    private function referenceIdColumnType(string $table): string
+    {
+        $row = DB::selectOne(
+            'SELECT COLUMN_TYPE AS column_type
+             FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_NAME = ?
+               AND COLUMN_NAME = ?',
+            [$table, 'id']
+        );
+
+        return $row->column_type ?? 'bigint unsigned';
     }
 };
