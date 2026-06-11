@@ -221,6 +221,60 @@ class ScoreboardSessionPreserveTest extends TestCase
         ]);
     }
 
+    public function test_partial_broadcast_preserves_game_state_and_session_id(): void
+    {
+        $user = $this->authAsCoach();
+        [$league, $team1, $team2] = $this->createLeagueWithTeams($user);
+        $session = $this->createActiveSession($user, $league, $team1, $team2);
+        $gameId = 999;
+
+        WebsocketScoreboard::create([
+            'user_id' => $user->id,
+            'game_id' => $gameId,
+            'session_id' => $session->id,
+            'league_id' => $league->id,
+            'left_score' => 0,
+            'right_score' => 0,
+            'is_start' => true,
+            'action' => 'Start',
+            'down' => 2,
+            'strategies' => 'aggressive',
+            'position_number' => 35,
+        ]);
+
+        $this->postJson('/api/scoreboard/broadcast', [
+            'game_id' => $gameId,
+            'team' => 'both',
+            'teamLeftScore' => 0,
+            'teamRightScore' => 0,
+            'points' => 0,
+            'action' => 'INFO',
+            'isStartTime' => true,
+            'time' => 600,
+            'quarter' => 1,
+            'teamPosition' => 2,
+        ])->assertNoContent();
+
+        $this->assertDatabaseHas('websocket_scoreboards', [
+            'user_id' => $user->id,
+            'game_id' => $gameId,
+            'session_id' => $session->id,
+            'league_id' => $league->id,
+            'down' => 2,
+            'strategies' => 'aggressive',
+            'position_number' => 35,
+            'team_position' => 2,
+            'is_start' => true,
+        ]);
+
+        $this->getJson('/api/scoreboard?game_id=' . $gameId)
+            ->assertStatus(200)
+            ->assertJsonPath('data.down', 2)
+            ->assertJsonPath('data.strategies', 'aggressive')
+            ->assertJsonPath('data.position_number', 35)
+            ->assertJsonPath('data.session_id', $session->id);
+    }
+
     public function test_stale_reconcile_cleanup_does_not_use_end_match_action(): void
     {
         $user = $this->authAsCoach();
