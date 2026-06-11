@@ -6,6 +6,7 @@ use Tests\TestCase;
 use App\Models\User;
 use App\Models\League;
 use App\Models\LeagueRule;
+use App\Models\LeagueAccess;
 use App\Models\Sport;
 use App\Models\LeagueTeam;
 use Illuminate\Support\Facades\Auth;
@@ -224,6 +225,112 @@ class LeagueApiTest extends TestCase
 
         $response->assertStatus(200)
                  ->assertJson(['message' => 'Team Points Update ']);
+    }
+
+    /** @test */
+    public function head_coach_only_sees_own_leagues_not_other_head_coaches()
+    {
+        $coachA = $this->createHeadCoachUser('coach-a@test.com');
+        $coachB = $this->createHeadCoachUser('coach-b@test.com');
+
+        $sport = new Sport();
+        $sport->title = 'Football';
+        $sport->save();
+
+        $rule = new LeagueRule();
+        $rule->title = 'Standard';
+        $rule->save();
+
+        $leagueA = new League();
+        $leagueA->user_id = $coachA->id;
+        $leagueA->sport_id = $sport->id;
+        $leagueA->league_rule_id = $rule->id;
+        $leagueA->title = 'Coach A League';
+        $leagueA->save();
+
+        $leagueB = new League();
+        $leagueB->user_id = $coachB->id;
+        $leagueB->sport_id = $sport->id;
+        $leagueB->league_rule_id = $rule->id;
+        $leagueB->title = 'Coach B League';
+        $leagueB->save();
+
+        Sanctum::actingAs($coachA);
+        $this->actingAs($coachA, 'api');
+
+        $response = $this->getJson('/api/leaque?sport_id=' . $sport->id);
+
+        $response->assertStatus(200);
+        $titles = collect($response->json('data'))->pluck('title')->all();
+
+        $this->assertContains('Coach A League', $titles);
+        $this->assertNotContains('Coach B League', $titles);
+    }
+
+    /** @test */
+    public function head_coach_can_view_league_shared_via_league_access_table()
+    {
+        $owner = $this->createHeadCoachUser('owner@test.com');
+        $guest = $this->createHeadCoachUser('guest@test.com');
+
+        $sport = new Sport();
+        $sport->title = 'Football';
+        $sport->save();
+
+        $rule = new LeagueRule();
+        $rule->title = 'Standard';
+        $rule->save();
+
+        $league = new League();
+        $league->user_id = $owner->id;
+        $league->sport_id = $sport->id;
+        $league->league_rule_id = $rule->id;
+        $league->title = 'Shared League';
+        $league->save();
+
+        LeagueAccess::create([
+            'league_id' => $league->id,
+            'user_id' => $guest->id,
+            'access_type' => 'shared',
+        ]);
+
+        Sanctum::actingAs($guest);
+        $this->actingAs($guest, 'api');
+
+        $response = $this->getJson('/api/leaque?sport_id=' . $sport->id);
+
+        $response->assertStatus(200);
+        $titles = collect($response->json('data'))->pluck('title')->all();
+        $this->assertContains('Shared League', $titles);
+    }
+
+    /** @test */
+    public function head_coach_cannot_view_other_coaches_league_without_access()
+    {
+        $owner = $this->createHeadCoachUser('owner2@test.com');
+        $other = $this->createHeadCoachUser('other@test.com');
+
+        $sport = new Sport();
+        $sport->title = 'Football';
+        $sport->save();
+
+        $rule = new LeagueRule();
+        $rule->title = 'Standard';
+        $rule->save();
+
+        $league = new League();
+        $league->user_id = $owner->id;
+        $league->sport_id = $sport->id;
+        $league->league_rule_id = $rule->id;
+        $league->title = 'Private League';
+        $league->save();
+
+        Sanctum::actingAs($other);
+        $this->actingAs($other, 'api');
+
+        $response = $this->getJson('/api/leaque-view/' . $league->id);
+
+        $response->assertStatus(404);
     }
 
     /** @test */
