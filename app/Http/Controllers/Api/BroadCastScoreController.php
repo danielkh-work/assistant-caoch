@@ -150,6 +150,82 @@ class BroadCastScoreController extends Controller
         ];
     }
 
+    private function requestProvidesScoreboardField(Request $request, string $key): bool
+    {
+        if (! $request->has($key)) {
+            return false;
+        }
+
+        $value = $request->input($key);
+
+        return $value !== null && $value !== '';
+    }
+
+    /**
+     * @param  list<string>  $aliases
+     */
+    private function incomingScoreboardValue(Request $request, string $primaryKey, array $aliases = []): mixed
+    {
+        if ($this->requestProvidesScoreboardField($request, $primaryKey)) {
+            return $request->input($primaryKey);
+        }
+
+        foreach ($aliases as $alias) {
+            if ($this->requestProvidesScoreboardField($request, $alias)) {
+                return $request->input($alias);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  WebsocketScoreboard|WebsocketPracticeScoreboard|null  $existing
+     * @return array<string, mixed>
+     */
+    private function mergeScoreboardPersistedFields($existing, Request $request): array
+    {
+        $fields = [
+            'league_id' => ['request' => 'league_id', 'aliases' => []],
+            'down' => ['request' => 'down', 'aliases' => []],
+            'strategies' => ['request' => 'strategies', 'aliases' => []],
+            'position_number' => ['request' => 'positionNumber', 'aliases' => ['position_number']],
+            'team_position' => ['request' => 'teamPosition', 'aliases' => ['team_position']],
+            'expected_yard_gain' => ['request' => 'expectedyardgain', 'aliases' => ['expected_yard_gain']],
+            'pkg' => ['request' => 'pkg', 'aliases' => []],
+            'possession' => ['request' => 'possession', 'aliases' => []],
+            'weather' => ['request' => 'weather', 'aliases' => []],
+            'coverage_category' => ['request' => 'coverageCategory', 'aliases' => ['coverage_category']],
+            'sync_time' => ['request' => 'sync_time', 'aliases' => []],
+        ];
+
+        $merged = [];
+
+        foreach ($fields as $column => $config) {
+            $incoming = $this->incomingScoreboardValue(
+                $request,
+                $config['request'],
+                $config['aliases'],
+            );
+
+            $merged[$column] = $incoming !== null
+                ? $incoming
+                : ($existing?->{$column} ?? null);
+        }
+
+        return $merged;
+    }
+
+    /**
+     * @param  WebsocketScoreboard|WebsocketPracticeScoreboard|null  $existing
+     */
+    private function resolvePersistedSessionId($existing, Request $request): mixed
+    {
+        return $request->filled('session_id')
+            ? $request->session_id
+            : ($existing?->session_id ?? null);
+    }
+
      public function practiceScoreBoardBroadCast(Request $request)
     {
 
@@ -186,6 +262,9 @@ class BroadCastScoreController extends Controller
             ->where('game_id', $request->game_id)
             ->first();
 
+        $persistedFields = $this->mergeScoreboardPersistedFields($existingPractice, $request);
+        $sessionId = $this->resolvePersistedSessionId($existingPractice, $request);
+
         $shouldRefreshTime = !$existingPractice
             || ($existingPractice->quarter != $request->quarter);
 
@@ -196,19 +275,21 @@ class BroadCastScoreController extends Controller
             'right_score' => self::$scores['right']['total'],
             'action' => $action,
             'quarter' => $request->quarter,
-            'is_start' => $request->isStartTime,
-            'down' => $request->down,
-            'team_position' => $request->teamPosition,
-            'expected_yard_gain' => $request->expectedyardgain,
-            'position_number' => $request->positionNumber,
-            'pkg' => $request->pkg,
-            'strategies' => $request->strategies,
-            'possession' => $request->possession,
-            'weather' => $request->weather,
-            'league_id' => $request->league_id,
-            'coverage_category' => $request->coverageCategory,
+            'is_start' => $action === 'EndMatch'
+                ? false
+                : filter_var($request->isStartTime, FILTER_VALIDATE_BOOLEAN),
+            'down' => $persistedFields['down'],
+            'team_position' => $persistedFields['team_position'],
+            'expected_yard_gain' => $persistedFields['expected_yard_gain'],
+            'position_number' => $persistedFields['position_number'],
+            'pkg' => $persistedFields['pkg'],
+            'strategies' => $persistedFields['strategies'],
+            'possession' => $persistedFields['possession'],
+            'weather' => $persistedFields['weather'],
+            'league_id' => $persistedFields['league_id'],
+            'coverage_category' => $persistedFields['coverage_category'],
             'h_mark_position' => $hMarkPosition,
-            'session_id' => $request->session_id ?: null,
+            'session_id' => $sessionId,
             'timer_remaining' => is_numeric($request->time) ? (int) $request->time : null,
             'sys_time' => now()->toDateTimeString(),
         ];
@@ -238,16 +319,16 @@ class BroadCastScoreController extends Controller
             'sync_time' => $request->sync_time,
             'sys_time' => now()->toDateTimeString(),
             'quarter' => $request->quarter,
-            'down' => $request->down,
-            'strategies' => $request->strategies,
-            'teamPosition' => $request->teamPosition,
-            'expectedyardgain' => $request->expectedyardgain,
-            'positionNumber' => $request->positionNumber,
-            'pkg' => $request->pkg,
-            'possession' => $request->possession,
-            'weather' => $request->weather,
-            'coverageCategory' => $request->coverageCategory,
-            'session_id' => $request->session_id,
+            'down' => $persistedFields['down'],
+            'strategies' => $persistedFields['strategies'],
+            'teamPosition' => $persistedFields['team_position'],
+            'expectedyardgain' => $persistedFields['expected_yard_gain'],
+            'positionNumber' => $persistedFields['position_number'],
+            'pkg' => $persistedFields['pkg'],
+            'possession' => $persistedFields['possession'],
+            'weather' => $persistedFields['weather'],
+            'coverageCategory' => $persistedFields['coverage_category'],
+            'session_id' => $sessionId,
             'h_mark_position' => $hMarkPosition,
         ];
 
@@ -550,6 +631,9 @@ class BroadCastScoreController extends Controller
             ->where('game_id', $request->game_id)
             ->first();
 
+        $persistedFields = $this->mergeScoreboardPersistedFields($existingScoreboard, $request);
+        $sessionId = $this->resolvePersistedSessionId($existingScoreboard, $request);
+
         $shouldRefreshTime = !$existingScoreboard
             || ($existingScoreboard->quarter != $request->quarter);
 
@@ -559,21 +643,23 @@ class BroadCastScoreController extends Controller
             'left_score' => self::$scores['left']['total'],
             'right_score' => self::$scores['right']['total'],
             'action' => $action,
-            'sync_time' => $request->sync_time,
+            'sync_time' => $persistedFields['sync_time'],
             'quarter' => $request->quarter,
-            'is_start' => $request->isStartTime,
-            'down' => $request->down,
-            'team_position' => $request->teamPosition,
-            'expected_yard_gain' => $request->expectedyardgain,
-            'position_number' => $request->positionNumber,
-            'pkg' => $request->pkg,
-            'strategies' => $request->strategies,
-            'possession' => $request->possession,
-            'weather' => $request->weather,
-            'coverage_category' => $request->coverageCategory,
+            'is_start' => $action === 'EndMatch'
+                ? false
+                : filter_var($request->isStartTime, FILTER_VALIDATE_BOOLEAN),
+            'down' => $persistedFields['down'],
+            'team_position' => $persistedFields['team_position'],
+            'expected_yard_gain' => $persistedFields['expected_yard_gain'],
+            'position_number' => $persistedFields['position_number'],
+            'pkg' => $persistedFields['pkg'],
+            'strategies' => $persistedFields['strategies'],
+            'possession' => $persistedFields['possession'],
+            'weather' => $persistedFields['weather'],
+            'coverage_category' => $persistedFields['coverage_category'],
             'h_mark_position' => $hMarkPosition,
-            'league_id' => $request->league_id,
-            'session_id' => $request->session_id ?: null,
+            'league_id' => $persistedFields['league_id'],
+            'session_id' => $sessionId,
             'timer_remaining' => is_numeric($request->time) ? (int) $request->time : null,
             'sys_time' => now()->toDateTimeString(),
         ];
@@ -606,16 +692,16 @@ class BroadCastScoreController extends Controller
             'time'=>$request->time,
             'sys_time' => now()->toDateTimeString(),
             'quarter' => $request->quarter,
-            'down' => $request->down,
-            'strategies' => $request->strategies,
-            'teamPosition' => $request->teamPosition,
-            'expectedyardgain' => $request->expectedyardgain,
-            'positionNumber' => $request->positionNumber,
-            'pkg' => $request->pkg,
-            'possession' => $request->possession,
-            'weather' => $request->weather,
-            'coverageCategory' => $request->coverageCategory,
-            'session_id' => $request->session_id,
+            'down' => $persistedFields['down'],
+            'strategies' => $persistedFields['strategies'],
+            'teamPosition' => $persistedFields['team_position'],
+            'expectedyardgain' => $persistedFields['expected_yard_gain'],
+            'positionNumber' => $persistedFields['position_number'],
+            'pkg' => $persistedFields['pkg'],
+            'possession' => $persistedFields['possession'],
+            'weather' => $persistedFields['weather'],
+            'coverageCategory' => $persistedFields['coverage_category'],
+            'session_id' => $sessionId,
             'h_mark_position' => $hMarkPosition,
         ];
 
