@@ -363,7 +363,11 @@ class BroadCastScoreController extends Controller
         self::$scores['left']['total'] = $scores['left'];
         self::$scores['right']['total'] = $scores['right'];
 
-        $persistedFields = $this->mergeScoreboardPersistedFields($existingPractice, $request);
+        // On a fresh Start do not carry play-state from the previous match's row.
+        // mergeScoreboardPersistedFields falls back to the existing row when the
+        // request omits a field, so passing null forces all fields to null on Start.
+        $existingForMerge = ($action === 'Start') ? null : $existingPractice;
+        $persistedFields = $this->mergeScoreboardPersistedFields($existingForMerge, $request);
         $sessionId = $this->resolvePersistedSessionId($existingPractice, $request);
         $quarter = $this->resolvePersistedQuarter($existingPractice, $request, $action, $points);
         $timerRemaining = $this->resolvePersistedTimerRemaining(
@@ -400,7 +404,7 @@ class BroadCastScoreController extends Controller
             'h_mark_position' => $hMarkPosition,
             'session_id' => $sessionId,
             'timer_remaining' => $timerRemaining,
-            'sys_time' => now()->toDateTimeString(),
+            'sys_time' => gmdate('Y-m-d\TH:i:s') . 'Z',
         ];
 
         if ($shouldRefreshTime) {
@@ -426,7 +430,7 @@ class BroadCastScoreController extends Controller
             'isStart'=>$request->isStartTime,
             'time'=>$timerRemaining ?? $request->time,
             'sync_time' => $persistedFields['sync_time'],
-            'sys_time' => now()->toDateTimeString(),
+            'sys_time' => gmdate('Y-m-d\TH:i:s') . 'Z',
             'quarter' => $quarter,
             'down' => $persistedFields['down'],
             'strategies' => $persistedFields['strategies'],
@@ -739,7 +743,9 @@ class BroadCastScoreController extends Controller
         self::$scores['left']['total'] = $scores['left'];
         self::$scores['right']['total'] = $scores['right'];
 
-        $persistedFields = $this->mergeScoreboardPersistedFields($existingScoreboard, $request);
+        // On a fresh Start do not carry play-state from the previous match's row.
+        $existingForMerge = ($action === 'Start') ? null : $existingScoreboard;
+        $persistedFields = $this->mergeScoreboardPersistedFields($existingForMerge, $request);
         $sessionId = $this->resolvePersistedSessionId($existingScoreboard, $request);
         $quarter = $this->resolvePersistedQuarter($existingScoreboard, $request, $action, $points);
         $timerRemaining = $this->resolvePersistedTimerRemaining(
@@ -777,7 +783,7 @@ class BroadCastScoreController extends Controller
             'league_id' => $persistedFields['league_id'],
             'session_id' => $sessionId,
             'timer_remaining' => $timerRemaining,
-            'sys_time' => now()->toDateTimeString(),
+            'sys_time' => gmdate('Y-m-d\TH:i:s') . 'Z',
         ];
 
         if ($shouldRefreshTime) {
@@ -806,7 +812,7 @@ class BroadCastScoreController extends Controller
             'sync_time' => $persistedFields['sync_time'],
             'isStart'=>$request->isStartTime,
             'time'=>$timerRemaining ?? $request->time,
-            'sys_time' => now()->toDateTimeString(),
+            'sys_time' => gmdate('Y-m-d\TH:i:s') . 'Z',
             'quarter' => $quarter,
             'down' => $persistedFields['down'],
             'strategies' => $persistedFields['strategies'],
