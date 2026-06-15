@@ -91,6 +91,9 @@ class ActiveGameModeGuard
 
     public static function assertCanStart(int $headCoachId, bool $isPractice): void
     {
+        $otherMode = $isPractice ? 'play' : 'practice';
+        self::reconcileOrphanedSessionsForMode($headCoachId, $otherMode);
+
         self::assertNoOtherModeActive($headCoachId, $isPractice);
 
         $targetMode = self::targetMode($isPractice);
