@@ -111,6 +111,7 @@ class ActiveGameModeGuard
     public static function assertNoOtherModeActive(int $headCoachId, bool $isPractice): void
     {
         $otherMode = $isPractice ? 'play' : 'practice';
+        self::reconcileOrphanedSessionsForMode($headCoachId, $otherMode);
 
         if (self::activeSession($headCoachId, $otherMode)) {
             throw ValidationException::withMessages([

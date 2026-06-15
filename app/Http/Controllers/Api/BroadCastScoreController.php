@@ -391,7 +391,7 @@ class BroadCastScoreController extends Controller
         $timerRemaining = $this->resolvePersistedTimerRemaining($existingPractice, $request, $persistedFields);
 
         $shouldRefreshTime = !$existingPractice
-            || ((int) $existingPractice->quarter != (int) $quarter);
+            || ((int) $existingPractice->quarter != (int) $request->quarter);
 
         $hMarkPosition = $this->resolveHMarkForBroadcast($request, $coachGroupId, $request->game_id);
 
@@ -804,7 +804,7 @@ class BroadCastScoreController extends Controller
         $timerRemaining = $this->resolvePersistedTimerRemaining($existingScoreboard, $request, $persistedFields);
 
         $shouldRefreshTime = !$existingScoreboard
-            || ((int) $existingScoreboard->quarter != (int) $quarter);
+            || ((int) $existingScoreboard->quarter != (int) $request->quarter);
 
         $hMarkPosition = $this->resolveHMarkForBroadcast($request, $coachGroupId, $request->game_id);
 
