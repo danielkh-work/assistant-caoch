@@ -15,6 +15,10 @@ use App\Events\HeadCoachSystemSuggestion;
 use App\Models\WebsocketScoreboard;
 use App\Models\WebsocketPracticeScoreboard;
 use App\Http\Responses\BaseResponse;
+use App\Support\ActiveGameModeGuard;
+use App\Support\BroadcastLeagueResolver;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\ValidationException;
 
 class BroadCastScoreController extends Controller
 {
@@ -74,6 +78,12 @@ class BroadCastScoreController extends Controller
         }
 
         foreach ([WebsocketPracticeScoreboard::class, WebsocketScoreboard::class] as $model) {
+            $table = (new $model)->getTable();
+
+            if (! Schema::hasColumn($table, 'h_mark_position')) {
+                continue;
+            }
+
             $query = $model::where('user_id', $coachGroupId);
 
             if ($gameId !== null && $gameId !== '') {
@@ -102,6 +112,21 @@ class BroadCastScoreController extends Controller
         return $this->resolveBroadcastHMarkPosition($request, $suggestionData)
             ?? $this->scoreboardStoredHMarkPosition($coachGroupId, $gameId)
             ?? 'hmark_center';
+    }
+
+    private function resolveBroadcastLeagueId(Request $request, ?array $nested = null): ?int
+    {
+        $leagueId = BroadcastLeagueResolver::fromRequest($request, $nested);
+        if ($leagueId !== null) {
+            return $leagueId;
+        }
+
+        $user = auth()->user();
+        if ($user && $user->role === 'qb' && $user->league_id) {
+            return (int) $user->league_id;
+        }
+
+        return null;
     }
 
       public static $scores = [
@@ -150,6 +175,58 @@ class BroadCastScoreController extends Controller
         ];
     }
 
+    private function rejectConflictingGameMode(int $coachGroupId, bool $isPractice): ?\Illuminate\Http\JsonResponse
+    {
+        try {
+            ActiveGameModeGuard::assertNoOtherModeActive($coachGroupId, $isPractice);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'message' => collect($e->errors())->flatten()->first(),
+            ], 422);
+        }
+
+        return null;
+    }
+
+    private function resolveIsStartForBroadcast(string $action, Request $request, $existingRow): bool
+    {
+        if ($action === 'EndMatch') {
+            return false;
+        }
+
+        if ($existingRow && (bool) $existingRow->is_start) {
+            if ($action === 'Start') {
+                return filter_var($request->isStartTime, FILTER_VALIDATE_BOOLEAN) ?: true;
+            }
+
+            return true;
+        }
+
+        if (in_array($action, ['Start', 'Stop', 'Resume'], true)) {
+            return filter_var($request->isStartTime, FILTER_VALIDATE_BOOLEAN);
+        }
+
+        if ($existingRow) {
+            return (bool) $existingRow->is_start;
+        }
+
+        return filter_var($request->isStartTime, FILTER_VALIDATE_BOOLEAN);
+    }
+
+    /**
+     * @param  WebsocketScoreboard|WebsocketPracticeScoreboard|null  $existing
+     * @return array{session_id: int|string|null, is_start: bool}
+     */
+    private function mergeScoreboardSessionFields($existing, Request $request, string $action): array
+    {
+        return [
+            'session_id' => $request->filled('session_id')
+                ? $request->session_id
+                : ($existing?->session_id ?? null),
+            'is_start' => $this->resolveIsStartForBroadcast($action, $request, $existing),
+        ];
+    }
+
     private function requestProvidesScoreboardField(Request $request, string $key): bool
     {
         if (! $request->has($key)) {
@@ -162,6 +239,8 @@ class BroadCastScoreController extends Controller
     }
 
     /**
+     * First non-empty request alias, or null when the client omitted the field.
+     *
      * @param  list<string>  $aliases
      */
     private function incomingScoreboardValue(Request $request, string $primaryKey, array $aliases = []): mixed
@@ -180,6 +259,9 @@ class BroadCastScoreController extends Controller
     }
 
     /**
+     * Preserve persisted game-state columns when partial broadcasts omit fields
+     * (e.g. team-position-only INFO payloads that would otherwise null session_id).
+     *
      * @param  WebsocketScoreboard|WebsocketPracticeScoreboard|null  $existing
      * @return array<string, mixed>
      */
@@ -224,27 +306,10 @@ class BroadCastScoreController extends Controller
     /**
      * @param  WebsocketScoreboard|WebsocketPracticeScoreboard|null  $existing
      */
-    private function resolvePersistedTimerRemaining(
-        $existing,
-        Request $request,
-        array $persistedFields,
-        string $action,
-        int $points,
-    ): ?int {
+    private function resolvePersistedTimerRemaining($existing, Request $request, array $persistedFields): ?int
+    {
         if (is_numeric($request->input('time'))) {
-            $incoming = (int) $request->time;
-
-            if ($existing && $this->isNonScoringStateBroadcast($action, $points)) {
-                $existingTimer = $existing->timer_remaining !== null
-                    ? (int) $existing->timer_remaining
-                    : null;
-
-                if ($existingTimer > 0 && $incoming === 0) {
-                    return $existingTimer;
-                }
-            }
-
-            return $incoming;
+            return (int) $request->time;
         }
 
         if ($persistedFields['sync_time'] !== null) {
@@ -256,76 +321,27 @@ class BroadCastScoreController extends Controller
             : null;
     }
 
-    /**
-     * @param  WebsocketScoreboard|WebsocketPracticeScoreboard|null  $existing
-     */
-    private function resolvePersistedSessionId($existing, Request $request): mixed
+    private function completeSessionOnEndMatch(int $coachGroupId, string $action, Request $request, string $gameMode, $existingRow = null): void
     {
-        return $request->filled('session_id')
-            ? $request->session_id
-            : ($existing?->session_id ?? null);
-    }
-
-    private const SCORING_BROADCAST_ACTIONS = [
-        'TD', 'RED', 'SAFTEY', 'SAFETY', 'FIELD GOAL', 'PAT1', 'PAT2',
-    ];
-
-    /**
-     * State-sync broadcasts (INFO, Stop, etc.) must not wipe persisted match data when
-     * the client sends default zeros before session restore completes.
-     */
-    private function isNonScoringStateBroadcast(string $action, int $points): bool
-    {
-        if (in_array($action, self::SCORING_BROADCAST_ACTIONS, true)) {
-            return false;
+        if ($action !== 'EndMatch') {
+            return;
         }
 
-        if (in_array($action, ['Start', 'EndMatch'], true)) {
-            return false;
+        $sessionId = $request->filled('session_id')
+            ? (int) $request->session_id
+            : ($existingRow?->session_id ? (int) $existingRow->session_id : null);
+
+        if ($sessionId) {
+            ActiveGameModeGuard::completeSession($coachGroupId, $sessionId);
+
+            return;
         }
 
-        return $points === 0;
-    }
-
-    /**
-     * @param  WebsocketScoreboard|WebsocketPracticeScoreboard|null  $existing
-     * @return array{left: int, right: int}
-     */
-    private function resolvePersistedScores($existing, Request $request, string $action, int $points): array
-    {
-        $left = max(0, (int) $request->teamLeftScore);
-        $right = max(0, (int) $request->teamRightScore);
-
-        if ($existing && $this->isNonScoringStateBroadcast($action, $points)) {
-            $existingLeft = (int) $existing->left_score;
-            $existingRight = (int) $existing->right_score;
-
-            if (($existingLeft > 0 || $existingRight > 0) && $left === 0 && $right === 0) {
-                $left = $existingLeft;
-                $right = $existingRight;
-            }
-        }
-
-        return ['left' => $left, 'right' => $right];
-    }
-
-    /**
-     * @param  WebsocketScoreboard|WebsocketPracticeScoreboard|null  $existing
-     */
-    private function resolvePersistedQuarter($existing, Request $request, string $action, int $points): mixed
-    {
-        $incoming = $request->input('quarter');
-
-        if ($existing && $this->isNonScoringStateBroadcast($action, $points)) {
-            $existingQuarter = (int) $existing->quarter;
-            $incomingQuarter = (int) $incoming;
-
-            if ($existingQuarter > 0 && $incomingQuarter > 0 && $incomingQuarter < $existingQuarter) {
-                return (string) $existingQuarter;
-            }
-        }
-
-        return $incoming;
+        ActiveGameModeGuard::completeActiveSessionsForMode(
+            $coachGroupId,
+            $gameMode,
+            $request->league_id ? (int) $request->league_id : null,
+        );
     }
 
      public function practiceScoreBoardBroadCast(Request $request)
@@ -355,28 +371,24 @@ class BroadCastScoreController extends Controller
             return response()->json(['error' => 'missing coach group id'], 400);
         }
 
+        if ($action === 'Start') {
+            $conflictResponse = $this->rejectConflictingGameMode($coachGroupId, true);
+            if ($conflictResponse) {
+                return $conflictResponse;
+            }
+        }
+
         $existingPractice = WebsocketPracticeScoreboard::where('user_id', $coachGroupId)
             ->where('game_id', $request->game_id)
             ->first();
 
-        $scores = $this->resolvePersistedScores($existingPractice, $request, $action, $points);
-        self::$scores['left']['total'] = $scores['left'];
-        self::$scores['right']['total'] = $scores['right'];
+        if ($action === 'EndMatch') {
+            $this->completeSessionOnEndMatch($coachGroupId, $action, $request, 'practice', $existingPractice);
+        }
 
-        // On a fresh Start do not carry play-state from the previous match's row.
-        // mergeScoreboardPersistedFields falls back to the existing row when the
-        // request omits a field, so passing null forces all fields to null on Start.
-        $existingForMerge = ($action === 'Start') ? null : $existingPractice;
-        $persistedFields = $this->mergeScoreboardPersistedFields($existingForMerge, $request);
-        $sessionId = $this->resolvePersistedSessionId($existingPractice, $request);
-        $quarter = $this->resolvePersistedQuarter($existingPractice, $request, $action, $points);
-        $timerRemaining = $this->resolvePersistedTimerRemaining(
-            $existingPractice,
-            $request,
-            $persistedFields,
-            $action,
-            $points,
-        );
+        $sessionFields = $this->mergeScoreboardSessionFields($existingPractice, $request, $action);
+        $persistedFields = $this->mergeScoreboardPersistedFields($existingPractice, $request);
+        $timerRemaining = $this->resolvePersistedTimerRemaining($existingPractice, $request, $persistedFields);
 
         $shouldRefreshTime = !$existingPractice
             || ((int) $existingPractice->quarter != (int) $quarter);
@@ -387,10 +399,8 @@ class BroadCastScoreController extends Controller
             'left_score' => self::$scores['left']['total'],
             'right_score' => self::$scores['right']['total'],
             'action' => $action,
-            'quarter' => $quarter,
-            'is_start' => $action === 'EndMatch'
-                ? false
-                : filter_var($request->isStartTime, FILTER_VALIDATE_BOOLEAN),
+            'quarter' => $request->quarter,
+            'is_start' => $sessionFields['is_start'],
             'down' => $persistedFields['down'],
             'team_position' => $persistedFields['team_position'],
             'expected_yard_gain' => $persistedFields['expected_yard_gain'],
@@ -401,10 +411,11 @@ class BroadCastScoreController extends Controller
             'weather' => $persistedFields['weather'],
             'league_id' => $persistedFields['league_id'],
             'coverage_category' => $persistedFields['coverage_category'],
+            'sync_time' => $persistedFields['sync_time'],
             'h_mark_position' => $hMarkPosition,
-            'session_id' => $sessionId,
+            'session_id' => $sessionFields['session_id'],
             'timer_remaining' => $timerRemaining,
-            'sys_time' => gmdate('Y-m-d\TH:i:s') . 'Z',
+            'sys_time' => now()->toDateTimeString(),
         ];
 
         if ($shouldRefreshTime) {
@@ -427,11 +438,11 @@ class BroadCastScoreController extends Controller
             'user_id' => auth()->id(),
             'points' => $points,
             'action' => $action,
-            'isStart'=>$request->isStartTime,
-            'time'=>$timerRemaining ?? $request->time,
+            'isStart' => $sessionFields['is_start'],
+            'time'=>$request->time,
             'sync_time' => $persistedFields['sync_time'],
-            'sys_time' => gmdate('Y-m-d\TH:i:s') . 'Z',
-            'quarter' => $quarter,
+            'sys_time' => now()->toDateTimeString(),
+            'quarter' => $request->quarter,
             'down' => $persistedFields['down'],
             'strategies' => $persistedFields['strategies'],
             'teamPosition' => $persistedFields['team_position'],
@@ -441,7 +452,7 @@ class BroadCastScoreController extends Controller
             'possession' => $persistedFields['possession'],
             'weather' => $persistedFields['weather'],
             'coverageCategory' => $persistedFields['coverage_category'],
-            'session_id' => $sessionId,
+            'session_id' => $sessionFields['session_id'],
             'h_mark_position' => $hMarkPosition,
         ];
 
@@ -498,8 +509,18 @@ class BroadCastScoreController extends Controller
             'h_mark_position' => $hMarkPosition,
         ];
 
+        $leagueId = $this->resolveBroadcastLeagueId($request, $suggestionData);
+        if ($leagueId === null) {
+            \Log::warning('YardageBroadcast skipped: league_id could not be resolved', [
+                'coach_group_id' => $coachGroupId,
+                'game_id' => $gameId,
+            ]);
+
+            return response()->json(['message' => 'league_id is required for broadcast'], 422);
+        }
+
         try {
-            broadcast(new YardageBroadcast($payload, (int) $coachGroupId))->toOthers();
+            broadcast(new YardageBroadcast($payload, (int) $coachGroupId, $leagueId))->toOthers();
         } catch (\Exception $e) {
             \Log::error('YardageBroadcast failed: ' . $e->getMessage());
 
@@ -511,7 +532,8 @@ class BroadCastScoreController extends Controller
             'message' => 'Yardage play broadcast sent to assistant coach.',
             'data' => [
                 'head_coach_id' => (int) $coachGroupId,
-                'channel' => 'coach-group.' . $coachGroupId,
+                'league_id' => $leagueId,
+                'channel' => 'coach-group.' . $coachGroupId . '.league.' . $leagueId,
                 'event' => 'assistant.coaches',
                 'payload' => $payload,
             ],
@@ -563,8 +585,18 @@ class BroadCastScoreController extends Controller
             'actor_name' => $user->name,
         ];
 
+        $leagueId = $this->resolveBroadcastLeagueId($request);
+        if ($leagueId === null) {
+            \Log::warning('HeadCoachSystemSuggestion skipped: league_id could not be resolved', [
+                'head_coach_id' => $headCoachId,
+                'game_id' => $validated['game_id'] ?? null,
+            ]);
+
+            return response()->json(['message' => 'league_id is required for broadcast'], 422);
+        }
+
         try {
-            broadcast(new HeadCoachSystemSuggestion($payload, (int) $headCoachId))->toOthers();
+            broadcast(new HeadCoachSystemSuggestion($payload, (int) $headCoachId, $leagueId))->toOthers();
         } catch (\Exception $e) {
             \Log::error('HeadCoachSystemSuggestion broadcast failed: ' . $e->getMessage());
 
@@ -576,7 +608,8 @@ class BroadCastScoreController extends Controller
             'message' => 'System suggestion broadcast sent to head coach.',
             'data' => [
                 'head_coach_id' => (int) $headCoachId,
-                'channel' => 'coach-group.' . $headCoachId,
+                'league_id' => $leagueId,
+                'channel' => 'coach-group.' . $headCoachId . '.league.' . $leagueId,
                 'event' => 'head.coach.suggestion',
                 'payload' => $payload,
             ],
@@ -644,10 +677,16 @@ class BroadCastScoreController extends Controller
             ? $user->id
             : $user->head_coach_id;
 
+        $leagueId = $this->resolveBroadcastLeagueId($request);
+        if ($leagueId === null) {
+            \Log::warning('TeamScoreUpdated skipped: league_id could not be resolved', [
+                'coach_group_id' => $coachGroupId,
+            ]);
 
+            return;
+        }
 
-
-         broadcast(new TeamScoreUpdated($payload, $coachGroupId))->toOthers();
+         broadcast(new TeamScoreUpdated($payload, $coachGroupId, $leagueId))->toOthers();
 
 
     }
@@ -699,7 +738,17 @@ class BroadCastScoreController extends Controller
 
         \Log::info(['playe suggested broad cast'=>  $payload]);
 
-         broadcast(new PlaySuggested($payload, $coachGroupId))->toOthers();
+        $leagueId = $this->resolveBroadcastLeagueId($request, $suggestionData);
+        if ($leagueId === null) {
+            \Log::warning('PlaySuggested skipped: league_id could not be resolved', [
+                'coach_group_id' => $coachGroupId,
+                'game_id' => $validated['game_id'] ?? null,
+            ]);
+
+            return;
+        }
+
+         broadcast(new PlaySuggested($payload, $coachGroupId, $leagueId))->toOthers();
 
 
     }
@@ -735,26 +784,24 @@ class BroadCastScoreController extends Controller
             return response()->json(['error' => 'missing coach group id'], 400);
         }
 
+        if ($action === 'Start') {
+            $conflictResponse = $this->rejectConflictingGameMode($coachGroupId, false);
+            if ($conflictResponse) {
+                return $conflictResponse;
+            }
+        }
+
         $existingScoreboard = WebsocketScoreboard::where('user_id', $coachGroupId)
             ->where('game_id', $request->game_id)
             ->first();
 
-        $scores = $this->resolvePersistedScores($existingScoreboard, $request, $action, $points);
-        self::$scores['left']['total'] = $scores['left'];
-        self::$scores['right']['total'] = $scores['right'];
+        if ($action === 'EndMatch') {
+            $this->completeSessionOnEndMatch($coachGroupId, $action, $request, 'play', $existingScoreboard);
+        }
 
-        // On a fresh Start do not carry play-state from the previous match's row.
-        $existingForMerge = ($action === 'Start') ? null : $existingScoreboard;
-        $persistedFields = $this->mergeScoreboardPersistedFields($existingForMerge, $request);
-        $sessionId = $this->resolvePersistedSessionId($existingScoreboard, $request);
-        $quarter = $this->resolvePersistedQuarter($existingScoreboard, $request, $action, $points);
-        $timerRemaining = $this->resolvePersistedTimerRemaining(
-            $existingScoreboard,
-            $request,
-            $persistedFields,
-            $action,
-            $points,
-        );
+        $sessionFields = $this->mergeScoreboardSessionFields($existingScoreboard, $request, $action);
+        $persistedFields = $this->mergeScoreboardPersistedFields($existingScoreboard, $request);
+        $timerRemaining = $this->resolvePersistedTimerRemaining($existingScoreboard, $request, $persistedFields);
 
         $shouldRefreshTime = !$existingScoreboard
             || ((int) $existingScoreboard->quarter != (int) $quarter);
@@ -765,11 +812,9 @@ class BroadCastScoreController extends Controller
             'left_score' => self::$scores['left']['total'],
             'right_score' => self::$scores['right']['total'],
             'action' => $action,
-            'sync_time' => $timerRemaining ?? $persistedFields['sync_time'],
-            'quarter' => $quarter,
-            'is_start' => $action === 'EndMatch'
-                ? false
-                : filter_var($request->isStartTime, FILTER_VALIDATE_BOOLEAN),
+            'sync_time' => $persistedFields['sync_time'],
+            'quarter' => $request->quarter,
+            'is_start' => $sessionFields['is_start'],
             'down' => $persistedFields['down'],
             'team_position' => $persistedFields['team_position'],
             'expected_yard_gain' => $persistedFields['expected_yard_gain'],
@@ -781,9 +826,9 @@ class BroadCastScoreController extends Controller
             'coverage_category' => $persistedFields['coverage_category'],
             'h_mark_position' => $hMarkPosition,
             'league_id' => $persistedFields['league_id'],
-            'session_id' => $sessionId,
+            'session_id' => $sessionFields['session_id'],
             'timer_remaining' => $timerRemaining,
-            'sys_time' => gmdate('Y-m-d\TH:i:s') . 'Z',
+            'sys_time' => now()->toDateTimeString(),
         ];
 
         if ($shouldRefreshTime) {
@@ -810,10 +855,10 @@ class BroadCastScoreController extends Controller
             'points' => $points,
             'action' => $action,
             'sync_time' => $persistedFields['sync_time'],
-            'isStart'=>$request->isStartTime,
-            'time'=>$timerRemaining ?? $request->time,
-            'sys_time' => gmdate('Y-m-d\TH:i:s') . 'Z',
-            'quarter' => $quarter,
+            'isStart' => $sessionFields['is_start'],
+            'time'=>$request->time,
+            'sys_time' => now()->toDateTimeString(),
+            'quarter' => $request->quarter,
             'down' => $persistedFields['down'],
             'strategies' => $persistedFields['strategies'],
             'teamPosition' => $persistedFields['team_position'],
@@ -823,7 +868,7 @@ class BroadCastScoreController extends Controller
             'possession' => $persistedFields['possession'],
             'weather' => $persistedFields['weather'],
             'coverageCategory' => $persistedFields['coverage_category'],
-            'session_id' => $sessionId,
+            'session_id' => $sessionFields['session_id'],
             'h_mark_position' => $hMarkPosition,
         ];
 
@@ -853,6 +898,8 @@ class BroadCastScoreController extends Controller
 
         if ($request->has('game_id')) {
             $query->where('game_id', $request->game_id);
+        } else {
+            $query->where('is_start', true);
         }
 
         $webSocketScorboard = $query->latest('updated_at')->first();
@@ -864,7 +911,18 @@ class BroadCastScoreController extends Controller
             return response()->noContent();
         }
 
-        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "scoreboardList", $webSocketScorboard);
+        $reconciled = ActiveGameModeGuard::reconcileScoreboardRow(
+            $webSocketScorboard,
+            (int) $coachGroupId,
+            'play',
+            'websocket_scoreboards',
+        );
+
+        if (! $reconciled) {
+            return response()->noContent();
+        }
+
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "scoreboardList", $reconciled);
     }
 
     public function getPracticeWebSocketScoreBoard(Request $request){
@@ -878,6 +936,8 @@ class BroadCastScoreController extends Controller
 
         if ($request->has('game_id')) {
             $query->where('game_id', $request->game_id);
+        } else {
+            $query->where('is_start', true);
         }
 
         $webSocketScorboard = $query->latest('updated_at')->first();
@@ -890,7 +950,18 @@ class BroadCastScoreController extends Controller
             return response()->noContent();
         }
 
-        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "scoreboardList", $webSocketScorboard);
+        $reconciled = ActiveGameModeGuard::reconcileScoreboardRow(
+            $webSocketScorboard,
+            (int) $coachGroupId,
+            'practice',
+            'websocket_practice_scoreboards',
+        );
+
+        if (! $reconciled) {
+            return response()->noContent();
+        }
+
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "scoreboardList", $reconciled);
     }
 
 
