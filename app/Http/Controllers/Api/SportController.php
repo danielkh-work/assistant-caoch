@@ -263,6 +263,11 @@ class SportController extends Controller
           ->where('status', 4)
           ->where('game_mode', 'play')
           ->get();
+      $matches = PlayGameMode::query()
+          ->where('league_id', $leauqe->id)
+          ->where('status', 4)
+          ->where('game_mode', 'play')
+          ->get();
  
       $pointsTable = [];
  
@@ -288,8 +293,17 @@ class SportController extends Controller
               continue;
           }
 
+
+          if (! isset($pointsTable[$teamA], $pointsTable[$teamB])) {
+              continue;
+          }
+
           $scoreA = $match->my_team_score;
           $scoreB = $match->oponent_team_score;
+
+          if ($scoreA === null || $scoreB === null) {
+              continue;
+          }
 
           if ($scoreA === null || $scoreB === null) {
               continue;

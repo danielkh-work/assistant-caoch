@@ -2,9 +2,7 @@
 
 namespace App\Events;
 
-use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Broadcasting\PresenceChannel;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
@@ -14,22 +12,24 @@ class PlaySuggested implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
- 
     public $play;
+
     public $coachGroupId;
 
-    public function __construct($play, $coachGroupId)
+    public int $leagueId;
+
+    public function __construct($play, $coachGroupId, int $leagueId)
     {
         $this->play = $play;
         $this->coachGroupId = $coachGroupId;
-        \Log::info(['plays'=>$this->play]);
-        \Log::info(['coachGroupId'=> $this->coachGroupId]);
+        $this->leagueId = $leagueId;
+        \Log::info(['plays' => $this->play]);
+        \Log::info(['coachGroupId' => $this->coachGroupId]);
     }
 
     public function broadcastOn()
     {
-        return new PrivateChannel("headcoach.{$this->coachGroupId}.play");
-        
+        return new PrivateChannel("headcoach.{$this->coachGroupId}.league.{$this->leagueId}.play");
     }
 
     public function broadcastAs()

@@ -10,17 +10,19 @@ use Illuminate\Queue\SerializesModels;
 
 /**
  * Notifies the head coach dashboard when a QB mobile session starts or ends.
- * Listened on private channel headcoach.{headCoachId}.qb as .qb.session.updated
+ * Broadcasts on legacy headcoach.{headCoachId}.qb (mobile app) and
+ * headcoach.{headCoachId}.league.{leagueId}.qb (league-scoped web).
  */
 class QbSessionUpdated implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     /**
-     * @param  array<string, mixed>  $user  QB user fields (id, name, session_id, code, …)
+     * @param  array<string, mixed>  $user  QB user fields (id, name, session_id, code, league_id, …)
      */
     public function __construct(
         public int $headCoachId,
+        public int $leagueId,
         public array $user,
         public bool $isLoggedIn,
         public string $action,
@@ -31,9 +33,17 @@ class QbSessionUpdated implements ShouldBroadcast
      */
     public function broadcastOn(): array
     {
-        return [
+        $channels = [
             new PrivateChannel('headcoach.'.$this->headCoachId.'.qb'),
         ];
+
+        if ($this->leagueId > 0) {
+            $channels[] = new PrivateChannel(
+                'headcoach.'.$this->headCoachId.'.league.'.$this->leagueId.'.qb'
+            );
+        }
+
+        return $channels;
     }
 
     public function broadcastAs(): string
@@ -49,6 +59,8 @@ class QbSessionUpdated implements ShouldBroadcast
         return [
             'action' => $this->action,
             'is_loggin' => $this->isLoggedIn,
+            'league_id' => $this->leagueId,
+            'team_id' => $this->user['team_id'] ?? null,
             'user' => $this->user,
         ];
     }

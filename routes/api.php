@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ConfigureController;
+use App\Http\Controllers\Api\LeagueController;
+use App\Http\Controllers\Api\LeagueQbController;
 use App\Http\Controllers\Api\MatchPlaysController;
 use App\Http\Controllers\Api\FormationController;
 use App\Http\Controllers\Api\LogController;
@@ -68,11 +70,6 @@ use App\Http\Controllers\Api\ConfigurationController;
 Route::post('/mobile/create-session', [WebQrController::class, 'createSession']); // mobile 
 Route::get('/logout-qb-applicaion/{id}', [WebQrController::class, 'logouQbApplicaion']);
 Route::get('/qb-session-login-status/{session_id}', [WebQrController::class, 'qbSessionLoginStatus']);
-Route::middleware('auth:sanctum')->group(function () {
-   Route::post('/web/scan-qr', [WebQrController::class, 'scanQr']); 
-   Route::post('logout-qb', [WebQrController::class, 'logoutQb']); 
-  
-});
 
 
 // use Illuminate\Support\Str;
@@ -97,7 +94,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
 Route::prefix('qb')->group(function () {
   
-    Route::get('login-with-session', [AuthController::class, 'loginWithSession']);
+    Route::match(['get', 'post'], 'login-with-session', [AuthController::class, 'loginWithSession']);
      Route::middleware('auth:sanctum')->post('/scoreboard/broadcast', [BroadCastScoreController::class, 'scoreBoardBroadCastQB']);
      Route::middleware('auth:sanctum')->post('/play/scoreboard/broadcast', [BroadCastScoreController::class, 'scoreBoardBroadCastPlay']);
     //Route::post('/scoreboard/broadcast', [BroadCastScoreController::class, 'scoreBoardBroadCastQB']);
@@ -110,8 +107,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('save-sport',[AuthController::class,'saveSport']);
     Route::post('change-password',[AuthController::class,'changePassword'])->name('password.change');
     Route::post('add-assistant-coach',[AuthController::class,'addAssistantCoach'])->name('add.assistantCoach');
-    Route::post('add-qb',[AuthController::class,'addQB'])->name('add.qb');
-    Route::get('get-qb-user',[AuthController::class,'getQBUser'])->name('get.qb.user');
     Route::get('get-assistant-coach',[AuthController::class,'getQAssistantCoach'])->name('get.assistant.coach');
 
       
@@ -260,6 +255,7 @@ Route::middleware('auth:sanctum')->group(function () {
    Route::post('/assistant-coach/system-suggestion/broadcast', [BroadCastScoreController::class, 'systemSuggestionToHeadCoach']);
    Route::post('/scoreboard/broadcast', [BroadCastScoreController::class, 'scoreBoardBroadCast']);
    Route::post('/practice/scoreboard/broadcast', [BroadCastScoreController::class, 'practiceScoreBoardBroadCast']);
+   Route::post('logout-qb', [WebQrController::class, 'logoutQb']);
    Route::get('/scoreboard', [BroadCastScoreController::class, 'getWebSocketScoreBoard']); 
    Route::get('/practice-scoreboard', [BroadCastScoreController::class, 'getPracticeWebSocketScoreBoard']); 
    Route::get('/delete-scoreboard/{gameId}',[BroadCastScoreController::class,'delete'])->name('deleteScoreBoard');
@@ -289,7 +285,15 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::prefix('leagues')->group(function () {
+        Route::put('/{league}', [LeagueController::class, 'update']);
         Route::get('/{league}/get-suggested-plays', [SuggestionController::class, 'getSuggestedPlays']);
+        Route::get('/{league}/qb', [LeagueQbController::class, 'index']);
+        Route::prefix('/{league}/teams/{team}')->group(function () {
+            Route::get('/qb', [LeagueQbController::class, 'show']);
+            Route::post('/qb', [LeagueQbController::class, 'store']);
+            Route::post('/qb/logout', [LeagueQbController::class, 'logout']);
+            Route::post('/web/scan-qr', [LeagueQbController::class, 'scanQr']);
+        });
     });
 
     Route::get('/configurations', [ConfigurationController::class, 'index']);
