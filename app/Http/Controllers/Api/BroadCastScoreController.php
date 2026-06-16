@@ -458,6 +458,11 @@ class BroadCastScoreController extends Controller
             'coverageCategory' => $persistedFields['coverage_category'],
             'session_id' => $sessionFields['session_id'],
             'h_mark_position' => $hMarkPosition,
+            'league_id' => $persistedFields['league_id'],
+            'myteamId' => $request->myteamId,
+            'oppteamId' => $request->oppteamId,
+            'teamRightScore' => $request->teamRightScore ?? self::$scores['right']['total'],
+            'teamLeftScore' => $request->teamLeftScore ?? self::$scores['left']['total'],
         ];
 
         try {
@@ -878,6 +883,11 @@ class BroadCastScoreController extends Controller
             'coverageCategory' => $persistedFields['coverage_category'],
             'session_id' => $sessionFields['session_id'],
             'h_mark_position' => $hMarkPosition,
+            'league_id' => $persistedFields['league_id'],
+            'myteamId' => $request->myteamId,
+            'oppteamId' => $request->oppteamId,
+            'teamRightScore' => $request->teamRightScore ?? self::$scores['right']['total'],
+            'teamLeftScore' => $request->teamLeftScore ?? self::$scores['left']['total'],
         ];
 
         \Log::info(['play_mode'=>$request->is_play_mode]);
