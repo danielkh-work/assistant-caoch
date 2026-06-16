@@ -26,10 +26,22 @@ class PlayGameModeController extends Controller
         $user = auth()->user();
         $headCoachId = ActiveGameModeGuard::resolveHeadCoachId($user);
         $isPractice = filter_var($request->is_practice, FILTER_VALIDATE_BOOLEAN);
+        $leagueId = $request->league_id ? (int) $request->league_id : null;
+
+        \Log::info('[StartGameMode] incoming', [
+            'headCoachId' => $headCoachId,
+            'isPractice'  => $isPractice,
+            'leagueId'    => $leagueId,
+            'raw_league_id' => $request->league_id,
+            'all'         => $request->all(),
+        ]);
 
         try {
-            ActiveGameModeGuard::assertCanStart($headCoachId, $isPractice);
+            ActiveGameModeGuard::assertCanStart($headCoachId, $isPractice, $leagueId);
         } catch (ValidationException $e) {
+            \Log::info('[StartGameMode] BLOCKED by assertCanStart', [
+                'error' => collect($e->errors())->flatten()->first(),
+            ]);
             return new BaseResponse(
                 STATUS_CODE_UNPROCESSABLE,
                 STATUS_CODE_UNPROCESSABLE,
@@ -37,13 +49,16 @@ class PlayGameModeController extends Controller
             );
         }
 
+        // Only clean up orphaned opposite-mode scoreboard rows for THIS league.
         if ($isPractice) {
             DB::table('websocket_scoreboards')
                 ->where('user_id', $headCoachId)
+                ->where('league_id', $leagueId)
                 ->delete();
         } else {
             DB::table('websocket_practice_scoreboards')
                 ->where('user_id', $headCoachId)
+                ->where('league_id', $leagueId)
                 ->delete();
         }
 

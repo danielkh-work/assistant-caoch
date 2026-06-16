@@ -175,10 +175,10 @@ class BroadCastScoreController extends Controller
         ];
     }
 
-    private function rejectConflictingGameMode(int $coachGroupId, bool $isPractice): ?\Illuminate\Http\JsonResponse
+    private function rejectConflictingGameMode(int $coachGroupId, bool $isPractice, ?int $leagueId = null): ?\Illuminate\Http\JsonResponse
     {
         try {
-            ActiveGameModeGuard::assertNoOtherModeActive($coachGroupId, $isPractice);
+            ActiveGameModeGuard::assertNoOtherModeActive($coachGroupId, $isPractice, $leagueId);
         } catch (ValidationException $e) {
             return response()->json([
                 'message' => collect($e->errors())->flatten()->first(),
@@ -308,11 +308,14 @@ class BroadCastScoreController extends Controller
      */
     private function resolvePersistedTimerRemaining($existing, Request $request, array $persistedFields): ?int
     {
-        if (is_numeric($request->input('time'))) {
+        // Reject time=0: zero means the timer hit the quarter boundary and hasn't
+        // been reset yet. Storing 0 causes session restore to see diffSeconds=quarterSeconds
+        // and auto-advance the quarter on the next page refresh.
+        if (is_numeric($request->input('time')) && (int) $request->input('time') > 0) {
             return (int) $request->time;
         }
 
-        if ($persistedFields['sync_time'] !== null) {
+        if ($persistedFields['sync_time'] !== null && (int) $persistedFields['sync_time'] > 0) {
             return (int) $persistedFields['sync_time'];
         }
 
@@ -372,7 +375,8 @@ class BroadCastScoreController extends Controller
         }
 
         if ($action === 'Start') {
-            $conflictResponse = $this->rejectConflictingGameMode($coachGroupId, true);
+            $leagueId = $request->league_id ? (int) $request->league_id : null;
+            $conflictResponse = $this->rejectConflictingGameMode($coachGroupId, true, $leagueId);
             if ($conflictResponse) {
                 return $conflictResponse;
             }
@@ -388,6 +392,17 @@ class BroadCastScoreController extends Controller
 
         $sessionFields = $this->mergeScoreboardSessionFields($existingPractice, $request, $action);
         $persistedFields = $this->mergeScoreboardPersistedFields($existingPractice, $request);
+
+        // On Start, never carry over per-play settings from the prior session on this fixture.
+        // mergeScoreboardPersistedFields treats null/'' as "not provided" and falls back to the
+        // DB row, so without this override a new match inherits the previous match's down,
+        // strategies, pkg, etc. — causing AC to see old settings after refresh.
+        if ($action === 'Start') {
+            foreach (['down', 'strategies', 'pkg', 'expected_yard_gain', 'position_number', 'team_position', 'possession', 'coverage_category'] as $field) {
+                $persistedFields[$field] = null;
+            }
+        }
+
         $timerRemaining = $this->resolvePersistedTimerRemaining($existingPractice, $request, $persistedFields);
 
         $shouldRefreshTime = !$existingPractice
@@ -794,7 +809,8 @@ class BroadCastScoreController extends Controller
         }
 
         if ($action === 'Start') {
-            $conflictResponse = $this->rejectConflictingGameMode($coachGroupId, false);
+            $leagueId = $request->league_id ? (int) $request->league_id : null;
+            $conflictResponse = $this->rejectConflictingGameMode($coachGroupId, false, $leagueId);
             if ($conflictResponse) {
                 return $conflictResponse;
             }
@@ -810,6 +826,15 @@ class BroadCastScoreController extends Controller
 
         $sessionFields = $this->mergeScoreboardSessionFields($existingScoreboard, $request, $action);
         $persistedFields = $this->mergeScoreboardPersistedFields($existingScoreboard, $request);
+
+        // On Start, never carry over per-play settings from the prior session on this fixture.
+        // Same fix as practiceScoreBoardBroadCast — see that method for explanation.
+        if ($action === 'Start') {
+            foreach (['down', 'strategies', 'pkg', 'expected_yard_gain', 'position_number', 'team_position', 'possession', 'coverage_category'] as $field) {
+                $persistedFields[$field] = null;
+            }
+        }
+
         $timerRemaining = $this->resolvePersistedTimerRemaining($existingScoreboard, $request, $persistedFields);
 
         $shouldRefreshTime = !$existingScoreboard

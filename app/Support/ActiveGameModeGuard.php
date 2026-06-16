@@ -32,14 +32,18 @@ class ActiveGameModeGuard
         return $isPractice ? 'practice' : 'play';
     }
 
-    public static function activeSession(int $headCoachId, string $gameMode): ?PlayGameMode
+    public static function activeSession(int $headCoachId, string $gameMode, ?int $leagueId = null): ?PlayGameMode
     {
-        return PlayGameMode::query()
+        $query = PlayGameMode::query()
             ->where('user_id', $headCoachId)
             ->where('status', self::STATUS_ACTIVE)
-            ->where('game_mode', $gameMode)
-            ->latest('updated_at')
-            ->first();
+            ->where('game_mode', $gameMode);
+
+        if ($leagueId !== null) {
+            $query->where('league_id', $leagueId);
+        }
+
+        return $query->latest('updated_at')->first();
     }
 
     /**
@@ -89,17 +93,17 @@ class ActiveGameModeGuard
         return $query->exists();
     }
 
-    public static function assertCanStart(int $headCoachId, bool $isPractice): void
+    public static function assertCanStart(int $headCoachId, bool $isPractice, ?int $leagueId = null): void
     {
         $otherMode = $isPractice ? 'play' : 'practice';
         self::reconcileOrphanedSessionsForMode($headCoachId, $otherMode);
 
-        self::assertNoOtherModeActive($headCoachId, $isPractice);
+        self::assertNoOtherModeActive($headCoachId, $isPractice, $leagueId);
 
         $targetMode = self::targetMode($isPractice);
         self::reconcileOrphanedSessionsForMode($headCoachId, $targetMode);
 
-        if (self::activeSession($headCoachId, $targetMode)) {
+        if (self::activeSession($headCoachId, $targetMode, $leagueId)) {
             throw ValidationException::withMessages([
                 'game_mode' => $isPractice
                     ? 'Practice mode is already in progress. Please end it before starting a new session.'
@@ -108,12 +112,21 @@ class ActiveGameModeGuard
         }
     }
 
-    public static function assertNoOtherModeActive(int $headCoachId, bool $isPractice): void
+    public static function assertNoOtherModeActive(int $headCoachId, bool $isPractice, ?int $leagueId = null): void
     {
         $otherMode = $isPractice ? 'play' : 'practice';
         self::reconcileOrphanedSessionsForMode($headCoachId, $otherMode);
 
-        if (self::activeSession($headCoachId, $otherMode)) {
+        $conflictSession = self::activeSession($headCoachId, $otherMode, $leagueId);
+        \Log::info('[Guard:assertNoOtherModeActive] activeSession check', [
+            'headCoachId'    => $headCoachId,
+            'isPractice'     => $isPractice,
+            'leagueId'       => $leagueId,
+            'checkingMode'   => $otherMode,
+            'conflictSession'=> $conflictSession ? ['id' => $conflictSession->id, 'league_id' => $conflictSession->league_id, 'game_mode' => $conflictSession->game_mode] : null,
+        ]);
+
+        if ($conflictSession) {
             throw ValidationException::withMessages([
                 'game_mode' => $isPractice
                     ? 'Game mode is in progress. Please end it before starting practice mode.'
@@ -121,7 +134,15 @@ class ActiveGameModeGuard
             ]);
         }
 
-        if (self::scoreboardLiveForMode($headCoachId, $otherMode)) {
+        $scoreboardLive = self::scoreboardLiveForMode($headCoachId, $otherMode, $leagueId);
+        \Log::info('[Guard:assertNoOtherModeActive] scoreboardLiveForMode check', [
+            'headCoachId'    => $headCoachId,
+            'leagueId'       => $leagueId,
+            'checkingMode'   => $otherMode,
+            'scoreboardLive' => $scoreboardLive,
+        ]);
+
+        if ($scoreboardLive) {
             throw ValidationException::withMessages([
                 'game_mode' => $isPractice
                     ? 'Game mode is in progress. Please end it before starting practice mode.'
@@ -130,7 +151,7 @@ class ActiveGameModeGuard
         }
     }
 
-    public static function scoreboardLiveForMode(int $headCoachId, string $gameMode): bool
+    public static function scoreboardLiveForMode(int $headCoachId, string $gameMode, ?int $leagueId = null): bool
     {
         $table = $gameMode === 'practice'
             ? 'websocket_practice_scoreboards'
@@ -140,10 +161,26 @@ class ActiveGameModeGuard
             return false;
         }
 
-        $rows = DB::table($table)
+        $hasLeagueCol = Schema::hasColumn($table, 'league_id');
+
+        $query = DB::table($table)
             ->where('user_id', $headCoachId)
-            ->where('is_start', true)
-            ->get();
+            ->where('is_start', true);
+
+        if ($leagueId !== null && $hasLeagueCol) {
+            $query->where('league_id', $leagueId);
+        }
+
+        $rows = $query->get();
+
+        \Log::info('[Guard:scoreboardLiveForMode] query result', [
+            'table'        => $table,
+            'headCoachId'  => $headCoachId,
+            'leagueId'     => $leagueId,
+            'hasLeagueCol' => $hasLeagueCol,
+            'rowCount'     => $rows->count(),
+            'rows'         => $rows->map(fn($r) => ['id' => $r->id ?? null, 'league_id' => $r->league_id ?? null, 'is_start' => $r->is_start ?? null, 'action' => $r->action ?? null])->toArray(),
+        ]);
 
         foreach ($rows as $row) {
             if (self::scoreboardIndicatesLive($row, $headCoachId, $gameMode)) {
