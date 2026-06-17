@@ -113,4 +113,10 @@ class League extends Model
     {
         return $this->morphToMany(Role::class, 'roleable');
     }
+
+    public function devices()
+    {
+        return $this->belongsToMany(Device::class, 'league_device', 'league_id', 'device_id')
+            ->withTimestamps();
+    }
 }

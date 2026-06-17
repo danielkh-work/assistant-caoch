@@ -523,6 +523,748 @@
                 ]
             }
         },
+        "/api/leagues/{league}/devices": {
+            "get": {
+                "tags": [
+                    "Devices"
+                ],
+                "summary": "Get all devices for a league",
+                "description": "Retrieve all devices configured for a specific league. Requires the league to belong to the authenticated head coach.",
+                "operationId": "getLeagueDevices",
+                "parameters": [
+                    {
+                        "name": "league",
+                        "in": "path",
+                        "description": "League primary key",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Devices retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Devices retrieved successfully"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "device_name": {
+                                                        "type": "string",
+                                                        "example": "Device 1"
+                                                    },
+                                                    "pairing_code": {
+                                                        "type": "string",
+                                                        "example": "1234"
+                                                    },
+                                                    "qr_token": {
+                                                        "type": "string",
+                                                        "nullable": true
+                                                    },
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "pending",
+                                                            "registered",
+                                                            "inactive"
+                                                        ],
+                                                        "example": "registered"
+                                                    },
+                                                    "team_id": {
+                                                        "type": "integer",
+                                                        "nullable": true
+                                                    },
+                                                    "user_id": {
+                                                        "type": "integer",
+                                                        "nullable": true
+                                                    },
+                                                    "paired_at": {
+                                                        "type": "string",
+                                                        "format": "date-time",
+                                                        "nullable": true
+                                                    },
+                                                    "created_at": {
+                                                        "type": "string",
+                                                        "format": "date-time"
+                                                    },
+                                                    "updated_at": {
+                                                        "type": "string",
+                                                        "format": "date-time"
+                                                    },
+                                                    "team": {
+                                                        "type": "object",
+                                                        "nullable": true
+                                                    },
+                                                    "user": {
+                                                        "type": "object",
+                                                        "nullable": true
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "League not owned by authenticated head coach"
+                    },
+                    "404": {
+                        "description": "League not found"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Devices"
+                ],
+                "summary": "Create a new device for a league",
+                "description": "Create a new device and associate it with a league. Automatically generates a 4-digit pairing code and QR token. Requires the league to belong to the authenticated head coach.",
+                "operationId": "createLeagueDevice",
+                "parameters": [
+                    {
+                        "name": "league",
+                        "in": "path",
+                        "description": "League primary key",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "device_name"
+                                ],
+                                "properties": {
+                                    "device_name": {
+                                        "type": "string",
+                                        "example": "My Device"
+                                    },
+                                    "team_id": {
+                                        "type": "integer",
+                                        "example": 1,
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Device created successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Device created successfully"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "device_name": {
+                                                    "type": "string",
+                                                    "example": "My Device"
+                                                },
+                                                "pairing_code": {
+                                                    "type": "string",
+                                                    "example": "1234"
+                                                },
+                                                "qr_token": {
+                                                    "type": "string",
+                                                    "example": "abc123xyz789"
+                                                },
+                                                "status": {
+                                                    "type": "string",
+                                                    "example": "pending"
+                                                },
+                                                "team_id": {
+                                                    "type": "integer",
+                                                    "nullable": true
+                                                },
+                                                "user_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "paired_at": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "nullable": true
+                                                },
+                                                "created_at": {
+                                                    "type": "string",
+                                                    "format": "date-time"
+                                                },
+                                                "updated_at": {
+                                                    "type": "string",
+                                                    "format": "date-time"
+                                                },
+                                                "team": {
+                                                    "type": "object",
+                                                    "nullable": true
+                                                },
+                                                "user": {
+                                                    "type": "object",
+                                                    "nullable": true
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "League not owned by authenticated head coach"
+                    },
+                    "404": {
+                        "description": "League not found"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/leagues/{league}/devices/active": {
+            "get": {
+                "tags": [
+                    "Devices"
+                ],
+                "summary": "Get the active device for a league",
+                "description": "Retrieve the active (registered) device for a league. Used by game start logic to determine which device to bind to. Returns null if no active device is configured.",
+                "operationId": "getActiveLeagueDevice",
+                "parameters": [
+                    {
+                        "name": "league",
+                        "in": "path",
+                        "description": "League primary key",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Active device retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Active device retrieved successfully"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "device_name": {
+                                                    "type": "string",
+                                                    "example": "My Device"
+                                                },
+                                                "pairing_code": {
+                                                    "type": "string",
+                                                    "example": "1234"
+                                                },
+                                                "status": {
+                                                    "type": "string",
+                                                    "example": "registered"
+                                                },
+                                                "team": {
+                                                    "type": "object",
+                                                    "nullable": true
+                                                },
+                                                "user": {
+                                                    "type": "object",
+                                                    "nullable": true
+                                                }
+                                            },
+                                            "type": "object",
+                                            "nullable": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "League not owned by authenticated head coach"
+                    },
+                    "404": {
+                        "description": "League not found"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/leagues/{league}/devices/{device}": {
+            "get": {
+                "tags": [
+                    "Devices"
+                ],
+                "summary": "Get a specific device",
+                "description": "Retrieve details of a specific device associated with a league. Requires the league to belong to the authenticated head coach.",
+                "operationId": "getLeagueDevice",
+                "parameters": [
+                    {
+                        "name": "league",
+                        "in": "path",
+                        "description": "League primary key",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "device",
+                        "in": "path",
+                        "description": "Device primary key",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Device retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Device retrieved successfully"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "device_name": {
+                                                    "type": "string",
+                                                    "example": "My Device"
+                                                },
+                                                "pairing_code": {
+                                                    "type": "string",
+                                                    "example": "1234"
+                                                },
+                                                "status": {
+                                                    "type": "string",
+                                                    "example": "registered"
+                                                },
+                                                "team": {
+                                                    "type": "object",
+                                                    "nullable": true
+                                                },
+                                                "user": {
+                                                    "type": "object",
+                                                    "nullable": true
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "League not owned by authenticated head coach"
+                    },
+                    "404": {
+                        "description": "Device not found or not associated with this league"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Devices"
+                ],
+                "summary": "Update a device",
+                "description": "Update a device's properties. Can update device name, team association, or status. Requires the league to belong to the authenticated head coach.",
+                "operationId": "updateLeagueDevice",
+                "parameters": [
+                    {
+                        "name": "league",
+                        "in": "path",
+                        "description": "League primary key",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "device",
+                        "in": "path",
+                        "description": "Device primary key",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "device_name": {
+                                        "type": "string",
+                                        "example": "Updated Device Name"
+                                    },
+                                    "team_id": {
+                                        "type": "integer",
+                                        "example": 2,
+                                        "nullable": true
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "enum": [
+                                            "pending",
+                                            "registered",
+                                            "inactive"
+                                        ],
+                                        "example": "registered"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Device updated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Device updated successfully"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "device_name": {
+                                                    "type": "string",
+                                                    "example": "Updated Device Name"
+                                                },
+                                                "pairing_code": {
+                                                    "type": "string",
+                                                    "example": "1234"
+                                                },
+                                                "status": {
+                                                    "type": "string",
+                                                    "example": "registered"
+                                                },
+                                                "team": {
+                                                    "type": "object",
+                                                    "nullable": true
+                                                },
+                                                "user": {
+                                                    "type": "object",
+                                                    "nullable": true
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "League not owned by authenticated head coach"
+                    },
+                    "404": {
+                        "description": "Device not found or not associated with this league"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Devices"
+                ],
+                "summary": "Delete a device from a league",
+                "description": "Remove a device from a league. If the device is not associated with any other leagues, it will be soft deleted. Requires the league to belong to the authenticated head coach.",
+                "operationId": "deleteLeagueDevice",
+                "parameters": [
+                    {
+                        "name": "league",
+                        "in": "path",
+                        "description": "League primary key",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "device",
+                        "in": "path",
+                        "description": "Device primary key",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Device removed from league successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Device removed from league successfully"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "League not owned by authenticated head coach"
+                    },
+                    "404": {
+                        "description": "Device not found or not associated with this league"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/leagues/{league}/devices/{device}/regenerate-pairing-code": {
+            "post": {
+                "tags": [
+                    "Devices"
+                ],
+                "summary": "Regenerate pairing code for a device",
+                "description": "Generate a new 4-digit pairing code and QR token for a device. Resets the device status to 'pending' and clears the paired_at timestamp. Use this when a device needs to be re-paired. Requires the league to belong to the authenticated head coach.",
+                "operationId": "regenerateDevicePairingCode",
+                "parameters": [
+                    {
+                        "name": "league",
+                        "in": "path",
+                        "description": "League primary key",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "device",
+                        "in": "path",
+                        "description": "Device primary key",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Pairing code regenerated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Pairing code regenerated successfully"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "device_name": {
+                                                    "type": "string",
+                                                    "example": "My Device"
+                                                },
+                                                "pairing_code": {
+                                                    "type": "string",
+                                                    "example": "5678"
+                                                },
+                                                "qr_token": {
+                                                    "type": "string",
+                                                    "example": "newtoken123"
+                                                },
+                                                "status": {
+                                                    "type": "string",
+                                                    "example": "pending"
+                                                },
+                                                "paired_at": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "nullable": true
+                                                },
+                                                "team": {
+                                                    "type": "object",
+                                                    "nullable": true
+                                                },
+                                                "user": {
+                                                    "type": "object",
+                                                    "nullable": true
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "League not owned by authenticated head coach"
+                    },
+                    "404": {
+                        "description": "Device not found or not associated with this league"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/api/leagues/{league}/qb": {
             "get": {
                 "tags": [
@@ -2989,6 +3731,10 @@
         {
             "name": "Configuration",
             "description": "Application configuration key-value store"
+        },
+        {
+            "name": "Devices",
+            "description": "Device management per league for parallel game execution"
         },
         {
             "name": "League QB",
