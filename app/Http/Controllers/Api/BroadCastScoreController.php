@@ -936,13 +936,16 @@ class BroadCastScoreController extends Controller
         $coachGroupId = $user->role === 'head_coach'
             ? $user->id
             : $user->head_coach_id;
-        \Log::info(['checking websocket with user id working or nort'=>$coachGroupId]);
+
         $query = WebsocketScoreboard::where('user_id', $coachGroupId);
 
         if ($request->has('game_id')) {
             $query->where('game_id', $request->game_id);
         } else {
             $query->where('is_start', true);
+            if ($request->has('league_id')) {
+                $query->where('league_id', $request->league_id);
+            }
         }
 
         $webSocketScorboard = $query->latest('updated_at')->first();
@@ -981,6 +984,9 @@ class BroadCastScoreController extends Controller
             $query->where('game_id', $request->game_id);
         } else {
             $query->where('is_start', true);
+            if ($request->has('league_id')) {
+                $query->where('league_id', $request->league_id);
+            }
         }
 
         $webSocketScorboard = $query->latest('updated_at')->first();
@@ -1015,6 +1021,7 @@ class BroadCastScoreController extends Controller
             : $user->head_coach_id;
 
         $deleted= WebsocketScoreboard::where('user_id',$coachGroupId)
+        ->where('game_id', $gameId)
         ->delete();
         if ($deleted) {
           broadcast(new ScoreUpdated((object)[], $coachGroupId,$gameId))->toOthers();
@@ -1025,13 +1032,13 @@ class BroadCastScoreController extends Controller
     }
 
     public function deletePractice($gameId){
-        \Log::info(['gameid'=>$gameId]);
         $user = auth()->user();
         $coachGroupId = $user->role === 'head_coach'
             ? $user->id
             : $user->head_coach_id;
 
         $deleted= WebsocketPracticeScoreboard::where('user_id',$coachGroupId)
+        ->where('game_id', $gameId)
         ->delete();
         if ($deleted) {
 

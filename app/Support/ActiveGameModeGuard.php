@@ -118,13 +118,6 @@ class ActiveGameModeGuard
         self::reconcileOrphanedSessionsForMode($headCoachId, $otherMode);
 
         $conflictSession = self::activeSession($headCoachId, $otherMode, $leagueId);
-        \Log::info('[Guard:assertNoOtherModeActive] activeSession check', [
-            'headCoachId'    => $headCoachId,
-            'isPractice'     => $isPractice,
-            'leagueId'       => $leagueId,
-            'checkingMode'   => $otherMode,
-            'conflictSession'=> $conflictSession ? ['id' => $conflictSession->id, 'league_id' => $conflictSession->league_id, 'game_mode' => $conflictSession->game_mode] : null,
-        ]);
 
         if ($conflictSession) {
             throw ValidationException::withMessages([
@@ -135,12 +128,6 @@ class ActiveGameModeGuard
         }
 
         $scoreboardLive = self::scoreboardLiveForMode($headCoachId, $otherMode, $leagueId);
-        \Log::info('[Guard:assertNoOtherModeActive] scoreboardLiveForMode check', [
-            'headCoachId'    => $headCoachId,
-            'leagueId'       => $leagueId,
-            'checkingMode'   => $otherMode,
-            'scoreboardLive' => $scoreboardLive,
-        ]);
 
         if ($scoreboardLive) {
             throw ValidationException::withMessages([
@@ -172,15 +159,6 @@ class ActiveGameModeGuard
         }
 
         $rows = $query->get();
-
-        \Log::info('[Guard:scoreboardLiveForMode] query result', [
-            'table'        => $table,
-            'headCoachId'  => $headCoachId,
-            'leagueId'     => $leagueId,
-            'hasLeagueCol' => $hasLeagueCol,
-            'rowCount'     => $rows->count(),
-            'rows'         => $rows->map(fn($r) => ['id' => $r->id ?? null, 'league_id' => $r->league_id ?? null, 'is_start' => $r->is_start ?? null, 'action' => $r->action ?? null])->toArray(),
-        ]);
 
         foreach ($rows as $row) {
             if (self::scoreboardIndicatesLive($row, $headCoachId, $gameMode)) {

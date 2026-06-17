@@ -28,20 +28,9 @@ class PlayGameModeController extends Controller
         $isPractice = filter_var($request->is_practice, FILTER_VALIDATE_BOOLEAN);
         $leagueId = $request->league_id ? (int) $request->league_id : null;
 
-        \Log::info('[StartGameMode] incoming', [
-            'headCoachId' => $headCoachId,
-            'isPractice'  => $isPractice,
-            'leagueId'    => $leagueId,
-            'raw_league_id' => $request->league_id,
-            'all'         => $request->all(),
-        ]);
-
         try {
             ActiveGameModeGuard::assertCanStart($headCoachId, $isPractice, $leagueId);
         } catch (ValidationException $e) {
-            \Log::info('[StartGameMode] BLOCKED by assertCanStart', [
-                'error' => collect($e->errors())->flatten()->first(),
-            ]);
             return new BaseResponse(
                 STATUS_CODE_UNPROCESSABLE,
                 STATUS_CODE_UNPROCESSABLE,
