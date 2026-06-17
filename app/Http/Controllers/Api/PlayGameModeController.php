@@ -27,9 +27,10 @@ class PlayGameModeController extends Controller
         $user = auth()->user();
         $headCoachId = ActiveGameModeGuard::resolveHeadCoachId($user);
         $isPractice = filter_var($request->is_practice, FILTER_VALIDATE_BOOLEAN);
+        $leagueId = $request->league_id ? (int) $request->league_id : null;
 
         try {
-            ActiveGameModeGuard::assertCanStart($headCoachId, $isPractice);
+            ActiveGameModeGuard::assertCanStart($headCoachId, $isPractice, $leagueId);
         } catch (ValidationException $e) {
             return new BaseResponse(
                 STATUS_CODE_UNPROCESSABLE,
@@ -70,13 +71,16 @@ class PlayGameModeController extends Controller
             );
         }
 
+        // Only clean up orphaned opposite-mode scoreboard rows for THIS league.
         if ($isPractice) {
             DB::table('websocket_scoreboards')
                 ->where('user_id', $headCoachId)
+                ->where('league_id', $leagueId)
                 ->delete();
         } else {
             DB::table('websocket_practice_scoreboards')
                 ->where('user_id', $headCoachId)
+                ->where('league_id', $leagueId)
                 ->delete();
         }
 
@@ -146,7 +150,7 @@ class PlayGameModeController extends Controller
         $log = new PlayGameLog();
         $log->game_id = $value['game_id'];
         $log->sport_id = auth()->user()->sport_id;
-        $log->league_id = $value['league_id'];
+        $log->league_id = $value['league_id'] ?? null;
 
         // ✅ new columns
         //$log->players = json_encode($value['players']) ?? null;
@@ -163,18 +167,18 @@ class PlayGameModeController extends Controller
 
         $log->confirmed = $value['is_confirmed'] ?? null;   // true / false / null
 
-        $log->my_team_id = $value['my_team_id'];
-        $log->oponent_team_id = $value['oponent_team_id'];
-        $log->quater = $value['quater'];
-        $log->play_id = $value['play_id'];
-        $log->downs = $value['downs'];
+        $log->my_team_id = $value['my_team_id'] ?? null;
+        $log->oponent_team_id = $value['oponent_team_id'] ?? null;
+        $log->quater = $value['quater'] ?? null;
+        $log->play_id = $value['play_id'] ?? null;
+        $log->downs = $value['downs'] ?? null;
         $log->note = $value['note'] ?? null;
         $log->play_yardage_gain = isset($value['play_yardage_gain']) ? $value['play_yardage_gain'] : null;
-        $log->weather_status = $value['weather_status'];
-        $log->current_position = $value['current_position'];
-        $log->target = $value['target'];
-        $log->my_points = $value['my_points'];
-        $log->oponent_points = $value['oponent_points'];
+        $log->weather_status = $value['weather_status'] ?? null;
+        $log->current_position = $value['current_position'] ?? null;
+        $log->target = $value['target'] ?? null;
+        $log->my_points = $value['my_points'] ?? null;
+        $log->oponent_points = $value['oponent_points'] ?? null;
         $log->time = $value['time'];
         $log->reasons = $value['reasons'] ?? '';
         $log->type_of_log = $value['type_of_log'];
