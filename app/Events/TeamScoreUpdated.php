@@ -39,6 +39,7 @@ class TeamScoreUpdated implements ShouldBroadcast
             $channels[] = new PrivateChannel(
                 "headcoach.{$this->coachGroupId}.league.{$this->leagueId}.qb"
             );
+            $channels[] = new PrivateChannel("league.{$this->leagueId}.devices");
         }
 
         return $channels;

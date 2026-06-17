@@ -17,7 +17,8 @@ return new class extends Migration
             $table->string('pairing_code', 4)->unique();
             $table->string('qr_token')->nullable()->unique();
             $table->enum('status', ['pending', 'registered', 'inactive'])->default('pending');
-            $table->foreignId('team_id')->nullable()->constrained('teams')->onDelete('cascade');
+            $table->integer('team_id')->nullable();
+            $table->foreign('team_id')->references('id')->on('league_teams')->nullOnDelete();
             $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('cascade');
             $table->timestamp('paired_at')->nullable();
             $table->timestamps();

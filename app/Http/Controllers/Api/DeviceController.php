@@ -4,8 +4,14 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Responses\BaseResponse;
+use App\Events\MobileSessionApproved;
 use App\Models\Device;
+use App\Models\User;
+use App\Support\DeviceLogoutBroadcaster;
+use App\Support\DeviceMobileSession;
+use App\Support\DeviceSessionBroadcaster;
 use App\Support\LeagueOwnership;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -20,6 +26,9 @@ class DeviceController extends Controller
         LeagueOwnership::assertLeagueOwnedByHeadCoach($league);
 
         $devices = $league->devices()->with(['team', 'user'])->get();
+        $devices->each(function (Device $device) {
+            $device->setAttribute('is_connected', $device->tokens()->exists());
+        });
 
         return new BaseResponse(
             STATUS_CODE_OK,
@@ -36,11 +45,15 @@ class DeviceController extends Controller
     {
         $validated = $request->validate([
             'device_name' => ['required', 'string', 'max:255'],
-            'team_id' => ['nullable', 'integer', 'exists:teams,id'],
+            'team_id' => ['nullable', 'integer', 'exists:league_teams,id'],
         ]);
 
         $league = LeagueOwnership::leagueForHeadCoach($leagueId);
         LeagueOwnership::assertLeagueOwnedByHeadCoach($league);
+
+        if (! empty($validated['team_id'])) {
+            LeagueOwnership::assertTeamBelongsToLeague((int) $validated['team_id'], $leagueId);
+        }
 
         $headCoachId = LeagueOwnership::resolveHeadCoachId();
 
@@ -110,7 +123,7 @@ class DeviceController extends Controller
     {
         $validated = $request->validate([
             'device_name' => ['sometimes', 'string', 'max:255'],
-            'team_id' => ['sometimes', 'nullable', 'integer', 'exists:teams,id'],
+            'team_id' => ['sometimes', 'nullable', 'integer', 'exists:league_teams,id'],
             'status' => ['sometimes', 'in:pending,registered,inactive'],
         ]);
 
@@ -125,6 +138,10 @@ class DeviceController extends Controller
                 STATUS_CODE_UNPROCESSABLE,
                 'Device not found or not associated with this league'
             );
+        }
+
+        if (isset($validated['team_id']) && $validated['team_id'] !== null) {
+            LeagueOwnership::assertTeamBelongsToLeague((int) $validated['team_id'], $leagueId);
         }
 
         DB::beginTransaction();
@@ -187,6 +204,10 @@ class DeviceController extends Controller
         DB::beginTransaction();
 
         try {
+            if ($device->tokens()->exists() || $device->session_id) {
+                DeviceLogoutBroadcaster::logoutAndBroadcast($device, auth()->user());
+            }
+
             $league->devices()->detach($device->id);
 
             if ($device->leagues()->count() === 0) {
@@ -212,39 +233,66 @@ class DeviceController extends Controller
     }
 
     /**
-     * Regenerate pairing code for a device.
+     * Log out a device session (head coach dashboard or authenticated device).
+     * Revokes tokens, broadcasts mobile logout and web `qb.session.updated`.
      */
-    public function regeneratePairingCode(Request $request, int $leagueId, int $deviceId): BaseResponse
+    public function logout(Request $request, int $leagueId, int $deviceId): BaseResponse
     {
-        $league = LeagueOwnership::leagueForHeadCoach($leagueId);
-        LeagueOwnership::assertLeagueOwnedByHeadCoach($league);
+        $authenticatable = $request->user();
+        $coach = null;
 
-        $device = $league->devices()->where('devices.id', $deviceId)->first();
+        if ($authenticatable instanceof Device) {
+            if ((int) $authenticatable->id !== $deviceId) {
+                return new BaseResponse(
+                    STATUS_CODE_UNPROCESSABLE,
+                    STATUS_CODE_UNPROCESSABLE,
+                    'You can only log out your own device session.'
+                );
+            }
 
-        if (!$device) {
-            return new BaseResponse(
-                STATUS_CODE_UNPROCESSABLE,
-                STATUS_CODE_UNPROCESSABLE,
-                'Device not found or not associated with this league'
-            );
+            $device = $authenticatable;
+
+            if (! $device->leagues()->where('leagues.id', $leagueId)->exists()) {
+                return new BaseResponse(
+                    STATUS_CODE_UNPROCESSABLE,
+                    STATUS_CODE_UNPROCESSABLE,
+                    'Device not found or not associated with this league'
+                );
+            }
+
+            $coach = $device->user_id ? User::find($device->user_id) : null;
+        } else {
+            $league = LeagueOwnership::leagueForHeadCoach($leagueId);
+            LeagueOwnership::assertLeagueOwnedByHeadCoach($league);
+
+            $device = $league->devices()->where('devices.id', $deviceId)->first();
+
+            if (! $device) {
+                return new BaseResponse(
+                    STATUS_CODE_UNPROCESSABLE,
+                    STATUS_CODE_UNPROCESSABLE,
+                    'Device not found or not associated with this league'
+                );
+            }
+
+            $coach = $authenticatable;
         }
 
         DB::beginTransaction();
 
         try {
-            $device->pairing_code = Device::generateUniquePairingCode();
-            $device->qr_token = Device::generateUniqueQrToken();
-            $device->status = 'pending';
-            $device->paired_at = null;
-            $device->save();
-
+            $payload = DeviceLogoutBroadcaster::logoutAndBroadcast(
+                $device,
+                $coach,
+                array_filter([$request->input('session_id')]),
+            );
             DB::commit();
 
             return new BaseResponse(
                 STATUS_CODE_OK,
                 STATUS_CODE_OK,
-                'Pairing code regenerated successfully',
-                $device->load(['team', 'user'])
+                'Device logged out successfully',
+                $payload
             );
         } catch (\Throwable $th) {
             DB::rollBack();
@@ -254,6 +302,70 @@ class DeviceController extends Controller
                 STATUS_CODE_BADREQUEST,
                 $th->getMessage()
             );
+        }
+    }
+
+    /**
+     * Scan the QR code displayed on the mobile app to pair this device.
+     */
+    public function scanQr(Request $request, int $leagueId, int $deviceId): JsonResponse
+    {
+        $request->validate([
+            'session_id' => ['required', 'string'],
+        ]);
+
+        $league = LeagueOwnership::leagueForHeadCoach($leagueId);
+        LeagueOwnership::assertLeagueOwnedByHeadCoach($league);
+
+        $device = $league->devices()->where('devices.id', $deviceId)->first();
+
+        if (! $device) {
+            return response()->json([
+                'status' => 404,
+                'message' => 'Device not found or not associated with this league',
+            ], 404);
+        }
+
+        $sessionId = $request->string('session_id')->toString();
+
+        DB::beginTransaction();
+
+        try {
+            $device->tokens()->delete();
+            DeviceMobileSession::bind($device, $sessionId);
+            $device->markAsPaired();
+            $token = $device->createToken('Device-App-Token')->plainTextToken;
+
+            DB::commit();
+
+            $deviceFields = array_merge(DeviceSessionBroadcaster::deviceFields($device->fresh()), [
+                'name' => $device->device_name,
+                'code' => $device->pairing_code,
+                'head_coach_id' => $device->user_id,
+                'is_loggin' => true,
+            ]);
+
+            $responseData = [
+                'status' => 201,
+                'message' => 'Device paired successfully',
+                'user' => $deviceFields,
+                'user_id' => $device->id,
+                'device_id' => $device->id,
+                'access_token' => $token,
+                'token_type' => 'Bearer',
+            ];
+
+            broadcast(new MobileSessionApproved($responseData))->toOthers();
+            DeviceSessionBroadcaster::broadcastForLeagues($device->fresh(), 'login', true);
+
+            return response()->json($responseData, 201);
+        } catch (\Throwable $th) {
+            DB::rollBack();
+
+            return response()->json([
+                'status' => 400,
+                'message' => $th->getMessage(),
+            ], 400);
         }
     }
 

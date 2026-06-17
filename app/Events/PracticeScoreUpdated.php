@@ -17,21 +17,31 @@ class PracticeScoreUpdated implements ShouldBroadcast
    public $scores;
    protected $userId;
    protected $gameId;
-   public function __construct($scores,$userId,$gameId)
+   protected ?int $leagueId;
+
+   public function __construct($scores,$userId,$gameId, ?int $leagueId = null)
    {
      $this->scores = $scores;
      $this->userId = $userId;
      $this->gameId = $gameId;
-    //   $this->leagueId = $leagueId;
+     $this->leagueId = $leagueId;
     }
     public function broadcastOn()
     {
-        // Make the channel unique per user per game
     \Log::info('Broadcasting ScoreUpdated event', [
         'userId' => $this->userId,
         'gameId' => $this->gameId,
     ]);
-        return new PrivateChannel("user.{$this->userId}.practice.{$this->gameId}");
+
+        $channels = [
+            new PrivateChannel("user.{$this->userId}.practice.{$this->gameId}"),
+        ];
+
+        if ($this->leagueId && $this->leagueId > 0) {
+            $channels[] = new PrivateChannel("league.{$this->leagueId}.devices");
+        }
+
+        return $channels;
     }
 
     public function broadcastAs()

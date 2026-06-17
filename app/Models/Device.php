@@ -5,10 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Laravel\Sanctum\HasApiTokens;
 
 class Device extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasApiTokens, HasFactory, SoftDeletes;
 
     protected $fillable = [
         'device_name',
@@ -18,6 +19,7 @@ class Device extends Model
         'team_id',
         'user_id',
         'paired_at',
+        'session_id',
     ];
 
     protected $casts = [
@@ -29,7 +31,7 @@ class Device extends Model
      */
     public function team()
     {
-        return $this->belongsTo(Team::class);
+        return $this->belongsTo(LeagueTeam::class, 'team_id');
     }
 
     /**

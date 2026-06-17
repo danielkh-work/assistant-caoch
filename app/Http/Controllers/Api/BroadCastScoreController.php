@@ -462,7 +462,12 @@ class BroadCastScoreController extends Controller
                 $status = ($action === 'Start') ? 'started' : 'ended';
                 broadcast(new MatchStarted($request->league_id, $status, $scope))->toOthers();
             }
-            broadcast(new PracticeScoreUpdated($payload, $coachGroupId, $request->game_id))->toOthers();
+            broadcast(new PracticeScoreUpdated(
+                $payload,
+                $coachGroupId,
+                $request->game_id,
+                $request->league_id ? (int) $request->league_id : BroadcastLeagueResolver::fromGameId((int) $request->game_id)
+            ))->toOthers();
             \Log::info('After broadcast');
         } catch (\Exception $e) {
             \Log::error('PracticeScoreUpdated broadcast failed: ' . $e->getMessage());
@@ -879,7 +884,12 @@ class BroadCastScoreController extends Controller
                 $status = ($action === 'Start') ? 'started' : 'ended';
                 broadcast(new MatchStarted($request->league_id, $status, $scope))->toOthers();
             }
-            broadcast(new ScoreUpdated($payload, $coachGroupId, $request->game_id))->toOthers();
+            broadcast(new ScoreUpdated(
+                $payload,
+                $coachGroupId,
+                $request->game_id,
+                $request->league_id ? (int) $request->league_id : BroadcastLeagueResolver::fromGameId((int) $request->game_id)
+            ))->toOthers();
         } catch (\Exception $e) {
             \Log::error('ScoreUpdated broadcast failed: ' . $e->getMessage());
         }
@@ -974,7 +984,8 @@ class BroadCastScoreController extends Controller
         $deleted= WebsocketScoreboard::where('user_id',$coachGroupId)
         ->delete();
         if ($deleted) {
-          broadcast(new ScoreUpdated((object)[], $coachGroupId,$gameId))->toOthers();
+          $leagueId = BroadcastLeagueResolver::fromGameId((int) $gameId);
+          broadcast(new ScoreUpdated((object)[], $coachGroupId, $gameId, $leagueId))->toOthers();
 
         }
         return response()->noContent();
@@ -992,7 +1003,8 @@ class BroadCastScoreController extends Controller
         ->delete();
         if ($deleted) {
 
-             broadcast(new PracticeScoreUpdated((object)[], $coachGroupId,$gameId))->toOthers();
+             $leagueId = BroadcastLeagueResolver::fromGameId((int) $gameId);
+             broadcast(new PracticeScoreUpdated((object)[], $coachGroupId, $gameId, $leagueId))->toOthers();
 
              return response()->noContent();
 

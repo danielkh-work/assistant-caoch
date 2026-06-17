@@ -9,6 +9,7 @@ use App\Models\League;
 use App\Models\LeagueTeam;
 use App\Models\Game;
 use App\Models\PlayGameMode;
+use App\Models\Device;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Laravel\Sanctum\Sanctum;
@@ -73,6 +74,22 @@ class PracticeModeTest extends TestCase
         return [$league, $team1, $team2];
     }
 
+    protected function createRegisteredDeviceForLeague(League $league, User $user): Device
+    {
+        $device = new Device();
+        $device->device_name = 'Practice Device';
+        $device->pairing_code = Device::generateUniquePairingCode();
+        $device->qr_token = Device::generateUniqueQrToken();
+        $device->status = 'registered';
+        $device->user_id = $user->id;
+        $device->paired_at = now();
+        $device->save();
+
+        $league->devices()->attach($device->id);
+
+        return $device;
+    }
+
     protected function authAsCoach(): User
     {
         $user = $this->createHeadCoachUser();
@@ -87,6 +104,7 @@ class PracticeModeTest extends TestCase
     {
         $user = $this->authAsCoach();
         [$league, $team1, $team2] = $this->createLeagueWithTeams($user);
+        $this->createRegisteredDeviceForLeague($league, $user);
 
         $response = $this->postJson('/api/start-game-mode', [
             'league_id' => $league->id,

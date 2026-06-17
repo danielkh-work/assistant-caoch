@@ -3,8 +3,8 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ConfigureController;
 use App\Http\Controllers\Api\LeagueController;
-use App\Http\Controllers\Api\LeagueQbController;
-use App\Http\Controllers\Api\MatchPlaysController;
+use App\Http\Controllers\Api\DeviceController;
+use App\Http\Controllers\Api\DevicePairingController;
 use App\Http\Controllers\Api\FormationController;
 use App\Http\Controllers\Api\LogController;
 use App\Http\Controllers\Api\MatchController;
@@ -29,7 +29,6 @@ use App\Http\Controllers\PersionalGroupingController;
 
 use App\Http\Controllers\Api\WebQrController;
 use App\Http\Controllers\Api\ConfigurationController;
-use App\Http\Controllers\Api\DeviceController;
 
 
 
@@ -69,8 +68,12 @@ use App\Http\Controllers\Api\DeviceController;
 
 
 Route::post('/mobile/create-session', [WebQrController::class, 'createSession']); // mobile
-Route::get('/logout-qb-applicaion/{id}', [WebQrController::class, 'logouQbApplicaion']);
-Route::get('/qb-session-login-status/{session_id}', [WebQrController::class, 'qbSessionLoginStatus']);
+
+// Device pairing (mobile app — no auth required for pair)
+Route::post('/devices/pair', [DevicePairingController::class, 'pair']);
+Route::middleware('auth:sanctum')->prefix('devices')->group(function () {
+    Route::get('/me', [DevicePairingController::class, 'me']);
+});
 
 
 // use Illuminate\Support\Str;
@@ -288,13 +291,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('leagues')->group(function () {
         Route::put('/{league}', [LeagueController::class, 'update']);
         Route::get('/{league}/get-suggested-plays', [SuggestionController::class, 'getSuggestedPlays']);
-        Route::get('/{league}/qb', [LeagueQbController::class, 'index']);
-        Route::prefix('/{league}/teams/{team}')->group(function () {
-            Route::get('/qb', [LeagueQbController::class, 'show']);
-            Route::post('/qb', [LeagueQbController::class, 'store']);
-            Route::post('/qb/logout', [LeagueQbController::class, 'logout']);
-            Route::post('/web/scan-qr', [LeagueQbController::class, 'scanQr']);
-        });
 
         // Device Management
         Route::prefix('/{league}/devices')->group(function () {
@@ -304,7 +300,8 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/{device}', [DeviceController::class, 'show']);
             Route::put('/{device}', [DeviceController::class, 'update']);
             Route::delete('/{device}', [DeviceController::class, 'destroy']);
-            Route::post('/{device}/regenerate-pairing-code', [DeviceController::class, 'regeneratePairingCode']);
+            Route::post('/{device}/scan-qr', [DeviceController::class, 'scanQr']);
+            Route::post('/{device}/logout', [DeviceController::class, 'logout']);
         });
     });
 

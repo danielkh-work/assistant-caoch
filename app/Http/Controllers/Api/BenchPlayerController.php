@@ -13,6 +13,7 @@ use App\Models\PersionalGrouping;
 use App\Models\PlayGameLog;
 use App\Models\PlayGameMode;
 use App\Events\MatchLogCreated;
+use App\Support\BroadcastLeagueDeviceResolver;
 
 
 
@@ -669,7 +670,8 @@ public function index(Request $request, $gameId, $teamId)
                     'time'           => null,
                     'downs'          => null,
                 ];
-                broadcast(new MatchLogCreated($logData, (int) $headCoachId, (int) $sessionId));
+                $deviceId = BroadcastLeagueDeviceResolver::deviceIdForGame((int) $sessionId);
+                broadcast(new MatchLogCreated($logData, (int) $headCoachId, (int) $sessionId, $deviceId));
             } catch (\Throwable $e) {
                 \Log::error('Substitution log failed: ' . $e->getMessage());
             }
@@ -943,7 +945,8 @@ public function index(Request $request, $gameId, $teamId)
                         'time'           => null,
                         'downs'          => null,
                     ];
-                    broadcast(new MatchLogCreated($logData, (int) $headCoachId, (int) $sessionId));
+                    $deviceId = BroadcastLeagueDeviceResolver::deviceIdForGame((int) $sessionId);
+                broadcast(new MatchLogCreated($logData, (int) $headCoachId, (int) $sessionId, $deviceId));
                 } catch (\Throwable $e) {
                     \Log::error('Substitution log failed: ' . $e->getMessage());
                 }
@@ -1223,7 +1226,8 @@ public function index(Request $request, $gameId, $teamId)
                         'time'           => null,
                         'downs'          => null,
                     ];
-                    broadcast(new MatchLogCreated($logData, (int) $headCoachId, (int) $sessionId));
+                    $deviceId = BroadcastLeagueDeviceResolver::deviceIdForGame((int) $sessionId);
+                broadcast(new MatchLogCreated($logData, (int) $headCoachId, (int) $sessionId, $deviceId));
                 } catch (\Throwable $e) {
                     \Log::error('Substitution log failed: ' . $e->getMessage());
                 }

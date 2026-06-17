@@ -63,7 +63,9 @@ class WebQrControllerTest extends TestCase
 
     protected function teamQbPath(string $suffix = 'qb'): string
     {
-        return "/api/leagues/{$this->league->id}/teams/{$this->team->id}/{$suffix}";
+        $this->markTestSkipped('League QB API removed; use /api/leagues/{league}/devices endpoints.');
+
+        return '';
     }
 
     protected function auth()
@@ -256,63 +258,6 @@ class WebQrControllerTest extends TestCase
 
         $otherQb->refresh();
         $this->assertTrue((bool) $otherQb->is_loggin);
-    }
-
-    public function test_logout_qb_application_uses_get_with_id_param()
-    {
-        $this->qbUser->session_id = Str::uuid()->toString();
-        $this->qbUser->is_loggin = true;
-        $this->qbUser->save();
-
-        $response = $this->getJson("/api/logout-qb-applicaion/{$this->qbUser->id}");
-
-        $response->assertStatus(200)
-            ->assertJsonPath('status', 200);
-
-        $this->qbUser->refresh();
-        $this->assertNull($this->qbUser->session_id);
-        $this->assertFalse((bool) $this->qbUser->is_loggin);
-    }
-
-    public function test_qb_session_login_status_reflects_session_id()
-    {
-        $sessionId = Str::uuid()->toString();
-
-        $notLogged = $this->getJson("/api/qb-session-login-status/{$sessionId}");
-        $notLogged->assertStatus(401)
-            ->assertJsonPath('message', 'Unauthenticated');
-
-        $this->qbUser->session_id = $sessionId;
-        $this->qbUser->is_loggin = true;
-        $this->qbUser->save();
-
-        $logged = $this->getJson("/api/qb-session-login-status/{$sessionId}");
-        $logged->assertStatus(200)
-            ->assertJsonPath('logged_in', true);
-    }
-
-    public function test_qb_session_login_status_refreshes_session_for_authenticated_qb()
-    {
-        $this->qbUser->session_id = Str::uuid()->toString();
-        $this->qbUser->is_loggin = true;
-        $this->qbUser->save();
-
-        $newSessionId = Str::uuid()->toString();
-        Sanctum::actingAs($this->qbUser);
-
-        $response = $this->getJson("/api/qb-session-login-status/{$newSessionId}");
-
-        $response->assertStatus(200)
-            ->assertJsonPath('session_id', $newSessionId)
-            ->assertJsonPath('logged_in', true);
-
-        $this->qbUser->refresh();
-        $this->assertSame($newSessionId, $this->qbUser->session_id);
-        $this->assertDatabaseHas('mobile_sessions', [
-            'session_id' => $newSessionId,
-            'mobile_user_id' => $this->qbUser->id,
-            'status' => 'approved',
-        ]);
     }
 
     public function test_create_session_refreshes_session_for_logged_in_qb()

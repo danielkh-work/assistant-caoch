@@ -29,7 +29,15 @@ class PlaySuggested implements ShouldBroadcast
 
     public function broadcastOn()
     {
-        return new PrivateChannel("headcoach.{$this->coachGroupId}.league.{$this->leagueId}.play");
+        $channels = [
+            new PrivateChannel("headcoach.{$this->coachGroupId}.league.{$this->leagueId}.play"),
+        ];
+
+        if ($this->leagueId > 0) {
+            $channels[] = new PrivateChannel("league.{$this->leagueId}.devices");
+        }
+
+        return $channels;
     }
 
     public function broadcastAs()

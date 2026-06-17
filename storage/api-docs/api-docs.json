@@ -1097,7 +1097,7 @@
                     "Devices"
                 ],
                 "summary": "Delete a device from a league",
-                "description": "Remove a device from a league. If the device is not associated with any other leagues, it will be soft deleted. Requires the league to belong to the authenticated head coach.",
+                "description": "Remove a device from a league. If the device has an active session, it is logged out first. If the device is not associated with any other leagues, it is deleted. Requires the league to belong to the authenticated head coach.",
                 "operationId": "deleteLeagueDevice",
                 "parameters": [
                     {
@@ -1159,383 +1159,31 @@
                 ]
             }
         },
-        "/api/leagues/{league}/devices/{device}/regenerate-pairing-code": {
+        "/api/leagues/{league}/devices/{device}/scan-qr": {
             "post": {
                 "tags": [
                     "Devices"
                 ],
-                "summary": "Regenerate pairing code for a device",
-                "description": "Generate a new 4-digit pairing code and QR token for a device. Resets the device status to 'pending' and clears the paired_at timestamp. Use this when a device needs to be re-paired. Requires the league to belong to the authenticated head coach.",
-                "operationId": "regenerateDevicePairingCode",
+                "summary": "Pair mobile session to a league device",
+                "description": "Head coach scans the QR code displayed on the mobile app. Broadcasts `session.approved` to `qb-user.{session_id}` and `qb.session.updated` to `headcoach.{headCoachId}.league.{leagueId}.qb`.",
+                "operationId": "scanLeagueDeviceQr",
                 "parameters": [
                     {
                         "name": "league",
                         "in": "path",
-                        "description": "League primary key",
                         "required": true,
                         "schema": {
                             "type": "integer",
-                            "example": 1
+                            "example": 22
                         }
                     },
                     {
                         "name": "device",
                         "in": "path",
-                        "description": "Device primary key",
                         "required": true,
                         "schema": {
                             "type": "integer",
-                            "example": 1
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Pairing code regenerated successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "status": {
-                                            "type": "integer",
-                                            "example": 200
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Pairing code regenerated successfully"
-                                        },
-                                        "data": {
-                                            "properties": {
-                                                "id": {
-                                                    "type": "integer",
-                                                    "example": 1
-                                                },
-                                                "device_name": {
-                                                    "type": "string",
-                                                    "example": "My Device"
-                                                },
-                                                "pairing_code": {
-                                                    "type": "string",
-                                                    "example": "5678"
-                                                },
-                                                "qr_token": {
-                                                    "type": "string",
-                                                    "example": "newtoken123"
-                                                },
-                                                "status": {
-                                                    "type": "string",
-                                                    "example": "pending"
-                                                },
-                                                "paired_at": {
-                                                    "type": "string",
-                                                    "format": "date-time",
-                                                    "nullable": true
-                                                },
-                                                "team": {
-                                                    "type": "object",
-                                                    "nullable": true
-                                                },
-                                                "user": {
-                                                    "type": "object",
-                                                    "nullable": true
-                                                }
-                                            },
-                                            "type": "object"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthenticated"
-                    },
-                    "403": {
-                        "description": "League not owned by authenticated head coach"
-                    },
-                    "404": {
-                        "description": "Device not found or not associated with this league"
-                    }
-                },
-                "security": [
-                    {
-                        "sanctum": []
-                    }
-                ]
-            }
-        },
-        "/api/leagues/{league}/qb": {
-            "get": {
-                "tags": [
-                    "League QB"
-                ],
-                "summary": "List all QBs for a league",
-                "description": "Returns every QB user configured for teams in the given league. Each entry includes `team_id` (`league_teams.id`).",
-                "operationId": "listLeagueQbs",
-                "parameters": [
-                    {
-                        "name": "league",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "integer",
-                            "example": 22
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Zero or more QB users in `data` array",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "status": {
-                                            "type": "integer",
-                                            "example": 200
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "qb list"
-                                        },
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "properties": {
-                                                    "id": {
-                                                        "type": "integer",
-                                                        "example": 78
-                                                    },
-                                                    "name": {
-                                                        "type": "string",
-                                                        "example": "Team A QB"
-                                                    },
-                                                    "team_id": {
-                                                        "type": "integer",
-                                                        "example": 10
-                                                    },
-                                                    "league_id": {
-                                                        "type": "integer",
-                                                        "example": 22
-                                                    },
-                                                    "head_coach_id": {
-                                                        "type": "integer",
-                                                        "example": 5
-                                                    },
-                                                    "is_loggin": {
-                                                        "type": "boolean",
-                                                        "example": false
-                                                    }
-                                                },
-                                                "type": "object"
-                                            }
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "League not found or not owned by the authenticated head coach"
-                    }
-                },
-                "security": [
-                    {
-                        "sanctum": []
-                    }
-                ]
-            }
-        },
-        "/api/leagues/{league}/teams/{team}/qb": {
-            "get": {
-                "tags": [
-                    "League QB"
-                ],
-                "summary": "Get QB for a league team",
-                "operationId": "getLeagueTeamQb",
-                "parameters": [
-                    {
-                        "name": "league",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "integer",
-                            "example": 22
-                        }
-                    },
-                    {
-                        "name": "team",
-                        "in": "path",
-                        "description": "`league_teams.id`",
-                        "required": true,
-                        "schema": {
-                            "type": "integer",
-                            "example": 10
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Zero or one QB user in `data` array"
-                    }
-                },
-                "security": [
-                    {
-                        "sanctum": []
-                    }
-                ]
-            },
-            "post": {
-                "tags": [
-                    "League QB"
-                ],
-                "summary": "Create QB for a league team",
-                "operationId": "addLeagueTeamQb",
-                "parameters": [
-                    {
-                        "name": "league",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "integer",
-                            "example": 22
-                        }
-                    },
-                    {
-                        "name": "team",
-                        "in": "path",
-                        "description": "`league_teams.id`",
-                        "required": true,
-                        "schema": {
-                            "type": "integer",
-                            "example": 10
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "required": [
-                                    "name",
-                                    "email"
-                                ],
-                                "properties": {
-                                    "name": {
-                                        "type": "string",
-                                        "example": "NFL QB"
-                                    },
-                                    "email": {
-                                        "type": "string",
-                                        "format": "email",
-                                        "example": "nfl-qb@example.com"
-                                    }
-                                },
-                                "type": "object"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "QB created"
-                    },
-                    "422": {
-                        "description": "A QB already exists for this team"
-                    }
-                },
-                "security": [
-                    {
-                        "sanctum": []
-                    }
-                ]
-            }
-        },
-        "/api/leagues/{league}/teams/{team}/qb/logout": {
-            "post": {
-                "tags": [
-                    "League QB"
-                ],
-                "summary": "Log out QB for a league team",
-                "operationId": "logoutLeagueTeamQb",
-                "parameters": [
-                    {
-                        "name": "league",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "integer",
-                            "example": 22
-                        }
-                    },
-                    {
-                        "name": "team",
-                        "in": "path",
-                        "description": "`league_teams.id`",
-                        "required": true,
-                        "schema": {
-                            "type": "integer",
-                            "example": 10
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "properties": {
-                                    "id": {
-                                        "type": "integer",
-                                        "example": 78
-                                    }
-                                },
-                                "type": "object"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "QB logged out"
-                    }
-                },
-                "security": [
-                    {
-                        "sanctum": []
-                    }
-                ]
-            }
-        },
-        "/api/leagues/{league}/teams/{team}/web/scan-qr": {
-            "post": {
-                "tags": [
-                    "League QB"
-                ],
-                "summary": "Pair mobile session to a league team QB",
-                "description": "Broadcasts session approval to `qb-user.{session_id}` and session update to `headcoach.{headCoachId}.league.{leagueId}.qb` (payload includes `team_id`). Mobile app should subscribe to `coach-group.{headCoachId}.league.{leagueId}` for match notifications.",
-                "operationId": "scanLeagueTeamQbQr",
-                "parameters": [
-                    {
-                        "name": "league",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "integer",
-                            "example": 22
-                        }
-                    },
-                    {
-                        "name": "team",
-                        "in": "path",
-                        "description": "`league_teams.id`",
-                        "required": true,
-                        "schema": {
-                            "type": "integer",
-                            "example": 10
+                            "example": 5
                         }
                     }
                 ],
@@ -1557,7 +1205,7 @@
                 },
                 "responses": {
                     "201": {
-                        "description": "QB paired and token issued"
+                        "description": "Device paired and token issued"
                     }
                 },
                 "security": [
@@ -1567,119 +1215,91 @@
                 ]
             }
         },
-        "/api/logout-qb-applicaion/{id}": {
-            "get": {
+        "/api/leagues/{league}/devices/{device}/logout": {
+            "post": {
                 "tags": [
-                    "QB Logout"
+                    "Devices"
                 ],
-                "summary": "QB application logout",
-                "description": "Clears `session_id` and `is_loggin` for the QB user. Postman: **QB Logout Success**.",
-                "operationId": "logoutQbApplication",
+                "summary": "Log out a device session",
+                "description": "Single logout endpoint for head coach dashboard and mobile app. Revokes device tokens, broadcasts `session.logout` to the mobile app and `qb.session.updated` with `is_loggin=false` to the web dashboard. Callable by the authenticated head coach or by the device itself (Sanctum device token).",
+                "operationId": "logoutLeagueDevice",
                 "parameters": [
                     {
-                        "name": "id",
+                        "name": "league",
                         "in": "path",
-                        "description": "QB user primary key",
                         "required": true,
                         "schema": {
-                            "type": "integer",
-                            "example": 78
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "device",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
                         }
                     }
                 ],
-                "responses": {
-                    "200": {
-                        "description": "Logout succeeded, or user was not found (see `status` and `message` in the JSON body; HTTP code may still be 200).",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "oneOf": [
-                                        {
-                                            "properties": {
-                                                "status": {
-                                                    "type": "integer",
-                                                    "example": 200
-                                                },
-                                                "message": {
-                                                    "type": "string",
-                                                    "example": "logout successful"
-                                                },
-                                                "user": {
-                                                    "properties": {
-                                                        "name": {
-                                                            "type": "string"
-                                                        },
-                                                        "session_id": {
-                                                            "type": "string",
-                                                            "nullable": true
-                                                        },
-                                                        "code": {
-                                                            "type": "string",
-                                                            "nullable": true
-                                                        },
-                                                        "head_coach_id": {
-                                                            "type": "integer",
-                                                            "nullable": true
-                                                        },
-                                                        "league_id": {
-                                                            "type": "integer",
-                                                            "nullable": true
-                                                        },
-                                                        "team_id": {
-                                                            "type": "integer",
-                                                            "nullable": true
-                                                        }
-                                                    },
-                                                    "type": "object"
-                                                }
-                                            },
-                                            "type": "object"
-                                        },
-                                        {
-                                            "properties": {
-                                                "status": {
-                                                    "type": "integer",
-                                                    "example": 404
-                                                },
-                                                "message": {
-                                                    "type": "string",
-                                                    "example": "User not found"
-                                                }
-                                            },
-                                            "type": "object"
-                                        }
-                                    ]
-                                }
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "session_id": {
+                                        "type": "string",
+                                        "format": "uuid",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
                             }
                         }
                     }
-                }
-            }
-        },
-        "/api/qb-session-login-status/{session_id}": {
-            "get": {
-                "tags": [
-                    "QB Logout"
-                ],
-                "summary": "Check QB login status",
-                "description": "Returns **200** when a QB user is bound to the given mobile session UUID. Returns **401** when no QB has this `session_id` (Postman **Check QB Login Status 200** / invalid session **Check QB Login Status 403** — API uses **401 Unauthenticated**).",
-                "operationId": "qbSessionLoginStatus",
-                "parameters": [
-                    {
-                        "name": "session_id",
-                        "in": "path",
-                        "description": "Mobile pairing session UUID from `POST /api/mobile/create-session`",
-                        "required": true,
-                        "schema": {
-                            "type": "string",
-                            "format": "uuid",
-                            "example": "822fc835-75aa-48bf-8473-354a4913aab2"
-                        }
-                    }
-                ],
+                },
                 "responses": {
                     "200": {
-                        "description": "QB is linked to this session",
+                        "description": "Device logged out successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/devices/pair": {
+            "post": {
+                "tags": [
+                    "Devices"
+                ],
+                "summary": "Pair a physical device",
+                "description": "Accept a 4-digit pairing code or QR token from the mobile app. Issues a Sanctum device token and returns associated league IDs for Pusher subscription.",
+                "operationId": "pairDevice",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "pairing_code": {
+                                        "type": "string",
+                                        "example": "1234"
+                                    },
+                                    "qr_token": {
+                                        "type": "string",
+                                        "example": "abc123token"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Device paired successfully",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1688,14 +1308,27 @@
                                             "type": "integer",
                                             "example": 200
                                         },
-                                        "session_id": {
+                                        "message": {
                                             "type": "string",
-                                            "format": "uuid"
+                                            "example": "Device paired successfully"
                                         },
-                                        "logged_in": {
-                                            "description": "Mirrors the QB user's `is_loggin` flag in the database.",
-                                            "type": "boolean",
-                                            "example": true
+                                        "data": {
+                                            "properties": {
+                                                "token": {
+                                                    "type": "string",
+                                                    "example": "1|device-token"
+                                                },
+                                                "device": {
+                                                    "type": "object"
+                                                },
+                                                "league_ids": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "integer"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
                                         }
                                     },
                                     "type": "object"
@@ -1703,19 +1336,53 @@
                             }
                         }
                     },
-                    "401": {
-                        "description": "Unauthenticated — no QB user with this session_id",
+                    "422": {
+                        "description": "Invalid or inactive pairing code"
+                    }
+                }
+            }
+        },
+        "/api/devices/me": {
+            "get": {
+                "tags": [
+                    "Devices"
+                ],
+                "summary": "Get authenticated device profile",
+                "operationId": "getAuthenticatedDevice",
+                "responses": {
+                    "200": {
+                        "description": "Device profile retrieved successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/mobile/create-session": {
+            "post": {
+                "tags": [
+                    "Devices"
+                ],
+                "summary": "Create mobile pairing session",
+                "description": "Returns a UUID session_id for the mobile app to encode in its QR code. Optional Bearer token (device) refreshes session_id on an already-paired device when reopening the QR screen.",
+                "operationId": "createMobileDeviceSession",
+                "requestBody": {
+                    "required": false
+                },
+                "responses": {
+                    "200": {
+                        "description": "Session created",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "properties": {
-                                        "status": {
-                                            "type": "integer",
-                                            "example": 401
-                                        },
-                                        "message": {
+                                        "session_id": {
                                             "type": "string",
-                                            "example": "Unauthenticated"
+                                            "format": "uuid",
+                                            "example": "822fc835-75aa-48bf-8473-354a4913aab2"
                                         }
                                     },
                                     "type": "object"
@@ -3735,14 +3402,6 @@
         {
             "name": "Devices",
             "description": "Device management per league for parallel game execution"
-        },
-        {
-            "name": "League QB",
-            "description": "Per-team QB registration, pairing, and logout (one QB per league team per head coach)"
-        },
-        {
-            "name": "QB Logout",
-            "description": "QB application logout and session login status"
         },
         {
             "name": "Leagues",

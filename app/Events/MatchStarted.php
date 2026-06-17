@@ -2,9 +2,9 @@
 
 namespace App\Events;
 
-use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PresenceChannel;
+use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
@@ -32,10 +32,16 @@ class MatchStarted implements ShouldBroadcast
 
     public function broadcastOn()
     {
-        return [
+        $channels = [
             new PresenceChannel('league.global'),
             new PresenceChannel('league.'.$this->leagueId),
         ];
+
+        if ($this->leagueId > 0) {
+            $channels[] = new PrivateChannel('league.'.$this->leagueId.'.devices');
+        }
+
+        return $channels;
     }
 
     public function broadcastAs()

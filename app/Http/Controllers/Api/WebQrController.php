@@ -6,8 +6,10 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\MobileSession;
 use App\Models\User;
+use App\Models\Device;
 use App\Events\MobileSessionApproved;
 use App\Events\QbSessionUpdated;
+use App\Support\DeviceMobileSession;
 use App\Support\QbLogoutBroadcaster;
 use App\Support\QbMobileSession;
 use Illuminate\Support\Str;
@@ -28,10 +30,12 @@ class WebQrController extends Controller
             ]);
         }
 
-        // Returning QB: app opens create-session, subscribes qb-logout.{sessionId}, keeps bearer token.
-        $qb = $this->optionalSanctumUser($request);
-        if ($qb && $qb->role === 'qb' && $qb->is_loggin) {
-            QbMobileSession::refreshActiveSession($qb, $sessionId);
+        // Returning device or QB: refresh active session when app reopens QR screen.
+        $tokenable = $this->optionalSanctumTokenable($request);
+        if ($tokenable instanceof Device && $tokenable->tokens()->exists()) {
+            DeviceMobileSession::bind($tokenable, $sessionId);
+        } elseif ($tokenable instanceof User && $tokenable->role === 'qb' && $tokenable->is_loggin) {
+            QbMobileSession::refreshActiveSession($tokenable, $sessionId);
         }
 
         return response()->json([
@@ -109,63 +113,6 @@ class WebQrController extends Controller
         return response()->json($userData, 201);
     }
 
-    public function logouQbApplicaion(string $id)
-    {
-        $user = User::find($id);
-
-        if (! $user) {
-            return response()->json([
-                'status' => 404,
-                'message' => 'User not found',
-            ]);
-        }
-
-        $coach = $user->head_coach_id
-            ? User::find($user->head_coach_id)
-            : null;
-
-        if ($coach && $user->role === 'qb') {
-            return response()->json(QbLogoutBroadcaster::logoutAndBroadcast($user, $coach));
-        }
-
-        $user->session_id = null;
-        $user->is_loggin = false;
-        $user->save();
-
-        return response()->json([
-            'status' => 200,
-            'message' => 'logout successful',
-            'user' => $user->only(['id', 'name', 'session_id', 'code', 'head_coach_id', 'is_loggin']),
-        ]);
-    }
-
-    public function qbSessionLoginStatus(Request $request, string $session_id)
-    {
-        $user = User::where('session_id', $session_id)
-            ->where('role', 'qb')
-            ->first();
-
-        if ($user === null) {
-            $tokenUser = $this->optionalSanctumUser($request);
-            if ($tokenUser && $tokenUser->role === 'qb' && $tokenUser->is_loggin) {
-                $user = QbMobileSession::refreshActiveSession($tokenUser, $session_id);
-            }
-        }
-
-        if ($user === null) {
-            return response()->json([
-                'status' => 401,
-                'message' => 'Unauthenticated',
-            ], 401);
-        }
-
-        return response()->json([
-            'status' => 200,
-            'session_id' => $session_id,
-            'logged_in' => (bool) $user->is_loggin,
-        ]);
-    }
-
     public function logoutQb(Request $request)
     {
         $request->validate([
@@ -201,10 +148,10 @@ class WebQrController extends Controller
         ));
     }
 
-    private function optionalSanctumUser(Request $request): ?User
+    private function optionalSanctumTokenable(Request $request): User|Device|null
     {
         $user = $request->user('sanctum');
-        if ($user instanceof User) {
+        if ($user instanceof User || $user instanceof Device) {
             return $user;
         }
 
@@ -215,6 +162,13 @@ class WebQrController extends Controller
 
         $accessToken = PersonalAccessToken::findToken($token);
         $tokenable = $accessToken?->tokenable;
+
+        return $tokenable instanceof User || $tokenable instanceof Device ? $tokenable : null;
+    }
+
+    private function optionalSanctumUser(Request $request): ?User
+    {
+        $tokenable = $this->optionalSanctumTokenable($request);
 
         return $tokenable instanceof User ? $tokenable : null;
     }
