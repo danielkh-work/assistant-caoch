@@ -91,32 +91,6 @@ class DeviceController extends Controller
     }
 
     /**
-     * Get a specific device.
-     */
-    public function show(Request $request, int $leagueId, int $deviceId): BaseResponse
-    {
-        $league = LeagueOwnership::leagueForHeadCoach($leagueId);
-        LeagueOwnership::assertLeagueOwnedByHeadCoach($league);
-
-        $device = $league->devices()->where('devices.id', $deviceId)->with(['team', 'user'])->first();
-
-        if (!$device) {
-            return new BaseResponse(
-                STATUS_CODE_UNPROCESSABLE,
-                STATUS_CODE_UNPROCESSABLE,
-                'Device not found or not associated with this league'
-            );
-        }
-
-        return new BaseResponse(
-            STATUS_CODE_OK,
-            STATUS_CODE_OK,
-            'Device retrieved successfully',
-            $device
-        );
-    }
-
-    /**
      * Update a device.
      */
     public function update(Request $request, int $leagueId, int $deviceId): BaseResponse
@@ -369,33 +343,4 @@ class DeviceController extends Controller
         }
     }
 
-    /**
-     * Get the active device for a league (for game start logic).
-     */
-    public function getActiveDevice(Request $request, int $leagueId): BaseResponse
-    {
-        $league = LeagueOwnership::leagueForHeadCoach($leagueId);
-        LeagueOwnership::assertLeagueOwnedByHeadCoach($league);
-
-        $device = $league->devices()
-            ->where('status', 'registered')
-            ->with(['team', 'user'])
-            ->first();
-
-        if (!$device) {
-            return new BaseResponse(
-                STATUS_CODE_OK,
-                STATUS_CODE_OK,
-                'No active device configured for this league',
-                null
-            );
-        }
-
-        return new BaseResponse(
-            STATUS_CODE_OK,
-            STATUS_CODE_OK,
-            'Active device retrieved successfully',
-            $device
-        );
-    }
 }

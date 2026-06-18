@@ -296,8 +296,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::prefix('/{league}/devices')->group(function () {
             Route::get('/', [DeviceController::class, 'index']);
             Route::post('/', [DeviceController::class, 'store']);
-            Route::get('/active', [DeviceController::class, 'getActiveDevice']);
-            Route::get('/{device}', [DeviceController::class, 'show']);
             Route::put('/{device}', [DeviceController::class, 'update']);
             Route::delete('/{device}', [DeviceController::class, 'destroy']);
             Route::post('/{device}/scan-qr', [DeviceController::class, 'scanQr']);

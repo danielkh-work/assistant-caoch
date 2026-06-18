@@ -35,7 +35,6 @@ Each league team used to have a QB modeled as a `User` with role `qb`. That is r
 | **Can the head coach start a match?** | Yes, if the league has **at least one** device with `status = registered`. |
 | **Who receives “match started” and league score/play events?** | **Every** registered device in the league that is connected and subscribed to `league.{leagueId}.devices` (e.g. `MatchStarted`, `TeamScoreUpdated`, `PlaySuggested`). |
 | **What is `play_game_modes.device_id`?** | One device id is stored on the game row when `POST /start-game-mode` runs (today: the first `registered` device from the query). This is a **primary reference** on the game record, not a limit on who receives league-wide broadcasts. |
-| **What is `GET .../devices/active`?** | Returns that same single device - a convenience endpoint, not “the only device allowed in the match.” |
 
 So: all league devices should subscribe to `league.{leagueId}.devices` to show match started / live updates on every app. The stored `device_id` does not replace that fan-out.
 
@@ -45,7 +44,6 @@ So: all league devices should subscribe to `league.{leagueId}.devices` to show m
 |------------------|-----------------|-------|
 | `GET /api/leagues/{league}/qb` | `GET /api/leagues/{league}/devices` | List league devices |
 | `POST /api/leagues/{league}/teams/{team}/qb` | `POST /api/leagues/{league}/devices` | Body: `device_name`, optional `team_id` |
-| `GET /api/leagues/{league}/teams/{team}/qb` | `GET /api/leagues/{league}/devices/{device}` | Single device |
 | `POST .../teams/{team}/web/scan-qr` | `POST .../devices/{device}/scan-qr` | Same QR flow; `device` id in path |
 | `POST .../teams/{team}/qb/logout` | `POST .../devices/{device}/logout` | HC or device token |
 | `GET /api/logout-qb-applicaion/{id}` | `POST .../devices/{device}/logout` | App self-logout with device Bearer token |
@@ -425,8 +423,6 @@ All routes require **head coach Sanctum token** (`auth:sanctum`). League must be
 |--------|------|---------|
 | `GET` | `/` | List devices (`is_connected` included) |
 | `POST` | `/` | Create device |
-| `GET` | `/active` | First `registered` device (game binding) |
-| `GET` | `/{device}` | Get one device |
 | `PUT` | `/{device}` | Update `device_name`, `team_id`, `status` |
 | `DELETE` | `/{device}` | Remove from league (logs out if connected) |
 | `POST` | `/{device}/scan-qr` | Scan mobile QR and complete pairing |
