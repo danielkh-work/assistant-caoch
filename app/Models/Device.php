@@ -26,6 +26,29 @@ class Device extends Model
         'paired_at' => 'datetime',
     ];
 
+    protected static function boot(): void
+    {
+        parent::boot();
+
+        static::creating(function (Device $device) {
+            if (empty($device->device_id)) {
+                $device->device_id = self::generateUniqueDeviceId();
+            }
+        });
+    }
+
+    /**
+     * Generate a unique public device identifier (QB-####).
+     */
+    public static function generateUniqueDeviceId(): string
+    {
+        do {
+            $id = 'QB-' . str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
+        } while (self::withTrashed()->where('device_id', $id)->exists());
+
+        return $id;
+    }
+
     /**
      * Get the team that owns the device.
      */

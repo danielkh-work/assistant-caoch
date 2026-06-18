@@ -13,10 +13,11 @@ return new class extends Migration
     {
         Schema::create('devices', function (Blueprint $table) {
             $table->id();
+            $table->string('device_id')->unique();
             $table->string('device_name');
             $table->string('pairing_code', 4)->unique();
             $table->string('qr_token')->nullable()->unique();
-            $table->enum('status', ['pending', 'registered', 'inactive'])->default('pending');
+            $table->string('status')->default('pending');
             $table->integer('team_id')->nullable();
             $table->foreign('team_id')->references('id')->on('league_teams')->nullOnDelete();
             $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('cascade');

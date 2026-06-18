@@ -14,6 +14,7 @@ class DeviceSessionBroadcaster
     {
         return [
             'id' => $device->id,
+            'device_id' => $device->device_id,
             'device_name' => $device->device_name,
             'pairing_code' => $device->pairing_code,
             'status' => $device->status,
@@ -34,6 +35,7 @@ class DeviceSessionBroadcaster
     {
         return [
             'id' => $device->id,
+            'device_id' => $device->device_id,
             'name' => $device->device_name,
             'email' => '',
             'role' => 'device',

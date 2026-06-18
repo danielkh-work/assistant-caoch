@@ -621,7 +621,7 @@ sequenceDiagram
 
 | Table / column | Role |
 |----------------|------|
-| `devices` | `device_name`, `pairing_code`, `qr_token`, `status`, `session_id`, `team_id`, `user_id` (head coach) |
+| `devices` | `device_id` (unique `QB-####`, auto-generated), `device_name`, `pairing_code`, `qr_token`, `status` (string), `session_id`, `team_id`, `user_id` (head coach) |
 | `league_device` | Many-to-many league ↔ device |
 | `play_game_modes.device_id` | Device bound when game starts |
 | `personal_access_tokens` | Sanctum tokens; token present ⇒ `is_connected` |

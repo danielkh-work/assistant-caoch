@@ -34,10 +34,11 @@ namespace App\OpenApi;
  *                 @OA\Items(
  *                     type="object",
  *                     @OA\Property(property="id", type="integer", example=1),
+ *                     @OA\Property(property="device_id", type="string", example="QB-4821", description="Unique public device identifier (auto-generated)"),
  *                     @OA\Property(property="device_name", type="string", example="Device 1"),
  *                     @OA\Property(property="pairing_code", type="string", example="1234"),
  *                     @OA\Property(property="qr_token", type="string", nullable=true),
- *                     @OA\Property(property="status", type="string", enum={"pending", "registered", "inactive"}, example="registered"),
+ *                     @OA\Property(property="status", type="string", example="registered", description="Lifecycle status (e.g. pending, registered, inactive; string for future values such as connected/disconnected)"),
  *                     @OA\Property(property="team_id", type="integer", nullable=true),
  *                     @OA\Property(property="user_id", type="integer", nullable=true),
  *                     @OA\Property(property="paired_at", type="string", format="date-time", nullable=true),
@@ -59,7 +60,7 @@ namespace App\OpenApi;
  *     operationId="createLeagueDevice",
  *     tags={"Devices"},
  *     summary="Create a new device for a league",
- *     description="Create a new device and associate it with a league. Automatically generates a 4-digit pairing code and QR token. Requires the league to belong to the authenticated head coach.",
+ *     description="Create a new device and associate it with a league. Automatically generates a unique public `device_id` (QB-####), pairing code, and QR token. Requires the league to belong to the authenticated head coach.",
  *     security={{"sanctum":{}}},
  *     @OA\Parameter(
  *         name="league",
@@ -86,6 +87,7 @@ namespace App\OpenApi;
  *                 property="data",
  *                 type="object",
  *                 @OA\Property(property="id", type="integer", example=1),
+ *                 @OA\Property(property="device_id", type="string", example="QB-4821"),
  *                 @OA\Property(property="device_name", type="string", example="My Device"),
  *                 @OA\Property(property="pairing_code", type="string", example="1234"),
  *                 @OA\Property(property="qr_token", type="string", example="abc123xyz789"),
@@ -132,7 +134,7 @@ namespace App\OpenApi;
  *         @OA\JsonContent(
  *             @OA\Property(property="device_name", type="string", example="Updated Device Name"),
  *             @OA\Property(property="team_id", type="integer", nullable=true, example=2),
- *             @OA\Property(property="status", type="string", enum={"pending", "registered", "inactive"}, example="registered")
+ *             @OA\Property(property="status", type="string", maxLength=50, example="registered", description="Lifecycle status string (e.g. pending, registered, inactive)")
  *         )
  *     ),
  *     @OA\Response(
@@ -145,6 +147,7 @@ namespace App\OpenApi;
  *                 property="data",
  *                 type="object",
  *                 @OA\Property(property="id", type="integer", example=1),
+ *                 @OA\Property(property="device_id", type="string", example="QB-4821"),
  *                 @OA\Property(property="device_name", type="string", example="Updated Device Name"),
  *                 @OA\Property(property="pairing_code", type="string", example="1234"),
  *                 @OA\Property(property="status", type="string", example="registered"),

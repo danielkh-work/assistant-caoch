@@ -566,6 +566,11 @@
                                                         "type": "integer",
                                                         "example": 1
                                                     },
+                                                    "device_id": {
+                                                        "description": "Unique public device identifier (auto-generated)",
+                                                        "type": "string",
+                                                        "example": "QB-4821"
+                                                    },
                                                     "device_name": {
                                                         "type": "string",
                                                         "example": "Device 1"
@@ -579,12 +584,8 @@
                                                         "nullable": true
                                                     },
                                                     "status": {
+                                                        "description": "Lifecycle status (e.g. pending, registered, inactive; string for future values such as connected/disconnected)",
                                                         "type": "string",
-                                                        "enum": [
-                                                            "pending",
-                                                            "registered",
-                                                            "inactive"
-                                                        ],
                                                         "example": "registered"
                                                     },
                                                     "team_id": {
@@ -647,7 +648,7 @@
                     "Devices"
                 ],
                 "summary": "Create a new device for a league",
-                "description": "Create a new device and associate it with a league. Automatically generates a 4-digit pairing code and QR token. Requires the league to belong to the authenticated head coach.",
+                "description": "Create a new device and associate it with a league. Automatically generates a unique public `device_id` (QB-####), pairing code, and QR token. Requires the league to belong to the authenticated head coach.",
                 "operationId": "createLeagueDevice",
                 "parameters": [
                     {
@@ -705,6 +706,10 @@
                                                 "id": {
                                                     "type": "integer",
                                                     "example": 1
+                                                },
+                                                "device_id": {
+                                                    "type": "string",
+                                                    "example": "QB-4821"
                                                 },
                                                 "device_name": {
                                                     "type": "string",
@@ -826,12 +831,9 @@
                                         "nullable": true
                                     },
                                     "status": {
+                                        "description": "Lifecycle status string (e.g. pending, registered, inactive)",
                                         "type": "string",
-                                        "enum": [
-                                            "pending",
-                                            "registered",
-                                            "inactive"
-                                        ],
+                                        "maxLength": 50,
                                         "example": "registered"
                                     }
                                 },
@@ -860,6 +862,10 @@
                                                 "id": {
                                                     "type": "integer",
                                                     "example": 1
+                                                },
+                                                "device_id": {
+                                                    "type": "string",
+                                                    "example": "QB-4821"
                                                 },
                                                 "device_name": {
                                                     "type": "string",

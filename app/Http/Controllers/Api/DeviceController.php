@@ -98,7 +98,7 @@ class DeviceController extends Controller
         $validated = $request->validate([
             'device_name' => ['sometimes', 'string', 'max:255'],
             'team_id' => ['sometimes', 'nullable', 'integer', 'exists:league_teams,id'],
-            'status' => ['sometimes', 'in:pending,registered,inactive'],
+            'status' => ['sometimes', 'string', 'max:50'],
         ]);
 
         $league = LeagueOwnership::leagueForHeadCoach($leagueId);
