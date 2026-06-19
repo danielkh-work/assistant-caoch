@@ -15,16 +15,24 @@ class MatchLogCreated implements ShouldBroadcast
     public array $log;
     protected int $userId;
     protected int $gameId;
+    protected ?int $deviceId;
 
-    public function __construct(array $log, int $userId, int $gameId)
+    public function __construct(array $log, int $userId, int $gameId, ?int $deviceId = null)
     {
-        $this->log    = $log;
-        $this->userId = $userId;
-        $this->gameId = $gameId;
+        $this->log      = $log;
+        $this->userId   = $userId;
+        $this->gameId   = $gameId;
+        $this->deviceId = $deviceId;
     }
 
     public function broadcastOn(): PrivateChannel
     {
+        // If a device is configured, broadcast to device-specific channel
+        // Otherwise, fall back to user-specific channel for backward compatibility
+        if ($this->deviceId) {
+            return new PrivateChannel("device.{$this->deviceId}.game.{$this->gameId}");
+        }
+
         return new PrivateChannel("user.{$this->userId}.game.{$this->gameId}");
     }
 

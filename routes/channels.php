@@ -1,6 +1,9 @@
 <?php
 
 use Illuminate\Support\Facades\Broadcast;
+use App\Models\Device;
+use App\Models\User;
+use App\Support\BroadcastChannelAuth;
 
 /*
 |--------------------------------------------------------------------------
@@ -41,10 +44,46 @@ Broadcast::channel('headcoach.{headCoachId}.qb', function ($user, $headCoachId) 
     return false;
 });
 Broadcast::channel('headcoach.{headCoachId}.league.{leagueId}.qb', function ($user, $headCoachId, $leagueId) {
-    return true;
+    if (! $user instanceof User) {
+        return false;
+    }
+
+    return BroadcastChannelAuth::headCoachOwnsLeague($user, (int) $headCoachId, (int) $leagueId);
 });
 Broadcast::channel('headcoach.{headCoachId}.league.{leagueId}.play', function ($user, $headCoachId, $leagueId) {
-    return true;
+    if (! $user instanceof User) {
+        return false;
+    }
+
+    return BroadcastChannelAuth::headCoachOwnsLeague($user, (int) $headCoachId, (int) $leagueId);
+});
+Broadcast::channel('headcoach.{headCoachId}.league.{leagueId}.devices', function ($user, $headCoachId, $leagueId) {
+    if ($user instanceof Device) {
+        return (int) ($user->user_id ?? 0) === (int) $headCoachId
+            && BroadcastChannelAuth::deviceBelongsToLeague($user, (int) $leagueId);
+    }
+
+    if ($user instanceof User) {
+        return BroadcastChannelAuth::headCoachOwnsLeague($user, (int) $headCoachId, (int) $leagueId);
+    }
+
+    return false;
+});
+
+Broadcast::channel('league.{leagueId}.devices', function ($user, $leagueId) {
+    if (! $user instanceof Device) {
+        return false;
+    }
+
+    return BroadcastChannelAuth::deviceBelongsToLeague($user, (int) $leagueId);
+});
+
+Broadcast::channel('device.{deviceId}.game.{gameId}', function ($user, $deviceId, $gameId) {
+    if (! $user instanceof Device) {
+        return false;
+    }
+
+    return BroadcastChannelAuth::deviceCanAccessGame($user, (int) $deviceId, (int) $gameId);
 });
 
 Broadcast::channel('headcoach.{userId}', function ($user, $userId) {

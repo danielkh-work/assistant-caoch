@@ -17,22 +17,30 @@ class ScoreUpdated implements ShouldBroadcast
    public $scores;
    protected $userId;
    protected $gameId;
+   protected ?int $leagueId;
 
 
-   public function __construct($scores,$userId,$gameId)
+   public function __construct($scores,$userId,$gameId, ?int $leagueId = null)
    {
      $this->scores = $scores;
      $this->userId = $userId;
      $this->gameId = $gameId;
-    //   $this->leagueId = $leagueId;
+     $this->leagueId = $leagueId;
 
    }
     public function broadcastOn()
     {
-        // return new PrivateChannel("user.{$this->userId}.league.{$this->leagueId}");
            \Log::info([' in sockeet before all request data'=>$this->scores]);
 
-         return new PrivateChannel("user.{$this->userId}.game.{$this->gameId}");
+         $channels = [
+             new PrivateChannel("user.{$this->userId}.game.{$this->gameId}"),
+         ];
+
+         if ($this->leagueId && $this->leagueId > 0) {
+             $channels[] = new PrivateChannel("league.{$this->leagueId}.devices");
+         }
+
+         return $channels;
 
     }
 

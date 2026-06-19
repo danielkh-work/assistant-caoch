@@ -3,8 +3,8 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ConfigureController;
 use App\Http\Controllers\Api\LeagueController;
-use App\Http\Controllers\Api\LeagueQbController;
-use App\Http\Controllers\Api\MatchPlaysController;
+use App\Http\Controllers\Api\DeviceController;
+use App\Http\Controllers\Api\DevicePairingController;
 use App\Http\Controllers\Api\FormationController;
 use App\Http\Controllers\Api\LogController;
 use App\Http\Controllers\Api\MatchController;
@@ -67,9 +67,13 @@ use App\Http\Controllers\Api\ConfigurationController;
 //     $assistant->assignRole($headCoachRoles);
 
 
-Route::post('/mobile/create-session', [WebQrController::class, 'createSession']); // mobile 
-Route::get('/logout-qb-applicaion/{id}', [WebQrController::class, 'logouQbApplicaion']);
-Route::get('/qb-session-login-status/{session_id}', [WebQrController::class, 'qbSessionLoginStatus']);
+Route::post('/mobile/create-session', [WebQrController::class, 'createSession']); // mobile
+
+// Device pairing (mobile app — no auth required for pair)
+Route::post('/devices/pair', [DevicePairingController::class, 'pair']);
+Route::middleware('auth:sanctum')->prefix('devices')->group(function () {
+    Route::get('/me', [DevicePairingController::class, 'me']);
+});
 
 
 // use Illuminate\Support\Str;
@@ -93,7 +97,7 @@ Route::get('/qb-session-login-status/{session_id}', [WebQrController::class, 'qb
 
 
 Route::prefix('qb')->group(function () {
-  
+
     Route::match(['get', 'post'], 'login-with-session', [AuthController::class, 'loginWithSession']);
      Route::middleware('auth:sanctum')->post('/scoreboard/broadcast', [BroadCastScoreController::class, 'scoreBoardBroadCastQB']);
      Route::middleware('auth:sanctum')->post('/play/scoreboard/broadcast', [BroadCastScoreController::class, 'scoreBoardBroadCastPlay']);
@@ -109,7 +113,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('add-assistant-coach',[AuthController::class,'addAssistantCoach'])->name('add.assistantCoach');
     Route::get('get-assistant-coach',[AuthController::class,'getQAssistantCoach'])->name('get.assistant.coach');
 
-      
+
     Route::get('/sport',[SportController::class,'sport'])->name('sport');
 
     //  Leaque
@@ -125,10 +129,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/add-player',[PlayerController::class,'store'])->name('add.player');
     Route::post('/add-open-player',[PlayerController::class,'addOpenPlayer']);
-    
+
     Route::post('/bench-players', [BenchPlayerController::class, 'store']);
     Route::put('/bench/{id}/update', [BenchPlayerController::class, 'rppUpdate']);
-   
+
     Route::post('/shuffle-players', [BenchPlayerController::class, 'shufflePlayers']);
     Route::post('/opponent-bench-player-store', [BenchPlayerController::class, 'opponentBenchPlayerStore']);
     Route::get('/bench-players/{gameId}/{teamId}', [BenchPlayerController::class, 'index']);
@@ -138,7 +142,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/create-opponent-team-play-mode', [BenchPlayerController::class, 'createOpponentTeamForPlayMode']);
     Route::post('/add-opponent-package', [BenchPlayerController::class, 'addOpponentPackage']);
      Route::get('/get-opponent-packages/{gameId}/{teamId}', [BenchPlayerController::class, 'getOpponentTeamPackages']);
-    
+
     Route::put('/update-player/{id}',[PlayerController::class,'update'])->name('update.player');
     Route::put('/update-practice-player/{id}',[PlayerController::class,'updatePracticePlayer'])->name('update.practiceplayer');
     Route::put('/team-players/{id}/ofp', [PlayerController::class, 'updateOFP']);
@@ -146,7 +150,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/update-player/{id}',[PlayerController::class,'update'])->name('player.update');
     Route::get('/delete-player/{id}/{team_id}',[PlayerController::class,'delete'])->name('player.delete');
     Route::get('/delete-player-only/{id}/{team_id}',[PlayerController::class,'deletePlayer'])->name('player.delete.only');
-    
+
     Route::get('/view-player/{id}',[PlayerController::class,'view'])->name('player.view');
 
     Route::get('/dashboard',[SportController::class,'dashboard'])->name('dashboard');
@@ -162,12 +166,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('view-profile',[AuthController::class,'viewProfile'])->name('view-profile');
     Route::post('profile-update',[AuthController::class,'profileUpdate'])->name('profile-update');
     Route::post('change-password',[AuthController::class,'changePassword'])->name('profile-update');
-  
+
     // upload Play
     Route::post('/uplaod-play',[PlayController::class,'store'])->name('uplaod-play');
     Route::post('/play-offensive-target-store',[PlayController::class,'playOffenseTargetStore'])->name('uplaod-play');
     Route::get('/get-play-offensive-target/{id}',[PlayController::class,'getOffensiveTargetsByPlay'])->name('uplaod-play');
-    
+
     Route::get('/upload-play-list',[PlayController::class,'index'])->name('upload-play-list');
     Route::get('/match-plays', [MatchPlaysController::class, 'index']);
     Route::get('/delete-play/{id}',[PlayController::class,'delete'])->name('delete-play');
@@ -176,17 +180,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/duplicate-play/{id}',[PlayController::class,'duplicatePlay'])->name('edit-play');
     Route::get('/delete-play-results/{id}', [PlayController::class, 'deletePlayResults']);
 
-   
-    
+
+
     Route::post('/update-play/{id}',[PlayController::class,'update'])->name('update-play');
-    
+
     Route::get('/offensive-positions', [PlayController::class, 'getOffensivePositions'])->name('offensive-positions');
     Route::get('/defensive-positions', [PlayController::class, 'getDefensivePositions'])->name('defensive-positions');
     Route::get('/play-results', [PlayController::class, 'getPlayResult']);
 
     Route::post('/play-results-add', [PlayController::class, 'addPlayResult']);
 
-   
+
 
     // Team
     Route::post('create-team',[TeamController::class,'store']);
@@ -195,7 +199,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('team/{id}/players-paginated', [TeamController::class, 'paginatedTeamPlayers']);
     Route::get('practice-team/{id}/players-paginated', [TeamController::class, 'paginatedPracticeTeamPlayers']);
     Route::get('practice-team-list/{id}',[TeamController::class,'practiceTeamList']);
-    
+
     Route::post('practice-update-team/{id}',[PracticeTeamPlayerController::class,'update']);
     Route::post('update-team/{id}',[TeamController::class,'update']);
     Route::get('team-list-by-league/{id}',[TeamController::class,'teamListByLeague']);
@@ -207,7 +211,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/configure-formation',[ConfigureController::class,'configureFormation']);
     Route::get('/configure-formation-view',[ConfigureController::class,'configureFormationView']);
-   
+
     Route::post('/configure-play',[ConfigureController::class,'configurePlay']);
     Route::post('/configure-defensive-play',[ConfigureController::class,'configureDefensivePlay']);
     Route::get('/configure-play-view',[ConfigureController::class,'configurePlayView']);
@@ -219,21 +223,21 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/delete-defensive-play/{id}', [DefensivePlayController::class, 'delete']);
     Route::get('/delete-play-parameters/{id}', [DefensivePlayParameterController::class, 'delete']);
     Route::get('/edit-defensive-play-parameter/{id}', [DefensivePlayParameterController::class, 'edit']);
-    Route::put('/update-defensive-play-parameter/{id}',[DefensivePlayParameterController::class,'update'])->name('update.defensive-player'); 
+    Route::put('/update-defensive-play-parameter/{id}',[DefensivePlayParameterController::class,'update'])->name('update.defensive-player');
     Route::get('/upload-defensive-play-list',[DefensivePlayController::class,'index'])->name('upload-play-list');
     Route::get('/edit-defensive-play/{id}',[DefensivePlayController::class,'editDefensivePlay'])->name('edit-defensive-play');
     Route::post('/update-defensive-play/{id}',[DefensivePlayController::class,'update'])->name('update.defensive-player');
     Route::get('/duplicate-defensive-play/{id}',[DefensivePlayController::class,'duplicateDefensivePlay'])->name('edit-play');
     Route::controller(GameController::class)->group(function () {
-            Route::get('/games/id', 'index');                  
+            Route::get('/games/id', 'index');
             Route::post('/games', 'store');
-            Route::get('/game/{id}', 'show');     
-            Route::get('/game/{id}/opponents_my', 'getOpponentMyTeamPlayers');          
-            Route::get('/games/league/{leagueId}', 'getByLeague');                
-            Route::post('/penalities', 'Penalities');                
-            Route::get('/penalty-list', 'penaltyList'); 
-            Route::get('/delete-game/{id}','delete');               
-            Route::get('/end-game-clearplayers/{id}','endMatchClearGroundPlayers');               
+            Route::get('/game/{id}', 'show');
+            Route::get('/game/{id}/opponents_my', 'getOpponentMyTeamPlayers');
+            Route::get('/games/league/{leagueId}', 'getByLeague');
+            Route::post('/penalities', 'Penalities');
+            Route::get('/penalty-list', 'penaltyList');
+            Route::get('/delete-game/{id}','delete');
+            Route::get('/end-game-clearplayers/{id}','endMatchClearGroundPlayers');
     });
 
     Route::controller(SubscriptionPlanController::class)->group(function () {
@@ -248,7 +252,7 @@ Route::middleware('auth:sanctum')->group(function () {
        Route::post('/start-game-mode', 'startGameGode');
        Route::post('/add-points-update-state', 'addPoints');
        Route::post('/add-play-game-log', 'addPointsObject');
-      
+
     });
 
    Route::post('/play/show-yardage/assistant-coach', [BroadCastScoreController::class, 'yardagePlaytoAssistant']);
@@ -256,23 +260,23 @@ Route::middleware('auth:sanctum')->group(function () {
    Route::post('/scoreboard/broadcast', [BroadCastScoreController::class, 'scoreBoardBroadCast']);
    Route::post('/practice/scoreboard/broadcast', [BroadCastScoreController::class, 'practiceScoreBoardBroadCast']);
    Route::post('logout-qb', [WebQrController::class, 'logoutQb']);
-   Route::get('/scoreboard', [BroadCastScoreController::class, 'getWebSocketScoreBoard']); 
-   Route::get('/practice-scoreboard', [BroadCastScoreController::class, 'getPracticeWebSocketScoreBoard']); 
+   Route::get('/scoreboard', [BroadCastScoreController::class, 'getWebSocketScoreBoard']);
+   Route::get('/practice-scoreboard', [BroadCastScoreController::class, 'getPracticeWebSocketScoreBoard']);
    Route::get('/delete-scoreboard/{gameId}',[BroadCastScoreController::class,'delete'])->name('deleteScoreBoard');
    Route::get('/practice/delete-scoreboard/{gameId}',[BroadCastScoreController::class,'deletePractice'])->name('deletePracticeScoreBoard');
-   
+
   Route::post('/persional-groups', [PersionalGroupingController::class, 'storeAllGroups']);
   Route::post('/personal-groupings/{group}/plays/sync', [PersionalGroupingController::class, 'syncPlays']);
   Route::post('/update/{group}/group', [PersionalGroupingController::class, 'updateGroup']);
 
-  
+
   // routes/api.php
   Route::get('/personal-groupings/{group}/plays', [PersionalGroupingController::class, 'getPlays']);
   Route::get('/personal-groupings/{group}/roster-repair-missing', [PersionalGroupingController::class, 'rosterRepairMissing']);
   Route::get('/delete/{group}/group', [PersionalGroupingController::class, 'deleteGroup']);
 
   Route::get('/persional-groups-players', [PersionalGroupingController::class, 'getGroupsByTeamAndGame']);
-  
+
 
    Route::prefix('leagues')->group(function () {
         Route::prefix('/{league}/matches')->group(function () {
@@ -287,12 +291,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('leagues')->group(function () {
         Route::put('/{league}', [LeagueController::class, 'update']);
         Route::get('/{league}/get-suggested-plays', [SuggestionController::class, 'getSuggestedPlays']);
-        Route::get('/{league}/qb', [LeagueQbController::class, 'index']);
-        Route::prefix('/{league}/teams/{team}')->group(function () {
-            Route::get('/qb', [LeagueQbController::class, 'show']);
-            Route::post('/qb', [LeagueQbController::class, 'store']);
-            Route::post('/qb/logout', [LeagueQbController::class, 'logout']);
-            Route::post('/web/scan-qr', [LeagueQbController::class, 'scanQr']);
+
+        // Device Management
+        Route::prefix('/{league}/devices')->group(function () {
+            Route::get('/', [DeviceController::class, 'index']);
+            Route::post('/', [DeviceController::class, 'store']);
+            Route::put('/{device}', [DeviceController::class, 'update']);
+            Route::delete('/{device}', [DeviceController::class, 'destroy']);
+            Route::post('/{device}/scan-qr', [DeviceController::class, 'scanQr']);
+            Route::post('/{device}/logout', [DeviceController::class, 'logout']);
         });
     });
 

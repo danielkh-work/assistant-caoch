@@ -74,4 +74,9 @@ class LeagueOwnership
             ->where('league_id', $leagueId)
             ->get();
     }
+
+    public static function assertTeamBelongsToLeague(int $teamId, int $leagueId): void
+    {
+        self::teamForLeague($teamId, $leagueId);
+    }
 }
