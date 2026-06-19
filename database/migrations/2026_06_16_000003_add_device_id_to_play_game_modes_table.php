@@ -12,7 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('play_game_modes', function (Blueprint $table) {
-            $table->foreignId('device_id')->nullable()->after('user_id')->constrained('devices')->onDelete('set null');
+            if (! Schema::hasColumn('play_game_modes', 'device_id')) {
+                $table->unsignedBigInteger('device_id')->nullable()->after('user_id');
+            }
         });
     }
 
@@ -22,8 +24,9 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('play_game_modes', function (Blueprint $table) {
-            $table->dropForeign(['device_id']);
-            $table->dropColumn('device_id');
+            if (Schema::hasColumn('play_game_modes', 'device_id')) {
+                $table->dropColumn('device_id');
+            }
         });
     }
 };
