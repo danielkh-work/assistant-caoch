@@ -1216,6 +1216,89 @@
                 }
             }
         },
+        "/api/start-game-mode": {
+            "post": {
+                "tags": [
+                    "Matches"
+                ],
+                "summary": "Start a match",
+                "description": "Creates a new active match session. The `is_practice` flag controls whether the session is started in practice or normal game mode. The endpoint validates league ownership, device readiness, and existing active sessions before creating the match-mode record.",
+                "operationId": "2b1071d350e2d6b86d7738e4fa5f834d",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MatchStartRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Game Start SuccessFully"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/matches/{id}/end": {
+            "post": {
+                "tags": [
+                    "Matches"
+                ],
+                "summary": "End a match",
+                "description": "Unified match-ending endpoint for both practice and normal matches. The `is_practice` flag controls which scoreboard table and session mode are closed. The endpoint clears match bench rows, completes active game-mode sessions, broadcasts a match-ended event, and emits the legacy scoreboard cleanup payload for the selected mode.",
+                "operationId": "012dd6f3723271a20f5f7944b8962bd6",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 36
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MatchEndRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Match ended successfully"
+                    },
+                    "404": {
+                        "description": "Match not found"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/api/leagues/{league}": {
             "put": {
                 "tags": [
@@ -2758,6 +2841,43 @@
                 },
                 "type": "object"
             },
+            "MatchStartRequest": {
+                "required": [
+                    "league_id",
+                    "my_team_id",
+                    "oponent_team_id"
+                ],
+                "properties": {
+                    "league_id": {
+                        "type": "integer",
+                        "example": 22
+                    },
+                    "my_team_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "oponent_team_id": {
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "is_practice": {
+                        "description": "Optional mode flag. `true` starts a practice match, `false` starts a normal game match.",
+                        "type": "boolean",
+                        "example": false
+                    }
+                },
+                "type": "object"
+            },
+            "MatchEndRequest": {
+                "properties": {
+                    "is_practice": {
+                        "description": "Set to true for practice matches, false for normal game matches.",
+                        "type": "boolean",
+                        "example": false
+                    }
+                },
+                "type": "object"
+            },
             "Play": {
                 "properties": {
                     "id": {
@@ -3723,6 +3843,10 @@
         {
             "name": "Devices",
             "description": "Device management per league for parallel game execution"
+        },
+        {
+            "name": "Matches",
+            "description": "Match lifecycle management"
         },
         {
             "name": "Leagues",

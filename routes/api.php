@@ -239,7 +239,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/penalities', 'Penalities');
             Route::get('/penalty-list', 'penaltyList');
             Route::get('/delete-game/{id}','delete');
-            Route::get('/end-game-clearplayers/{id}','endMatchClearGroundPlayers');
+            Route::post('/matches/{id}/end', 'end');
     });
 
     Route::controller(SubscriptionPlanController::class)->group(function () {
@@ -264,9 +264,6 @@ Route::middleware('auth:sanctum')->group(function () {
    Route::post('logout-qb', [WebQrController::class, 'logoutQb']);
    Route::get('/scoreboard', [BroadCastScoreController::class, 'getWebSocketScoreBoard']);
    Route::get('/practice-scoreboard', [BroadCastScoreController::class, 'getPracticeWebSocketScoreBoard']);
-   Route::get('/delete-scoreboard/{gameId}',[BroadCastScoreController::class,'delete'])->name('deleteScoreBoard');
-   Route::get('/practice/delete-scoreboard/{gameId}',[BroadCastScoreController::class,'deletePractice'])->name('deletePracticeScoreBoard');
-
   Route::post('/persional-groups', [PersionalGroupingController::class, 'storeAllGroups']);
   Route::post('/personal-groupings/{group}/plays/sync', [PersionalGroupingController::class, 'syncPlays']);
   Route::post('/update/{group}/group', [PersionalGroupingController::class, 'updateGroup']);
