@@ -91,6 +91,16 @@ class TeamGroup extends Model
         )->withTimestamps();
     }
 
+    public function configuredTeams()
+    {
+        return $this->belongsToMany(
+            LeagueTeam::class,
+            'team_group_configurations',
+            'team_group_id',
+            'team_id'
+        )->withTimestamps();
+    }
+
     public function getGroupNameAttribute(): string
     {
         return (string) $this->name;

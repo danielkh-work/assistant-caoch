@@ -30,6 +30,7 @@ use App\Http\Controllers\Api\TeamGroupController;
 
 use App\Http\Controllers\Api\WebQrController;
 use App\Http\Controllers\Api\ConfigurationController;
+use App\Http\Controllers\Api\TeamGroupConfigurationController;
 
 
 
@@ -282,6 +283,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/teams/{team}/groups', [TeamGroupController::class, 'store']);
     Route::put('/teams/{team}/groups/{group}', [TeamGroupController::class, 'update']);
     Route::delete('/teams/{team}/groups/{group}', [TeamGroupController::class, 'destroy']);
+    Route::put('/teams/{team}/group-config', [TeamGroupConfigurationController::class, 'sync']);
 
 
    Route::prefix('leagues')->group(function () {

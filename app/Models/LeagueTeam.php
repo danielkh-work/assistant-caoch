@@ -31,7 +31,17 @@ class LeagueTeam extends Model
         return $this->hasMany(TeamGroup::class, 'team_id');
     }
 
+    public function configuredGroups()
+    {
+        return $this->belongsToMany(
+            TeamGroup::class,
+            'team_group_configurations',
+            'team_id',
+            'team_group_id'
+        )->withTimestamps();
+    }
 
-    
+
+
     
 }

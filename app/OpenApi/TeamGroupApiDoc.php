@@ -36,6 +36,18 @@ namespace App\OpenApi;
  *     @OA\Property(property="player_ids", type="array", @OA\Items(type="integer", example=88), description="Team player IDs to attach to the group")
  * )
  *
+ * @OA\Schema(
+ *     schema="TeamGroupConfigurationSyncRequest",
+ *     type="object",
+ *     required={"group_ids"},
+ *     @OA\Property(
+ *         property="group_ids",
+ *         type="array",
+ *         description="Full replacement list of group IDs to keep configured for the team. Any previously configured group not included here will be removed.",
+ *         @OA\Items(type="integer", example=12)
+ *     )
+ * )
+ *
  * @OA\Get(
  *     path="/api/teams/{team}/groups",
  *     tags={"Team Groups"},
@@ -50,7 +62,8 @@ namespace App\OpenApi;
  *     @OA\Parameter(name="team_id", in="query", required=false, @OA\Schema(type="integer", example=216)),
  *     @OA\Parameter(name="team", in="query", required=false, @OA\Schema(type="integer", example=216)),
  *     @OA\Response(response=200, description="Team groups listed", @OA\JsonContent(type="object", @OA\Property(property="status", type="integer", example=200), @OA\Property(property="message", type="string", example="Team groups fetched successfully"), @OA\Property(property="data", type="array", @OA\Items(ref="#/components/schemas/TeamGroup")))),
- *     @OA\Response(response=401, description="Unauthenticated")
+ *     @OA\Response(response=401, description="Unauthenticated"),
+ *     security={{"sanctum":{}}}
  * )
  *
  * @OA\Post(
@@ -61,18 +74,21 @@ namespace App\OpenApi;
  *     @OA\Parameter(name="team", in="path", required=true, @OA\Schema(type="integer", example=216)),
  *     @OA\RequestBody(required=true, @OA\JsonContent(ref="#/components/schemas/TeamGroupWriteRequest")),
  *     @OA\Response(response=200, description="Team group created", @OA\JsonContent(ref="#/components/schemas/TeamGroup")),
- *     @OA\Response(response=422, description="Validation error")
+ *     @OA\Response(response=422, description="Validation error"),
+ *     security={{"sanctum":{}}}
  * )
  *
  * @OA\Put(
- *     path="/api/groups/{group}",
+ *     path="/api/teams/{team}/groups/{group}",
  *     tags={"Team Groups"},
  *     summary="Update team group",
- *     description="Updates the group attributes and synchronizes attached players through the pivot table.",
+ *     description="Updates the group attributes and synchronizes attached players through the pivot table. The `team` segment must match the owning team of the group.",
+ *     @OA\Parameter(name="team", in="path", required=true, @OA\Schema(type="integer", example=216)),
  *     @OA\Parameter(name="group", in="path", required=true, @OA\Schema(type="integer", example=12)),
  *     @OA\RequestBody(required=true, @OA\JsonContent(ref="#/components/schemas/TeamGroupWriteRequest")),
  *     @OA\Response(response=200, description="Team group updated", @OA\JsonContent(ref="#/components/schemas/TeamGroup")),
- *     @OA\Response(response=422, description="Validation error")
+ *     @OA\Response(response=422, description="Validation error"),
+ *     security={{"sanctum":{}}}
  * )
  *
  * @OA\Delete(
@@ -83,7 +99,20 @@ namespace App\OpenApi;
  *     @OA\Parameter(name="team", in="path", required=true, @OA\Schema(type="integer", example=216)),
  *     @OA\Parameter(name="group", in="path", required=true, @OA\Schema(type="integer", example=12)),
  *     @OA\Response(response=200, description="Team group deleted successfully"),
- *     @OA\Response(response=422, description="Group not found")
+ *     @OA\Response(response=422, description="Group not found"),
+ *     security={{"sanctum":{}}}
+ * )
+ *
+ * @OA\Put(
+ *     path="/api/teams/{team}/group-config",
+ *     tags={"Team Groups"},
+ *     summary="Sync team group configuration",
+ *     description="Replace-all sync endpoint for a team's configured groups. Submitted group IDs are added, and any previously configured groups missing from the request are removed. Validation rejects groups that do not belong to the team, are not active, or do not have a player count matching the group segment.",
+ *     @OA\Parameter(name="team", in="path", required=true, @OA\Schema(type="integer", example=216)),
+ *     @OA\RequestBody(required=true, @OA\JsonContent(ref="#/components/schemas/TeamGroupConfigurationSyncRequest")),
+ *     @OA\Response(response=200, description="Team group configuration synced successfully"),
+ *     @OA\Response(response=422, description="Validation error"),
+ *     security={{"sanctum":{}}}
  * )
  *
  * @OA\Get(
@@ -92,7 +121,8 @@ namespace App\OpenApi;
  *     summary="List team roster for grouping",
  *     description="Returns the team player roster used by the team-group editor.",
  *     @OA\Parameter(name="team", in="path", required=true, @OA\Schema(type="integer", example=216)),
- *     @OA\Response(response=200, description="Team players listed")
+ *     @OA\Response(response=200, description="Team players listed"),
+ *     security={{"sanctum":{}}}
  * )
  */
 final class TeamGroupApiDoc
