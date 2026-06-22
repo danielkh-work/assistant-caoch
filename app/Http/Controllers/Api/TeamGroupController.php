@@ -14,9 +14,9 @@ class TeamGroupController extends Controller
 {
     public function index(Request $request, $teamId = null)
     {
+        $effectiveTeamId = $teamId;
         $query = TeamGroup::query()->with(['players']);
 
-        $effectiveTeamId = $teamId ?: $request->query('team_id') ?: $request->query('team');
         if ($effectiveTeamId) {
             $query->where('team_id', $effectiveTeamId);
         }

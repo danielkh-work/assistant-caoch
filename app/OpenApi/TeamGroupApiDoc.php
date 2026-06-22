@@ -20,7 +20,29 @@ namespace App\OpenApi;
  *     @OA\Property(property="segment", type="integer", enum={7,11,12}, example=11, description="Legacy alias: `group_level`"),
  *     @OA\Property(property="group_level", type="integer", nullable=true, example=11, description="Legacy alias for `segment`"),
  *     @OA\Property(property="status", type="string", enum={"active", "inactive", "draft"}, example="active"),
+ *     @OA\Property(property="is_playing", type="boolean", example=true, description="True when the group is included in the team's active configuration"),
  *     @OA\Property(property="players", type="array", @OA\Items(type="object"))
+ * )
+ *
+ * @OA\Schema(
+ *     schema="TeamPlayerRosterItem",
+ *     type="object",
+ *     @OA\Property(property="player_id", type="integer", example=88),
+ *     @OA\Property(property="name", type="string", example="Will Johnson"),
+ *     @OA\Property(property="player", type="string", example="Will Johnson"),
+ *     @OA\Property(property="target", type="string", example="WR"),
+ *     @OA\Property(property="number", type="string", example="12"),
+ *     @OA\Property(property="strength", type="integer", example=80),
+ *     @OA\Property(property="height", type="string", example="6-1"),
+ *     @OA\Property(property="weight", type="string", example="210"),
+ *     @OA\Property(property="dob_raw", type="string", nullable=true, example="2001-04-20"),
+ *     @OA\Property(property="speed", type="integer", example=92),
+ *     @OA\Property(property="positions", type="array", @OA\Items(type="object")),
+ *     @OA\Property(property="ofp", type="string", example="N/A"),
+ *     @OA\Property(property="size", type="integer", example=0),
+ *     @OA\Property(property="is_playing", type="boolean", example=true, description="True when the player belongs to a configured playing group"),
+ *     @OA\Property(property="fromDatabase", type="boolean", example=true),
+ *     @OA\Property(property="position", type="string", example="N/A")
  * )
  *
  * @OA\Schema(
@@ -52,15 +74,13 @@ namespace App\OpenApi;
  *     path="/api/teams/{team}/groups",
  *     tags={"Team Groups"},
  *     summary="List team groups",
- *     description="Returns team-scoped groups. Supported filters: `name`, `search`, `status`, `type`, `segment`, `team_id`, and `team`.",
+ *     description="Returns team-scoped groups. Supported filters: `name`, `search`, `status`, `type`, and `segment`. The team is resolved from the route `/teams/{team}`.",
  *     @OA\Parameter(name="team", in="path", required=true, @OA\Schema(type="integer", example=216)),
  *     @OA\Parameter(name="name", in="query", required=false, @OA\Schema(type="string", example="pressure")),
  *     @OA\Parameter(name="search", in="query", required=false, @OA\Schema(type="string", example="pressure")),
  *     @OA\Parameter(name="status", in="query", required=false, @OA\Schema(type="string", enum={"active", "inactive", "draft"})),
  *     @OA\Parameter(name="type", in="query", required=false, @OA\Schema(type="string", enum={"offense", "defense"})),
  *     @OA\Parameter(name="segment", in="query", required=false, @OA\Schema(type="integer", enum={7,11,12})),
- *     @OA\Parameter(name="team_id", in="query", required=false, @OA\Schema(type="integer", example=216)),
- *     @OA\Parameter(name="team", in="query", required=false, @OA\Schema(type="integer", example=216)),
  *     @OA\Response(response=200, description="Team groups listed", @OA\JsonContent(type="object", @OA\Property(property="status", type="integer", example=200), @OA\Property(property="message", type="string", example="Team groups fetched successfully"), @OA\Property(property="data", type="array", @OA\Items(ref="#/components/schemas/TeamGroup")))),
  *     @OA\Response(response=401, description="Unauthenticated"),
  *     security={{"sanctum":{}}}
@@ -121,7 +141,7 @@ namespace App\OpenApi;
  *     summary="List team roster for grouping",
  *     description="Returns the team player roster used by the team-group editor.",
  *     @OA\Parameter(name="team", in="path", required=true, @OA\Schema(type="integer", example=216)),
- *     @OA\Response(response=200, description="Team players listed"),
+ *     @OA\Response(response=200, description="Team players listed", @OA\JsonContent(type="object", @OA\Property(property="status", type="integer", example=200), @OA\Property(property="message", type="string", example="Team players fetched successfully"), @OA\Property(property="data", type="array", @OA\Items(ref="#/components/schemas/TeamPlayerRosterItem")))),
  *     security={{"sanctum":{}}}
  * )
  */

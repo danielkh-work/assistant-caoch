@@ -7,9 +7,11 @@ use App\Http\Responses\BaseResponse;
 use App\Models\LeagueTeam;
 use App\Models\PracticeTeamPlayer;
 use App\Models\Team;
+use App\Models\TeamGroup;
 use App\Models\TeamPlayer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 
 class TeamController extends Controller
@@ -93,9 +95,13 @@ class TeamController extends Controller
             });
         }
 
+        $playingPlayerIds = $this->configuredPlayingPlayerIdSetForTeam((int) $id);
         $paginator = $query->paginate($perPage, ['*'], 'page', $page);
 
-        $rows = $paginator->getCollection()->map(fn (TeamPlayer $tp) => $this->teamPlayerEditRowFormat($tp))->values()->all();
+        $rows = $paginator->getCollection()
+            ->map(fn (TeamPlayer $tp) => $this->teamPlayerEditRowFormat($tp, $playingPlayerIds))
+            ->values()
+            ->all();
 
         $pagination = [
             'total' => $paginator->total(),
@@ -190,7 +196,10 @@ class TeamController extends Controller
             });
         }
 
-        $players = $query->get()->map(fn (TeamPlayer $tp) => $this->teamPlayerEditRowFormat($tp))->values();
+        $playingPlayerIds = $this->configuredPlayingPlayerIdSetForTeam((int) $id);
+        $players = $query->get()
+            ->map(fn (TeamPlayer $tp) => $this->teamPlayerEditRowFormat($tp, $playingPlayerIds))
+            ->values();
 
         return new BaseResponse(
             STATUS_CODE_OK,
@@ -198,6 +207,24 @@ class TeamController extends Controller
             'Team players fetched successfully',
             $players
         );
+    }
+
+    /**
+     * @return array<int,true>
+     */
+    private function configuredPlayingPlayerIdSetForTeam(int $teamId): array
+    {
+        if (! Schema::hasTable('team_group_configurations')) {
+            return [];
+        }
+
+        $team = LeagueTeam::query()->find($teamId);
+
+        if (! $team) {
+            return [];
+        }
+
+        return array_fill_keys($team->configuredPlayerIds(), true);
     }
 
     private function practiceTeamPlayerEditRowFormat(PracticeTeamPlayer $ptp): array
@@ -255,7 +282,7 @@ class TeamController extends Controller
         ];
     }
 
-    private function teamPlayerEditRowFormat(TeamPlayer $tp): array
+    private function teamPlayerEditRowFormat(TeamPlayer $tp, array $playingPlayerIds = []): array
     {
         $name = ($tp->name !== null && $tp->name !== '') ? $tp->name : ($tp->player?->name ?: 'N/A');
 
@@ -302,6 +329,7 @@ class TeamController extends Controller
             'positions' => $positions,
             'ofp' => $rpp !== null && $rpp !== '' ? $rpp : 'N/A',
             'size' => $tp->size,
+            'is_playing' => isset($playingPlayerIds[(int) $tp->id]),
             'fromDatabase' => true,
             'position' => $tp->position_value !== null && $tp->position_value !== '' ? $tp->position_value : 'N/A',
         ];

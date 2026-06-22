@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Schema;
 
 class TeamGroup extends Model
 {
@@ -22,6 +23,7 @@ class TeamGroup extends Model
     protected $appends = [
         'group_name',
         'group_level',
+        'is_playing',
     ];
 
     protected static function boot()
@@ -109,5 +111,22 @@ class TeamGroup extends Model
     public function getGroupLevelAttribute(): ?int
     {
         return $this->segment !== null ? (int) $this->segment : null;
+    }
+
+    public function getIsPlayingAttribute(): bool
+    {
+        if (strtolower((string) $this->status) !== 'active') {
+            return false;
+        }
+
+        if (! Schema::hasTable('team_group_configurations')) {
+            return false;
+        }
+
+        if ($this->relationLoaded('configuredTeams')) {
+            return $this->configuredTeams->isNotEmpty();
+        }
+
+        return $this->configuredTeams()->exists();
     }
 }

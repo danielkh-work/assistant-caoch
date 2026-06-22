@@ -2068,7 +2068,7 @@
                     "Team Groups"
                 ],
                 "summary": "List team groups",
-                "description": "Returns team-scoped groups. Supported filters: `name`, `search`, `status`, `type`, `segment`, `team_id`, and `team`.",
+                "description": "Returns team-scoped groups. Supported filters: `name`, `search`, `status`, `type`, and `segment`. The team is resolved from the route `/teams/{team}`.",
                 "operationId": "7dff8ef97845308d689a5ee9cad0c697",
                 "parameters": [
                     {
@@ -2134,24 +2134,6 @@
                                 11,
                                 12
                             ]
-                        }
-                    },
-                    {
-                        "name": "team_id",
-                        "in": "query",
-                        "required": false,
-                        "schema": {
-                            "type": "integer",
-                            "example": 216
-                        }
-                    },
-                    {
-                        "name": "team",
-                        "in": "query",
-                        "required": false,
-                        "schema": {
-                            "type": "integer",
-                            "example": 216
                         }
                     }
                 ],
@@ -2408,7 +2390,30 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Team players listed"
+                        "description": "Team players listed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Team players fetched successfully"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/TeamPlayerRosterItem"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [
@@ -3736,11 +3741,89 @@
                         ],
                         "example": "active"
                     },
+                    "is_playing": {
+                        "description": "True when the group is included in the team's active configuration",
+                        "type": "boolean",
+                        "example": true
+                    },
                     "players": {
                         "type": "array",
                         "items": {
                             "type": "object"
                         }
+                    }
+                },
+                "type": "object"
+            },
+            "TeamPlayerRosterItem": {
+                "properties": {
+                    "player_id": {
+                        "type": "integer",
+                        "example": 88
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Will Johnson"
+                    },
+                    "player": {
+                        "type": "string",
+                        "example": "Will Johnson"
+                    },
+                    "target": {
+                        "type": "string",
+                        "example": "WR"
+                    },
+                    "number": {
+                        "type": "string",
+                        "example": "12"
+                    },
+                    "strength": {
+                        "type": "integer",
+                        "example": 80
+                    },
+                    "height": {
+                        "type": "string",
+                        "example": "6-1"
+                    },
+                    "weight": {
+                        "type": "string",
+                        "example": "210"
+                    },
+                    "dob_raw": {
+                        "type": "string",
+                        "example": "2001-04-20",
+                        "nullable": true
+                    },
+                    "speed": {
+                        "type": "integer",
+                        "example": 92
+                    },
+                    "positions": {
+                        "type": "array",
+                        "items": {
+                            "type": "object"
+                        }
+                    },
+                    "ofp": {
+                        "type": "string",
+                        "example": "N/A"
+                    },
+                    "size": {
+                        "type": "integer",
+                        "example": 0
+                    },
+                    "is_playing": {
+                        "description": "True when the player belongs to a configured playing group",
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "fromDatabase": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "position": {
+                        "type": "string",
+                        "example": "N/A"
                     }
                 },
                 "type": "object"
