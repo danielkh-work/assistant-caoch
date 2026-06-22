@@ -166,6 +166,40 @@ class TeamController extends Controller
         );
     }
 
+    /**
+     * Full roster payload for the team-group editor.
+     */
+    public function players(Request $request, $id)
+    {
+        if (! LeagueTeam::whereKey($id)->exists()) {
+            return new BaseResponse(STATUS_CODE_UNPROCESSABLE, STATUS_CODE_UNPROCESSABLE, 'Team not found.');
+        }
+
+        $searchTerm = trim((string) $request->query('search', ''));
+
+        $query = TeamPlayer::query()
+            ->where('team_id', $id)
+            ->with(['teamPlayerPosition', 'player.playerPosition'])
+            ->orderBy('player_id');
+
+        if ($searchTerm !== '') {
+            $needle = '%' . addcslashes($searchTerm, '%_\\') . '%';
+            $query->where(function ($q) use ($needle) {
+                $q->where('name', 'like', $needle)
+                    ->orWhereHas('player', fn ($player) => $player->where('name', 'like', $needle));
+            });
+        }
+
+        $players = $query->get()->map(fn (TeamPlayer $tp) => $this->teamPlayerEditRowFormat($tp))->values();
+
+        return new BaseResponse(
+            STATUS_CODE_OK,
+            STATUS_CODE_OK,
+            'Team players fetched successfully',
+            $players
+        );
+    }
+
     private function practiceTeamPlayerEditRowFormat(PracticeTeamPlayer $ptp): array
     {
         $name = ($ptp->name !== null && $ptp->name !== '')

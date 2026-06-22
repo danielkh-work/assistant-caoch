@@ -21,9 +21,14 @@ class LeagueTeam extends Model
     {
         return $this->hasOne(User::class, 'team_id')->where('role', 'qb');
     }
-     public function practiceTeamplayer()
+    public function practiceTeamplayer()
     {
         return $this->hasMany(PracticeTeamPlayer::class,'team_id');
+    }
+
+    public function groups()
+    {
+        return $this->hasMany(TeamGroup::class, 'team_id');
     }
 
 
