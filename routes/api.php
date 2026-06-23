@@ -90,11 +90,16 @@ use App\Http\Controllers\Api\ConfigurationController;
 
 Route::prefix('qb')->group(function () {
 
-    Route::match(['get', 'post'], 'login-with-session', [AuthController::class, 'loginWithSession']);
      Route::middleware('auth:sanctum')->post('/scoreboard/broadcast', [BroadCastScoreController::class, 'scoreBoardBroadCastQB']);
      Route::middleware('auth:sanctum')->post('/play/scoreboard/broadcast', [BroadCastScoreController::class, 'scoreBoardBroadCastPlay']);
     //Route::post('/scoreboard/broadcast', [BroadCastScoreController::class, 'scoreBoardBroadCastQB']);
 });
+
+// Device app endpoints (FOR APP)
+Route::match(['get', 'post'], '/devices/login-with-code', [AuthController::class, 'loginDeviceWithCode']);
+
+Route::get('/devices/logout/{id}', [WebQrController::class, 'logoutDeviceApplication']);
+Route::get('/devices/session-status/{session_id}', [WebQrController::class, 'deviceSessionStatus']);
 
 
 Route::middleware('auth:sanctum')->group(function () {

@@ -121,6 +121,51 @@ class WebQrController extends Controller
         ));
     }
 
+    /**
+     * Logout device application by device ID
+     */
+    public function logoutDeviceApplication(string $id)
+    {
+        $device = Device::find($id);
+
+        if (!$device) {
+            return response()->json([
+                'status' => 404,
+                'message' => 'Device not found'
+            ]);
+        }
+
+        $coach = $device->user_id ? User::find($device->user_id) : null;
+
+        return response()->json(DeviceLogoutBroadcaster::logoutAndBroadcast(
+            $device,
+            $coach,
+            []
+        ));
+    }
+
+    /**
+     * Check device session login status by session ID
+     */
+    public function deviceSessionStatus(string $session_id)
+    {
+        $device = Device::where('session_id', $session_id)->first();
+
+        if ($device === null) {
+            return response()->json([
+                'status' => 401,
+                'message' => 'Unauthenticated',
+            ], 401);
+        }
+
+        return response()->json([
+            'status' => 200,
+            'session_id' => $session_id,
+            'logged_in' => $device->tokens()->exists(),
+            'device' => DeviceSessionBroadcaster::deviceFields($device),
+        ]);
+    }
+
     private function optionalSanctumTokenable(Request $request): User|Device|null
     {
         $user = $request->user('sanctum');

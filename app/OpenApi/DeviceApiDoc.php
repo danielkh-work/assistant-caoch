@@ -227,6 +227,138 @@ namespace App\OpenApi;
  *     @OA\Response(response=200, description="Device logged out successfully")
  * )
  *
+ * @OA\Post(
+ *     path="/api/devices/login-with-code",
+ *     operationId="loginDeviceWithCode",
+ *     tags={"Devices"},
+ *     summary="Login device with pairing code (FOR APP)",
+ *     description="Authenticate device using 4-digit pairing code and session UUID. Issues Sanctum device token and broadcasts login event to head coach. FOR APP - Mobile device authentication endpoint.",
+ *     @OA\RequestBody(
+ *         required=true,
+ *         @OA\JsonContent(
+ *             required={"session_id", "code"},
+ *             @OA\Property(property="session_id", type="string", format="uuid", description="Client-generated session UUID"),
+ *             @OA\Property(property="code", type="string", pattern="^[0-9]{4}$", description="4-digit pairing code from device")
+ *         )
+ *     ),
+ *     @OA\Response(
+ *         response=200,
+ *         description="Device logged in successfully",
+ *         @OA\JsonContent(
+ *             @OA\Property(property="status", type="integer", example=200),
+ *             @OA\Property(property="message", type="string", example="Login successful"),
+ *             @OA\Property(
+ *                 property="device",
+ *                 type="object",
+ *                 @OA\Property(property="id", type="integer", example=5),
+ *                 @OA\Property(property="device_id", type="string", example="QB-4821"),
+ *                 @OA\Property(property="device_name", type="string", example="Device Name"),
+ *                 @OA\Property(property="pairing_code", type="string", example="1234"),
+ *                 @OA\Property(property="status", type="string", example="registered"),
+ *                 @OA\Property(property="team_id", type="integer", nullable=true),
+ *                 @OA\Property(property="user_id", type="integer", nullable=true),
+ *                 @OA\Property(property="session_id", type="string", nullable=true),
+ *                 @OA\Property(property="paired_at", type="string", format="date-time", nullable=true),
+ *                 @OA\Property(property="is_connected", type="boolean", example=true)
+ *             ),
+ *             @OA\Property(property="league_ids", type="array", @OA\Items(type="integer"), description="Associated league IDs"),
+ *             @OA\Property(property="access_token", type="string", example="1|device-token"),
+ *             @OA\Property(property="token_type", type="string", example="Bearer")
+ *         )
+ *     ),
+ *     @OA\Response(response=401, description="Invalid pairing code"),
+ *     @OA\Response(response=403, description="Device has been deactivated")
+ * )
+ *
+ * @OA\Get(
+ *     path="/api/devices/logout/{id}",
+ *     operationId="logoutDeviceApplication",
+ *     tags={"Devices"},
+ *     summary="Logout device application by device ID (FOR APP)",
+ *     description="Revokes device tokens, clears session_id, and broadcasts logout events to mobile app and head coach dashboard. FOR APP - Mobile device logout endpoint.",
+ *     @OA\Parameter(
+ *         name="id",
+ *         in="path",
+ *         required=true,
+ *         description="Device primary key",
+ *         @OA\Schema(type="integer", example=5)
+ *     ),
+ *     @OA\Response(
+ *         response=200,
+ *         description="Device logged out successfully",
+ *         @OA\JsonContent(
+ *             @OA\Property(property="status", type="integer", example=200),
+ *             @OA\Property(property="message", type="string", example="logout successful"),
+ *             @OA\Property(property="is_loggin", type="boolean", example=false),
+ *             @OA\Property(
+ *                 property="user",
+ *                 type="object",
+ *                 @OA\Property(property="id", type="integer", example=5),
+ *                 @OA\Property(property="device_id", type="string", example="QB-4821"),
+ *                 @OA\Property(property="name", type="string", example="Device Name"),
+ *                 @OA\Property(property="email", type="string", example=""),
+ *                 @OA\Property(property="role", type="string", example="device"),
+ *                 @OA\Property(property="session_id", type="string", nullable=true),
+ *                 @OA\Property(property="code", type="string", example="1234"),
+ *                 @OA\Property(property="head_coach_id", type="integer", nullable=true),
+ *                 @OA\Property(property="league_id", type="integer", nullable=true),
+ *                 @OA\Property(property="team_id", type="integer", nullable=true),
+ *                 @OA\Property(property="is_loggin", type="boolean", example=false),
+ *                 @OA\Property(property="device_name", type="string"),
+ *                 @OA\Property(property="pairing_code", type="string"),
+ *                 @OA\Property(property="status", type="string", example="registered")
+ *             )
+ *         )
+ *     ),
+ *     @OA\Response(response=404, description="Device not found")
+ * )
+ *
+ * @OA\Get(
+ *     path="/api/devices/session-status/{session_id}",
+ *     operationId="deviceSessionStatus",
+ *     tags={"Devices"},
+ *     summary="Check device session login status (FOR APP)",
+ *     description="Returns 200 when a device is bound to the given mobile session UUID. Returns 401 when no device has this session_id. FOR APP - Mobile device session check endpoint.",
+ *     @OA\Parameter(
+ *         name="session_id",
+ *         in="path",
+ *         required=true,
+ *         description="Mobile pairing session UUID",
+ *         @OA\Schema(type="string", format="uuid", example="822fc835-75aa-48bf-8473-354a4913aab2")
+ *     ),
+ *     @OA\Response(
+ *         response=200,
+ *         description="Device is linked to this session",
+ *         @OA\JsonContent(
+ *             @OA\Property(property="status", type="integer", example=200),
+ *             @OA\Property(property="session_id", type="string", format="uuid"),
+ *             @OA\Property(property="logged_in", type="boolean", description="True if device has active Sanctum tokens", example=true),
+ *             @OA\Property(
+ *                 property="device",
+ *                 type="object",
+ *                 @OA\Property(property="id", type="integer", example=5),
+ *                 @OA\Property(property="device_id", type="string", example="QB-4821"),
+ *                 @OA\Property(property="device_name", type="string", example="Device Name"),
+ *                 @OA\Property(property="pairing_code", type="string", example="1234"),
+ *                 @OA\Property(property="status", type="string", example="registered"),
+ *                 @OA\Property(property="team_id", type="integer", nullable=true),
+ *                 @OA\Property(property="user_id", type="integer", nullable=true),
+ *                 @OA\Property(property="session_id", type="string", nullable=true),
+ *                 @OA\Property(property="paired_at", type="string", format="date-time", nullable=true),
+ *                 @OA\Property(property="is_connected", type="boolean", description="True if device has active Sanctum tokens", example=true)
+ *             )
+ *         )
+ *     ),
+ *     @OA\Response(
+ *         response=401,
+ *         description="Unauthenticated — no device with this session_id",
+ *         @OA\JsonContent(
+ *             @OA\Property(property="status", type="integer", example=401),
+ *             @OA\Property(property="message", type="string", example="Unauthenticated")
+ *         )
+ *     )
+ * )
+ *
  *
  *
  */
