@@ -1092,27 +1092,33 @@
                 ]
             }
         },
-        "/api/devices/pair": {
+        "/api/devices/login-with-code": {
             "post": {
                 "tags": [
                     "Devices"
                 ],
-                "summary": "Pair a physical device",
-                "description": "Accept a 4-digit pairing code or QR token from the mobile app. Issues a Sanctum device token and returns associated league IDs for Pusher subscription.",
-                "operationId": "pairDevice",
+                "summary": "Login device with pairing code (FOR APP)",
+                "description": "Authenticate device using 4-digit pairing code and session UUID. Issues Sanctum device token and broadcasts login event to head coach. FOR APP - Mobile device authentication endpoint.",
+                "operationId": "loginDeviceWithCode",
                 "requestBody": {
                     "required": true,
                     "content": {
                         "application/json": {
                             "schema": {
+                                "required": [
+                                    "session_id",
+                                    "code"
+                                ],
                                 "properties": {
-                                    "pairing_code": {
+                                    "session_id": {
+                                        "description": "Client-generated session UUID",
                                         "type": "string",
-                                        "example": "1234"
+                                        "format": "uuid"
                                     },
-                                    "qr_token": {
+                                    "code": {
+                                        "description": "4-digit pairing code from device",
                                         "type": "string",
-                                        "example": "abc123token"
+                                        "pattern": "^[0-9]{4}$"
                                     }
                                 },
                                 "type": "object"
@@ -1122,7 +1128,7 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "Device paired successfully",
+                        "description": "Device logged in successfully",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1133,22 +1139,178 @@
                                         },
                                         "message": {
                                             "type": "string",
-                                            "example": "Device paired successfully"
+                                            "example": "Login successful"
                                         },
-                                        "data": {
+                                        "device": {
                                             "properties": {
-                                                "token": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 5
+                                                },
+                                                "device_id": {
                                                     "type": "string",
-                                                    "example": "1|device-token"
+                                                    "example": "QB-4821"
                                                 },
-                                                "device": {
-                                                    "type": "object"
+                                                "device_name": {
+                                                    "type": "string",
+                                                    "example": "Device Name"
                                                 },
-                                                "league_ids": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "type": "integer"
-                                                    }
+                                                "pairing_code": {
+                                                    "type": "string",
+                                                    "example": "1234"
+                                                },
+                                                "status": {
+                                                    "type": "string",
+                                                    "example": "registered"
+                                                },
+                                                "team_id": {
+                                                    "type": "integer",
+                                                    "nullable": true
+                                                },
+                                                "user_id": {
+                                                    "type": "integer",
+                                                    "nullable": true
+                                                },
+                                                "session_id": {
+                                                    "type": "string",
+                                                    "nullable": true
+                                                },
+                                                "paired_at": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "nullable": true
+                                                },
+                                                "is_connected": {
+                                                    "type": "boolean",
+                                                    "example": true
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "league_ids": {
+                                            "description": "Associated league IDs",
+                                            "type": "array",
+                                            "items": {
+                                                "type": "integer"
+                                            }
+                                        },
+                                        "access_token": {
+                                            "type": "string",
+                                            "example": "1|device-token"
+                                        },
+                                        "token_type": {
+                                            "type": "string",
+                                            "example": "Bearer"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid pairing code"
+                    },
+                    "403": {
+                        "description": "Device has been deactivated"
+                    }
+                }
+            }
+        },
+        "/api/devices/logout/{id}": {
+            "get": {
+                "tags": [
+                    "Devices"
+                ],
+                "summary": "Logout device application by device ID (FOR APP)",
+                "description": "Revokes device tokens, clears session_id, and broadcasts logout events to mobile app and head coach dashboard. FOR APP - Mobile device logout endpoint.",
+                "operationId": "logoutDeviceApplication",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Device primary key",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 5
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Device logged out successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "logout successful"
+                                        },
+                                        "is_loggin": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "user": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 5
+                                                },
+                                                "device_id": {
+                                                    "type": "string",
+                                                    "example": "QB-4821"
+                                                },
+                                                "name": {
+                                                    "type": "string",
+                                                    "example": "Device Name"
+                                                },
+                                                "email": {
+                                                    "type": "string",
+                                                    "example": ""
+                                                },
+                                                "role": {
+                                                    "type": "string",
+                                                    "example": "device"
+                                                },
+                                                "session_id": {
+                                                    "type": "string",
+                                                    "nullable": true
+                                                },
+                                                "code": {
+                                                    "type": "string",
+                                                    "example": "1234"
+                                                },
+                                                "head_coach_id": {
+                                                    "type": "integer",
+                                                    "nullable": true
+                                                },
+                                                "league_id": {
+                                                    "type": "integer",
+                                                    "nullable": true
+                                                },
+                                                "team_id": {
+                                                    "type": "integer",
+                                                    "nullable": true
+                                                },
+                                                "is_loggin": {
+                                                    "type": "boolean",
+                                                    "example": false
+                                                },
+                                                "device_name": {
+                                                    "type": "string"
+                                                },
+                                                "pairing_code": {
+                                                    "type": "string"
+                                                },
+                                                "status": {
+                                                    "type": "string",
+                                                    "example": "registered"
                                                 }
                                             },
                                             "type": "object"
@@ -1159,53 +1321,119 @@
                             }
                         }
                     },
-                    "422": {
-                        "description": "Invalid or inactive pairing code"
+                    "404": {
+                        "description": "Device not found"
                     }
                 }
             }
         },
-        "/api/devices/me": {
+        "/api/devices/session-status/{session_id}": {
             "get": {
                 "tags": [
                     "Devices"
                 ],
-                "summary": "Get authenticated device profile",
-                "operationId": "getAuthenticatedDevice",
-                "responses": {
-                    "200": {
-                        "description": "Device profile retrieved successfully"
-                    }
-                },
-                "security": [
+                "summary": "Check device session login status (FOR APP)",
+                "description": "Returns 200 when a device is bound to the given mobile session UUID. Returns 401 when no device has this session_id. FOR APP - Mobile device session check endpoint.",
+                "operationId": "deviceSessionStatus",
+                "parameters": [
                     {
-                        "sanctum": []
+                        "name": "session_id",
+                        "in": "path",
+                        "description": "Mobile pairing session UUID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "example": "822fc835-75aa-48bf-8473-354a4913aab2"
+                        }
                     }
-                ]
-            }
-        },
-        "/api/mobile/create-session": {
-            "post": {
-                "tags": [
-                    "Devices"
                 ],
-                "summary": "Create mobile pairing session",
-                "description": "Returns a UUID session_id for the mobile app to encode in its QR code. Optional Bearer token (device) refreshes session_id on an already-paired device when reopening the QR screen.",
-                "operationId": "createMobileDeviceSession",
-                "requestBody": {
-                    "required": false
-                },
                 "responses": {
                     "200": {
-                        "description": "Session created",
+                        "description": "Device is linked to this session",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
                                         "session_id": {
                                             "type": "string",
-                                            "format": "uuid",
-                                            "example": "822fc835-75aa-48bf-8473-354a4913aab2"
+                                            "format": "uuid"
+                                        },
+                                        "logged_in": {
+                                            "description": "True if device has active Sanctum tokens",
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "device": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 5
+                                                },
+                                                "device_id": {
+                                                    "type": "string",
+                                                    "example": "QB-4821"
+                                                },
+                                                "device_name": {
+                                                    "type": "string",
+                                                    "example": "Device Name"
+                                                },
+                                                "pairing_code": {
+                                                    "type": "string",
+                                                    "example": "1234"
+                                                },
+                                                "status": {
+                                                    "type": "string",
+                                                    "example": "registered"
+                                                },
+                                                "team_id": {
+                                                    "type": "integer",
+                                                    "nullable": true
+                                                },
+                                                "user_id": {
+                                                    "type": "integer",
+                                                    "nullable": true
+                                                },
+                                                "session_id": {
+                                                    "type": "string",
+                                                    "nullable": true
+                                                },
+                                                "paired_at": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "nullable": true
+                                                },
+                                                "is_connected": {
+                                                    "description": "True if device has active Sanctum tokens",
+                                                    "type": "boolean",
+                                                    "example": true
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated — no device with this session_id",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 401
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthenticated"
                                         }
                                     },
                                     "type": "object"

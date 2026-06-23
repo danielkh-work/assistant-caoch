@@ -28,7 +28,7 @@ class WebQrControllerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         if (!Schema::hasTable('mobile_sessions') || !Schema::hasTable('users')) {
             $this->markTestSkipped('Backend schema issue: required tables for web QR testing not found');
         }
@@ -262,20 +262,6 @@ class WebQrControllerTest extends TestCase
 
     public function test_create_session_refreshes_session_for_logged_in_qb()
     {
-        $oldSessionId = Str::uuid()->toString();
-        $this->qbUser->session_id = $oldSessionId;
-        $this->qbUser->is_loggin = true;
-        $this->qbUser->save();
-
-        Sanctum::actingAs($this->qbUser);
-
-        $response = $this->postJson('/api/mobile/create-session');
-
-        $response->assertStatus(200);
-        $newSessionId = $response->json('session_id');
-        $this->assertNotSame($oldSessionId, $newSessionId);
-
-        $this->qbUser->refresh();
-        $this->assertSame($newSessionId, $this->qbUser->session_id);
+        $this->markTestSkipped('Endpoint /api/mobile/create-session has been removed');
     }
 }

@@ -17,33 +17,6 @@ use Laravel\Sanctum\PersonalAccessToken;
 
 class WebQrController extends Controller
 {
-    // Mobile generates session
-    public function createSession(Request $request)
-    {
-        $sessionId = Str::uuid()->toString();
-
-        if (\Illuminate\Support\Facades\Schema::hasTable('mobile_sessions')) {
-            MobileSession::create([
-                'mobile_user_id' => null,
-                'session_id' => $sessionId,
-                'status' => 'pending',
-            ]);
-        }
-
-        // Returning device or QB: refresh active session when app reopens QR screen.
-        $tokenable = $this->optionalSanctumTokenable($request);
-        if ($tokenable instanceof Device && $tokenable->tokens()->exists()) {
-            DeviceMobileSession::bind($tokenable, $sessionId);
-        } elseif ($tokenable instanceof User && $tokenable->role === 'qb' && $tokenable->is_loggin) {
-            QbMobileSession::refreshActiveSession($tokenable, $sessionId);
-        }
-
-        return response()->json([
-            'session_id' => $sessionId,
-        ]);
-    }
-
-  
     public function scanQr(Request $request)
     {
         $request->validate([
@@ -148,6 +121,51 @@ class WebQrController extends Controller
         ));
     }
 
+    /**
+     * Logout device application by device ID
+     */
+    public function logoutDeviceApplication(string $id)
+    {
+        $device = Device::find($id);
+
+        if (!$device) {
+            return response()->json([
+                'status' => 404,
+                'message' => 'Device not found'
+            ]);
+        }
+
+        $coach = $device->user_id ? User::find($device->user_id) : null;
+
+        return response()->json(DeviceLogoutBroadcaster::logoutAndBroadcast(
+            $device,
+            $coach,
+            []
+        ));
+    }
+
+    /**
+     * Check device session login status by session ID
+     */
+    public function deviceSessionStatus(string $session_id)
+    {
+        $device = Device::where('session_id', $session_id)->first();
+
+        if ($device === null) {
+            return response()->json([
+                'status' => 401,
+                'message' => 'Unauthenticated',
+            ], 401);
+        }
+
+        return response()->json([
+            'status' => 200,
+            'session_id' => $session_id,
+            'logged_in' => $device->tokens()->exists(),
+            'device' => DeviceSessionBroadcaster::deviceFields($device),
+        ]);
+    }
+
     private function optionalSanctumTokenable(Request $request): User|Device|null
     {
         $user = $request->user('sanctum');
@@ -174,5 +192,5 @@ class WebQrController extends Controller
     }
 
 
- 
+
 }
