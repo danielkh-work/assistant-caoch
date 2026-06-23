@@ -15,7 +15,7 @@ class TeamGroupController extends Controller
     public function index(Request $request, $teamId = null)
     {
         $effectiveTeamId = $teamId;
-        $query = TeamGroup::query()->with(['players']);
+        $query = TeamGroup::query()->with(['players', 'configuredTeams']);
 
         if ($effectiveTeamId) {
             $query->where('team_id', $effectiveTeamId);
@@ -73,16 +73,27 @@ class TeamGroupController extends Controller
         DB::beginTransaction();
 
         try {
+            $requestedStatus = $validated['status'] ?? 'draft';
+
+            // Create as draft first so the saving hook doesn't validate
+            // player count before we've had a chance to sync players.
             $group = TeamGroup::create([
                 'team_id' => (int) $teamId,
                 'name' => $validated['name'],
                 'description' => $validated['description'] ?? null,
                 'type' => strtolower($validated['type']),
                 'segment' => (int) $validated['segment'],
-                'status' => $validated['status'] ?? 'draft',
+                'status' => 'draft',
             ]);
 
+            // Sync players first, then apply the requested status so the
+            // hook can validate the correct player count.
             $group->players()->sync($this->normalizePlayerIds($request->input('player_ids', []), (int) $teamId));
+
+            if ($requestedStatus !== 'draft') {
+                $group->status = $requestedStatus;
+                $group->save();
+            }
 
             DB::commit();
 
@@ -132,6 +143,9 @@ class TeamGroupController extends Controller
         DB::beginTransaction();
 
         try {
+            $pendingStatus = array_key_exists('status', $validated) ? $validated['status'] : null;
+            $previousStatus = $group->status;
+
             if (array_key_exists('name', $validated)) {
                 $group->name = $validated['name'];
             }
@@ -144,14 +158,22 @@ class TeamGroupController extends Controller
             if (array_key_exists('segment', $validated)) {
                 $group->segment = (int) $validated['segment'];
             }
-            if (array_key_exists('status', $validated)) {
-                $group->status = $validated['status'];
-            }
 
+            // Temporarily force draft so the saving hook doesn't validate
+            // player count before we sync players below.
+            $group->status = 'draft';
             $group->save();
 
+            // Sync players first so ensureValidActivation sees the correct count.
             if ($request->has('player_ids')) {
                 $group->players()->sync($this->normalizePlayerIds($request->input('player_ids', []), (int) $group->team_id));
+            }
+
+            // Now apply the final status (triggers hook with correct player count).
+            $finalStatus = $pendingStatus ?? $previousStatus;
+            if ($group->status !== $finalStatus) {
+                $group->status = $finalStatus;
+                $group->save();
             }
 
             DB::commit();

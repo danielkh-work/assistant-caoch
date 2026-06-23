@@ -316,6 +316,7 @@ class TeamController extends Controller
         $rpp = $tp->rpp;
 
         return [
+            'id' => $tp->id,
             'player_id' => $tp->player_id,
             'name' => $name,
             'player' => $name,

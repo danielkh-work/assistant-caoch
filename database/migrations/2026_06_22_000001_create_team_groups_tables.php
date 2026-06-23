@@ -9,6 +9,9 @@ return new class extends Migration
 {
     public function up(): void
     {
+        Schema::dropIfExists('team_group_player');
+        Schema::dropIfExists('team_groups');
+
         Schema::create('team_groups', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('team_id')->index();

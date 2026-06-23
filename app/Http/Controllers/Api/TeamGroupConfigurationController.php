@@ -14,7 +14,7 @@ class TeamGroupConfigurationController extends Controller
     public function sync(Request $request, int $teamId)
     {
         $validated = $request->validate([
-            'group_ids' => ['required', 'array'],
+            'group_ids' => ['present', 'array'],
             'group_ids.*' => ['integer'],
         ]);
 
