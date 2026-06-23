@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\PersionalGrouping;
 use App\Models\TeamPlayer;
 use App\Models\PracticeTeamPlayer;
+use App\Models\TeamGameGroupConfiguration;
 
 use Illuminate\Support\Facades\DB;
 use App\Http\Responses\BaseResponse;
@@ -413,6 +414,106 @@ public function storeAllGroups(Request $request)
             "plays synced successfully",
              $responseData
         );
+    }
+
+    /**
+     * Get selected groups for a specific game and team.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \App\Http\Responses\BaseResponse
+     */
+    public function getSelectedGroups(Request $request)
+    {
+        $request->validate([
+            'game_id' => 'required|integer',
+            'team_id' => 'required|integer',
+        ]);
+
+        try {
+            $gameId = (int) $request->game_id;
+            $teamId = (int) $request->team_id;
+
+            $selectedGroupIds = TeamGameGroupConfiguration::getSelectedGroupIds($gameId, $teamId);
+
+            return new BaseResponse(
+                STATUS_CODE_OK,
+                STATUS_CODE_OK,
+                "Selected groups retrieved successfully",
+                [
+                    'game_id' => $gameId,
+                    'team_id' => $teamId,
+                    'selected_group_ids' => $selectedGroupIds,
+                ]
+            );
+        } catch (\Exception $e) {
+            return new BaseResponse(
+                STATUS_CODE_ERROR,
+                STATUS_CODE_ERROR,
+                "Failed to retrieve selected groups: " . $e->getMessage()
+            );
+        }
+    }
+
+    /**
+     * Update selected groups for a specific game and team.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \App\Http\Responses\BaseResponse
+     */
+    public function updateSelectedGroups(Request $request)
+    {
+        $request->validate([
+            'game_id' => 'required|integer',
+            'team_id' => 'required|integer',
+            'group_ids' => 'required|array',
+            'group_ids.*' => 'integer',
+        ]);
+
+        DB::beginTransaction();
+
+        try {
+            $gameId = (int) $request->game_id;
+            $teamId = (int) $request->team_id;
+            $groupIds = array_map('intval', $request->group_ids);
+
+            // Validate that all group IDs exist
+            $existingGroups = PersionalGrouping::whereIn('id', $groupIds)
+                ->where('game_id', $gameId)
+                ->where('team_id', $teamId)
+                ->pluck('id')
+                ->toArray();
+
+            if (count($existingGroups) !== count($groupIds)) {
+                DB::rollBack();
+                return new BaseResponse(
+                    STATUS_CODE_ERROR,
+                    STATUS_CODE_ERROR,
+                    "One or more group IDs are invalid or do not belong to this game and team"
+                );
+            }
+
+            TeamGameGroupConfiguration::updateSelectedGroups($gameId, $teamId, $groupIds);
+
+            DB::commit();
+
+            return new BaseResponse(
+                STATUS_CODE_OK,
+                STATUS_CODE_OK,
+                "Selected groups updated successfully",
+                [
+                    'game_id' => $gameId,
+                    'team_id' => $teamId,
+                    'selected_group_ids' => $groupIds,
+                ]
+            );
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return new BaseResponse(
+                STATUS_CODE_ERROR,
+                STATUS_CODE_ERROR,
+                "Failed to update selected groups: " . $e->getMessage()
+            );
+        }
     }
 
     /**

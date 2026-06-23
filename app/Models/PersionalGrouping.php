@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Game;
 use App\Models\PracticeTeamPlayer;
 use App\Models\TeamPlayer;
+use App\Models\TeamGameGroupConfiguration;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -678,6 +679,9 @@ class PersionalGrouping extends Model
      * still on the match configure roster (same rule as coach-vue `collectActiveGroupedPlayerIdsBySide`).
      * Historic group members shown as "Not in the match" are not kept. `special` rows are preserved.
      *
+     * If configured groups exist for a team/game, only those configured groups are used.
+     * Otherwise, all active groups are used (backward compatibility).
+     *
      * Run after {@see syncInvalidActivePracticeGroupStatusesForMatchEnd} so demoted groups are excluded.
      */
     public static function pruneMatchConfigurePlayersNotInAnyGroup(int $matchId): void
@@ -709,13 +713,18 @@ class PersionalGrouping extends Model
                 )
             );
 
+            // Check if configured groups exist for this team and game
+            $configuredGroupIds = TeamGameGroupConfiguration::getSelectedGroupIds($matchId, $side['team_id']);
+            $useConfiguredGroups = !empty($configuredGroupIds);
+
             $idsBySide = self::groupedPlayerIdsByConfigureSideFromGroups(
                 $side['team_id'],
                 $matchId,
                 $expectedGroupLevel,
                 $isPracticeConfigure,
                 $rosterFlip,
-                true
+                $useConfiguredGroups ? false : true, // onlyActiveGroups: false when using configured groups
+                $useConfiguredGroups ? $configuredGroupIds : null // configuredGroupIds
             );
 
             self::deleteConfiguredRowsWithoutMatchingGroupMembership(
@@ -738,16 +747,23 @@ class PersionalGrouping extends Model
         int $expectedGroupLevel,
         bool $usePracticePlayersPayload,
         ?array $rosterFlip = null,
-        bool $onlyActiveGroups = false
+        bool $onlyActiveGroups = false,
+        ?array $configuredGroupIds = null
     ): array {
         $offensiveFlip = [];
         $defensiveFlip = [];
 
-        $groups = self::query()
+        $query = self::query()
             ->where('team_id', $teamId)
             ->where('game_id', $gameId)
-            ->where('group_level', $expectedGroupLevel)
-            ->get();
+            ->where('group_level', $expectedGroupLevel);
+
+        // If configured group IDs are provided, filter to only those groups
+        if ($configuredGroupIds !== null && !empty($configuredGroupIds)) {
+            $query->whereIn('id', $configuredGroupIds);
+        }
+
+        $groups = $query->get();
 
         foreach ($groups as $group) {
             if ($onlyActiveGroups && strtolower((string) ($group->status ?? '')) !== 'active') {

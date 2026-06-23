@@ -1978,6 +1978,105 @@
                     }
                 ]
             }
+        },
+        "/api/team-game-group-configurations": {
+            "get": {
+                "tags": [
+                    "Team Game Group Configuration"
+                ],
+                "summary": "Get selected groups for a game and team",
+                "description": "Retrieve all group selections currently associated with the specified game_id and team_id. Returns an array of selected group IDs.",
+                "operationId": "getTeamGameGroupConfigurations",
+                "parameters": [
+                    {
+                        "name": "game_id",
+                        "in": "query",
+                        "description": "The game ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 36
+                        }
+                    },
+                    {
+                        "name": "team_id",
+                        "in": "query",
+                        "description": "The team ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 22
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Selected groups retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TeamGameGroupConfigurationResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Team Game Group Configuration"
+                ],
+                "summary": "Update selected groups for a game and team",
+                "description": "Persist the user's current group selection for a specific team and game. Existing records are replaced with the new selection. All group IDs must belong to the specified game and team.",
+                "operationId": "updateTeamGameGroupConfigurations",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateTeamGameGroupConfigurationRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Selected groups updated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TeamGameGroupConfigurationResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "422": {
+                        "description": "Validation error - invalid game_id, team_id, or group_ids format"
+                    },
+                    "400": {
+                        "description": "Bad request - one or more group IDs are invalid or do not belong to this game and team"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
         }
     },
     "components": {
@@ -3202,6 +3301,108 @@
                     }
                 },
                 "type": "object"
+            },
+            "TeamGameGroupConfiguration": {
+                "description": "Selected group configuration for a team within a game",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "game_id": {
+                        "type": "integer",
+                        "example": 36
+                    },
+                    "team_id": {
+                        "type": "integer",
+                        "example": 22
+                    },
+                    "group_id": {
+                        "type": "integer",
+                        "example": 216
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2026-06-24T00:00:00.000000Z"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2026-06-24T00:00:00.000000Z"
+                    }
+                },
+                "type": "object"
+            },
+            "TeamGameGroupConfigurationResponse": {
+                "description": "Response containing selected group IDs for a team-game combination",
+                "properties": {
+                    "status": {
+                        "type": "integer",
+                        "example": 200
+                    },
+                    "message": {
+                        "type": "string",
+                        "example": "Selected groups retrieved successfully"
+                    },
+                    "data": {
+                        "properties": {
+                            "game_id": {
+                                "type": "integer",
+                                "example": 36
+                            },
+                            "team_id": {
+                                "type": "integer",
+                                "example": 22
+                            },
+                            "selected_group_ids": {
+                                "type": "array",
+                                "items": {
+                                    "type": "integer"
+                                },
+                                "example": [
+                                    216,
+                                    217,
+                                    218
+                                ]
+                            }
+                        },
+                        "type": "object"
+                    }
+                },
+                "type": "object"
+            },
+            "UpdateTeamGameGroupConfigurationRequest": {
+                "required": [
+                    "game_id",
+                    "team_id",
+                    "group_ids"
+                ],
+                "properties": {
+                    "game_id": {
+                        "description": "The game ID",
+                        "type": "integer",
+                        "example": 36
+                    },
+                    "team_id": {
+                        "description": "The team ID",
+                        "type": "integer",
+                        "example": 22
+                    },
+                    "group_ids": {
+                        "description": "Array of group IDs to select for this team-game combination",
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        },
+                        "example": [
+                            216,
+                            217,
+                            218
+                        ]
+                    }
+                },
+                "type": "object"
             }
         },
         "securitySchemes": {
@@ -3233,6 +3434,10 @@
         {
             "name": "Plays",
             "description": "Offensive play create, update, and listing (H-mark images). Includes configured game play lists, system-suggested plays for scoreboard/match flow, filtered by down and expected yardage."
+        },
+        {
+            "name": "Team Game Group Configuration",
+            "description": "Manage selected player group configurations for a specific team within a game. Allows saving and retrieving which groups are selected for a team-game combination."
         }
     ]
 }

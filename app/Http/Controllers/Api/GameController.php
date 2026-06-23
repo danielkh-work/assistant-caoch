@@ -27,7 +27,7 @@ class GameController extends Controller
 
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Player Added SuccessFully ", $game);
     }
-    
+
 
     public function endMatchClearGroundPlayers($id)
     {
@@ -64,7 +64,7 @@ class GameController extends Controller
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "games", $game);
     }
         public function getByLeague($leagueId)
-    {  
+    {
           \Log::info(['data'=>'checkit working ornot']);
             $gamesQuery = Game::with([
                 'myTeam',
@@ -73,10 +73,10 @@ class GameController extends Controller
                 'configureMyTeams',
                 'configureVisitingTeams'
             ])
-            
+
             ->where('league_id', $leagueId);
 
-           
+
             if (request()->has('type')) {
                 $gameType = request()->type;
                 $gamesQuery->where('type', $gameType);
@@ -143,7 +143,7 @@ class GameController extends Controller
             return $penalty;
         });
        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "'Penalty List", $penalties);
-  
+
     }
 
 
@@ -156,6 +156,6 @@ class GameController extends Controller
     }
 
 
-    
-    
+
+
 }

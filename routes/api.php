@@ -276,6 +276,8 @@ Route::middleware('auth:sanctum')->group(function () {
   Route::get('/delete/{group}/group', [PersionalGroupingController::class, 'deleteGroup']);
 
   Route::get('/persional-groups-players', [PersionalGroupingController::class, 'getGroupsByTeamAndGame']);
+  Route::get('/team-game-group-configurations', [PersionalGroupingController::class, 'getSelectedGroups']);
+  Route::post('/team-game-group-configurations', [PersionalGroupingController::class, 'updateSelectedGroups']);
 
 
    Route::prefix('leagues')->group(function () {
