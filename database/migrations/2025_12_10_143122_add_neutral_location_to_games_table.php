@@ -11,9 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('games', function (Blueprint $table) {
-             $table->string('neutral_location')->nullable();
-        });
+        if (!Schema::hasColumn('games', 'neutral_location')) {
+            Schema::table('games', function (Blueprint $table) {
+                $table->string('neutral_location')->nullable();
+            });
+        }
     }
 
     /**
