@@ -131,11 +131,11 @@ A future optional follow-up: broadcast `device.session.updated` on `headcoach.{h
 
 | Stop using | Start using |
 |------------|-------------|
-| All League QB endpoints | `/api/leagues/{league}/devices/*`, `/api/devices/me` |
+| All League QB endpoints | `/api/leagues/{league}/devices/*` |
 | `GET /api/logout-qb-applicaion/{id}` | `POST /api/leagues/{league}/devices/{device}/logout` (device Bearer token) |
 | Poll `GET /api/qb-session-login-status/{session_id}` | Subscribe `qb-user.{session_id}` → `.session.approved` |
-| QB user Sanctum token | Device token from `.session.approved` or `POST /api/devices/pair` |
-| - | `POST /api/mobile/create-session` before displaying QR |
+| QB user Sanctum token | Device token from `.session.approved` |
+| - | Generate UUID session_id client-side before displaying QR |
 | - | QR JSON per [QR code contract](#qr-code-contract) below |
 | - | In-game: see [Multiple devices - game & practice mode](#multiple-devices--game-mode--practice-mode) |
 
@@ -151,7 +151,7 @@ Each physical device that should react to a live match must:
 
 1. Be **`registered`** in the league (`league_device` pivot).
 2. Be **logged in** - valid device Sanctum token (session active).
-3. Subscribe **`private league.{leagueId}.devices`** for **each** `league_id` returned from `GET /api/devices/me` (authenticate via `/broadcasting/auth` with the device token).
+3. Subscribe **`private league.{leagueId}.devices`** for each league associated with the device (authenticate via `/broadcasting/auth` with the device token).
 4. **Not** rely on legacy QB user channels (`headcoach.{hc}.qb`, `user.{hc}.game.*`) for multi-device behaviour - those were single-QB paths.
 
 Only one head-coach session runs per mode at a time (`play` or `practice`), but **all** subscribed league devices receive the same broadcasts for that session.
@@ -326,7 +326,7 @@ sequenceDiagram
 ### Mobile implementation checklist
 
 ```
-For each league_id in GET /api/devices/me:
+For each league associated with the device:
   Subscribe private league.{league_id}.devices (device Bearer token)
 
 On .match.started:
@@ -361,8 +361,7 @@ These stay on coach / user channels only (not `league.*.devices`):
    Mobile receives `.session.approved` with `access_token`.
 
 2. **Alternate - pairing code**  
-   `POST /api/devices/pair` with `pairing_code` or `qr_token` (no camera).  
-   Returns `token`, `device`, `league_ids`. Fires `.qb.session.updated` on each linked league.
+   This endpoint has been removed. Use QR-based pairing only.
 
 ---
 
@@ -370,7 +369,7 @@ These stay on coach / user channels only (not `league.*.devices`):
 
 The mobile app displays a QR code encoding **JSON** (not a raw UUID string).
 
-**Required:** one of these keys must hold the `session_id` from `POST /api/mobile/create-session`:
+**Required:** one of these keys must hold a client-generated UUID `session_id`:
 
 - `session_id` (preferred)
 - `userId` (alias accepted by web scanner)
@@ -506,23 +505,11 @@ Optional body: `{ "session_id": "uuid" }`. Same broadcasts as app-initiated logo
 
 | Method | Path | Auth | Purpose |
 |--------|------|------|---------|
-| `POST` | `/api/mobile/create-session` | Optional Bearer | `session_id` for QR ([Swagger](#openapi)) |
-| `POST` | `/api/devices/pair` | None | Alternate pair via `pairing_code` or `qr_token` |
-| `GET` | `/api/devices/me` | Device token | Profile + `league_ids` |
 | `POST` | `/api/leagues/{league}/devices/{device}/logout` | Device or HC token | Log out + broadcast |
 
 ### Create session
 
-```http
-POST /api/mobile/create-session
-Content-Type: application/json
-
-{}
-```
-
-Optional `Authorization: Bearer {device_token}` refreshes `session_id` on an already-paired device.
-
-**Response:** `{ "session_id": "822fc835-75aa-48bf-8473-354a4913aab2" }`
+Generate a UUID client-side and encode it in the QR code JSON.
 
 Then subscribe **before** the coach scans:
 
@@ -533,19 +520,11 @@ Event:    .session.approved
 
 ### Alternate pairing
 
-```http
-POST /api/devices/pair
-Content-Type: application/json
-
-{ "pairing_code": "1234" }
-```
+This endpoint has been removed. Use QR-based pairing only.
 
 ### Device profile
 
-```http
-GET /api/devices/me
-Authorization: Bearer {device_token}
-```
+Device profile endpoint has been removed. Device information is available through league device endpoints.
 
 ### Mobile QR pairing sequence
 
@@ -556,8 +535,7 @@ sequenceDiagram
     participant Pusher as Pusher
     participant Web as WebDashboard
 
-    App->>API: POST /mobile/create-session
-    API-->>App: session_id
+    App->>App: Generate session_id (UUID)
     App->>Pusher: subscribe qb-user.session_id
     App->>App: Display QR JSON
     Web->>API: POST /leagues/L/devices/D/scan-qr
@@ -631,7 +609,7 @@ sequenceDiagram
 ## Backend validation checklist
 
 - [ ] League device routes under `auth:sanctum` in `routes/api.php`
-- [ ] Swagger `DeviceApiDoc` matches routes (`scan-qr`, `logout`, `mobile/create-session`)
+- [ ] Swagger `DeviceApiDoc` matches routes (`scan-qr`, `logout`)
 - [ ] `scan-qr` → `MobileSessionApproved` + `QbSessionUpdated` (`is_loggin: true`)
 - [ ] `logout` → `DeviceLogoutBroadcaster` (tokens revoked, mobile + web broadcasts)
 - [ ] `DELETE` device logs out active session before detach

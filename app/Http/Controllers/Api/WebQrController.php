@@ -17,33 +17,6 @@ use Laravel\Sanctum\PersonalAccessToken;
 
 class WebQrController extends Controller
 {
-    // Mobile generates session
-    public function createSession(Request $request)
-    {
-        $sessionId = Str::uuid()->toString();
-
-        if (\Illuminate\Support\Facades\Schema::hasTable('mobile_sessions')) {
-            MobileSession::create([
-                'mobile_user_id' => null,
-                'session_id' => $sessionId,
-                'status' => 'pending',
-            ]);
-        }
-
-        // Returning device or QB: refresh active session when app reopens QR screen.
-        $tokenable = $this->optionalSanctumTokenable($request);
-        if ($tokenable instanceof Device && $tokenable->tokens()->exists()) {
-            DeviceMobileSession::bind($tokenable, $sessionId);
-        } elseif ($tokenable instanceof User && $tokenable->role === 'qb' && $tokenable->is_loggin) {
-            QbMobileSession::refreshActiveSession($tokenable, $sessionId);
-        }
-
-        return response()->json([
-            'session_id' => $sessionId,
-        ]);
-    }
-
-  
     public function scanQr(Request $request)
     {
         $request->validate([
@@ -174,5 +147,5 @@ class WebQrController extends Controller
     }
 
 
- 
+
 }

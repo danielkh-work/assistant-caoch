@@ -227,61 +227,8 @@ namespace App\OpenApi;
  *     @OA\Response(response=200, description="Device logged out successfully")
  * )
  *
- * @OA\Post(
- *     path="/api/devices/pair",
- *     operationId="pairDevice",
- *     tags={"Devices"},
- *     summary="Pair a physical device",
- *     description="Accept a 4-digit pairing code or QR token from the mobile app. Issues a Sanctum device token and returns associated league IDs for Pusher subscription.",
- *     @OA\RequestBody(
- *         required=true,
- *         @OA\JsonContent(
- *             @OA\Property(property="pairing_code", type="string", example="1234"),
- *             @OA\Property(property="qr_token", type="string", example="abc123token")
- *         )
- *     ),
- *     @OA\Response(
- *         response=200,
- *         description="Device paired successfully",
- *         @OA\JsonContent(
- *             @OA\Property(property="status", type="integer", example=200),
- *             @OA\Property(property="message", type="string", example="Device paired successfully"),
- *             @OA\Property(
- *                 property="data",
- *                 type="object",
- *                 @OA\Property(property="token", type="string", example="1|device-token"),
- *                 @OA\Property(property="device", type="object"),
- *                 @OA\Property(property="league_ids", type="array", @OA\Items(type="integer"))
- *             )
- *         )
- *     ),
- *     @OA\Response(response=422, description="Invalid or inactive pairing code")
- * )
  *
- * @OA\Get(
- *     path="/api/devices/me",
- *     operationId="getAuthenticatedDevice",
- *     tags={"Devices"},
- *     summary="Get authenticated device profile",
- *     security={{"sanctum":{}}},
- *     @OA\Response(response=200, description="Device profile retrieved successfully")
- * )
  *
- * @OA\Post(
- *     path="/api/mobile/create-session",
- *     operationId="createMobileDeviceSession",
- *     tags={"Devices"},
- *     summary="Create mobile pairing session",
- *     description="Returns a UUID session_id for the mobile app to encode in its QR code. Optional Bearer token (device) refreshes session_id on an already-paired device when reopening the QR screen.",
- *     @OA\RequestBody(required=false),
- *     @OA\Response(
- *         response=200,
- *         description="Session created",
- *         @OA\JsonContent(
- *             @OA\Property(property="session_id", type="string", format="uuid", example="822fc835-75aa-48bf-8473-354a4913aab2")
- *         )
- *     )
- * )
  */
 final class DeviceApiDoc
 {

@@ -4,7 +4,6 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ConfigureController;
 use App\Http\Controllers\Api\LeagueController;
 use App\Http\Controllers\Api\DeviceController;
-use App\Http\Controllers\Api\DevicePairingController;
 use App\Http\Controllers\Api\FormationController;
 use App\Http\Controllers\Api\LogController;
 use App\Http\Controllers\Api\MatchController;
@@ -67,13 +66,6 @@ use App\Http\Controllers\Api\ConfigurationController;
 //     $assistant->assignRole($headCoachRoles);
 
 
-Route::post('/mobile/create-session', [WebQrController::class, 'createSession']); // mobile
-
-// Device pairing (mobile app — no auth required for pair)
-Route::post('/devices/pair', [DevicePairingController::class, 'pair']);
-Route::middleware('auth:sanctum')->prefix('devices')->group(function () {
-    Route::get('/me', [DevicePairingController::class, 'me']);
-});
 
 
 // use Illuminate\Support\Str;
