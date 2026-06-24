@@ -105,24 +105,23 @@ class TeamGroupController extends Controller
         $team = \App\Models\LeagueTeam::findOrFail($teamId);
 
         if ((int) ($team->is_practice ?? 0) === 1) {
-            $rows = \App\Models\PracticeTeamPlayer::where('team_id', $teamId)
+            $ptpRows = \App\Models\PracticeTeamPlayer::where('team_id', $teamId)
                 ->with(['TeamPlayer.teamPlayerPosition' => fn ($q) => $q->orderBy('sort')])
                 ->get();
-        } else {
-            $rows = \App\Models\TeamPlayer::where('team_id', $teamId)
-                ->with(['teamPlayerPosition' => fn ($q) => $q->orderBy('sort')])
-                ->get();
-        }
 
-        $isPractice = (int) ($team->is_practice ?? 0) === 1;
-
-        $players = $rows->map(function ($p) use ($isPractice) {
-            if ($isPractice) {
+            // Deduplicate by player name, preferring records that have position data.
+            // practice_team_players may contain duplicate entries per player (one with a
+            // now-deleted TeamPlayer FK and one with a valid one). Keep the richer record.
+            $byName = [];
+            foreach ($ptpRows as $p) {
                 $tp = $p->TeamPlayer;
-                $positions = $tp && isset($tp->teamPlayerPosition)
+                $positions = ($tp && $tp->teamPlayerPosition)
                     ? $tp->teamPlayerPosition->pluck('position_name')->filter()->values()->all()
                     : [];
-                return [
+
+                $nameKey = mb_strtolower(trim($p->name ?? ''));
+
+                $entry = [
                     'id'             => $p->id,
                     'name'           => $p->name ?? ($tp?->name) ?? null,
                     'number'         => $p->number ?? ($tp?->number) ?? null,
@@ -132,7 +131,21 @@ class TeamGroupController extends Controller
                     'type'           => $p->type ?? ($tp?->type) ?? null,
                     'positions'      => $positions,
                 ];
+
+                if (!isset($byName[$nameKey]) || (!empty($positions) && empty($byName[$nameKey]['positions']))) {
+                    $byName[$nameKey] = $entry;
+                }
             }
+
+            $players = array_values($byName);
+            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Players fetched', $players);
+        }
+
+        $rows = \App\Models\TeamPlayer::where('team_id', $teamId)
+            ->with(['teamPlayerPosition' => fn ($q) => $q->orderBy('sort')])
+            ->get();
+
+        $players = $rows->map(function ($p) {
             return [
                 'id'             => $p->id,
                 'name'           => $p->name ?? $p->player_name ?? null,
