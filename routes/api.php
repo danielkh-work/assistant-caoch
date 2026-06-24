@@ -274,6 +274,14 @@ Route::middleware('auth:sanctum')->group(function () {
 
   Route::get('/persional-groups-players', [PersionalGroupingController::class, 'getGroupsByTeamAndGame']);
 
+  // Team Groups
+  Route::get('/teams/{teamId}/groups', [\App\Http\Controllers\TeamGroupController::class, 'index']);
+  Route::post('/teams/{teamId}/groups', [\App\Http\Controllers\TeamGroupController::class, 'store']);
+  Route::put('/groups/{id}', [\App\Http\Controllers\TeamGroupController::class, 'update']);
+  Route::delete('/groups/{id}', [\App\Http\Controllers\TeamGroupController::class, 'destroy']);
+  Route::get('/teams/{teamId}/players', [\App\Http\Controllers\TeamGroupController::class, 'players']);
+  Route::post('/games/{gameId}/import-team-groups', [\App\Http\Controllers\TeamGroupController::class, 'importToGame']);
+
 
    Route::prefix('leagues')->group(function () {
         Route::prefix('/{league}/matches')->group(function () {
