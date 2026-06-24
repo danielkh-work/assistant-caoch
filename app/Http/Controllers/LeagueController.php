@@ -20,8 +20,8 @@ class LeagueController extends Controller
      */
     public function index(Request $request)
     {
-        
-        $query = League::with('teams','roles')->orderBy('id', 'desc');   
+
+        $query = League::with('teams','roles')->orderBy('id', 'desc');
         if ($request->filled('role')) {
             $query->whereHas('roles', function ($q) use ($request) {
                 $q->where('roles.id', $request->role);
@@ -43,7 +43,7 @@ class LeagueController extends Controller
 
                     return '
                         <a href="' . $editUrl . '" class="btn btn-warning btn-sm me-1">Edit</a>
-                       
+
                     ';
                     //  <form action="' . $deleteUrl . '" method="POST" style="display:inline;">
                     //         ' . csrf_field() . '
@@ -76,16 +76,16 @@ class LeagueController extends Controller
         $roles = Role::all();
         $league_rule = LeagueRule::all();
         $sports = Sport::all();
-       
+
         return view('league.edit', compact('league', 'roles', 'league_rule', 'sports'));
     }
 
     public function store(Request $request)
     {
-      
+
         DB::beginTransaction();
         try {
- 
+
            $League =  new League;
            $League->user_id=  auth('api')->user()->id;
            $League->sport_id = 1;
@@ -111,9 +111,9 @@ class LeagueController extends Controller
              $team->type = $index == 0 ? 1 : null;
              $team->save();
            }
-           
+
            DB::commit();
-        
+
            $League->roles()->sync($request->role_id); // assign to multiple roles
            DB::commit();
              return  redirect()->route('league.index');
@@ -125,12 +125,14 @@ class LeagueController extends Controller
 
         public function update(Request $request,$id)
     {
-        
+
         DB::beginTransaction();
         try {
             $League = League::findOrFail($id);
             $League->sport_id = 1;
-            $League->league_rule_id = $request->league_rule_id;
+            if ($request->has('league_rule_id') && $request->league_rule_id !== null) {
+                $League->league_rule_id = $request->league_rule_id;
+            }
             $League->number_of_team = $request->number_of_team;
             $League->title = $request->title;
             $League->number_of_downs = $request->number_of_downs;
@@ -144,7 +146,7 @@ class LeagueController extends Controller
             $League->number_of_players = $request->number_of_players;
             $League->flag_tbd = $request->flag_tbd;
             $League->save();
-            
+
             $League->roles()->sync($request->role_id);
             // Delete existing teams and recreate
             // LeagueTeam::where('league_id', $League->id)->delete();
@@ -158,7 +160,7 @@ class LeagueController extends Controller
             // }
 
             DB::commit();
-         
+
             // Redirect to league index with success message
             return redirect()->route('league.index')
                 ->with('success', 'League updated successfully!');
@@ -172,7 +174,7 @@ class LeagueController extends Controller
         }
     }
 
- 
+
 
     public function show($id)
     {
