@@ -23,6 +23,7 @@ use App\Http\Controllers\Api\DefensivePlayController;
 use App\Http\Controllers\Api\DefensivePlayParameterController;
 use App\Http\Controllers\Api\BenchPlayerController;
 use App\Http\Controllers\Api\BroadCastScoreController;
+use App\Http\Controllers\Api\MatchPlaysController;
 use App\Http\Controllers\QBController;
 use App\Http\Controllers\PersionalGroupingController;
 
