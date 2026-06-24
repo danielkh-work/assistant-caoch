@@ -427,6 +427,16 @@ class PlayerController extends Controller
                 return new BaseResponse(404, 404, "Team Player not found.");
             }
 
+            // Resolve position names from multiselect array [{text,value}] or plain strings
+            $positionNames = [];
+            if ($request->has('positionValue') && is_array($request->positionValue)) {
+                foreach ($request->positionValue as $pos) {
+                    $name = is_array($pos) ? ($pos['text'] ?? $pos['value'] ?? null) : $pos;
+                    if ($name) $positionNames[] = $name;
+                }
+            } elseif ($request->positionValue) {
+                $positionNames[] = $request->positionValue;
+            }
 
             $updateData = [
                 'name' => $request->name,
@@ -438,7 +448,7 @@ class PlayerController extends Controller
                 'weight' => $request->weight,
                 'height' => $request->height,
                 'rpp' => $request->ofp,
-                'position_value' => $request->positionValue,
+                'position_value' => $positionNames[0] ?? null,
                 'updated_at' => now()
             ];
 
@@ -449,21 +459,46 @@ class PlayerController extends Controller
                 $updateData['dob'] = null;
             }
 
-            // if ($request->hasFile('image')) {
-            //     $path = uploadImage($request->image, 'player');
-            //     $updateData['image'] = $path;
-            // }
-
            DB::table('practice_team_players')
             ->where('player_id', $id)
             ->where('team_id', $request->team_id)
             ->update($updateData);
 
+            // Sync team_player_positions for the corresponding My Team TeamPlayer
+            $league = DB::table('league_teams')->where('id', $request->team_id)->first();
+            if ($league) {
+                $myTeam = DB::table('league_teams')
+                    ->where('league_id', $league->league_id)
+                    ->where('type', 1)
+                    ->where(function ($q) { $q->where('is_practice', 0)->orWhereNull('is_practice'); })
+                    ->first();
+                if ($myTeam) {
+                    $myTP = DB::table('team_players')
+                        ->where('team_id', $myTeam->id)
+                        ->where(function ($q) use ($id) {
+                            $q->where('player_id', $id)->orWhere('id', $id);
+                        })
+                        ->first();
+                    if ($myTP) {
+                        DB::table('team_player_positions')->where('teamplayer_id', $myTP->id)->delete();
+                        foreach ($positionNames as $idx => $name) {
+                            DB::table('team_player_positions')->insert([
+                                'teamplayer_id' => $myTP->id,
+                                'position_name' => $name,
+                                'meta' => null,
+                                'sort' => $idx + 1,
+                                'created_at' => now(),
+                                'updated_at' => now(),
+                            ]);
+                        }
+                    }
+                }
+            }
 
             $updatedPracticePlayer = DB::table('practice_team_players')
                 ->where('player_id', $id)
                 ->where('team_id', $request->team_id)
-             ->first(); // 👈 full row
+             ->first();
 
             DB::commit();
            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Player Updated SuccessFully ", $updatedPracticePlayer );
