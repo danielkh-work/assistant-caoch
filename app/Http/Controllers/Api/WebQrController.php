@@ -10,6 +10,8 @@ use App\Models\Device;
 use App\Events\MobileSessionApproved;
 use App\Events\QbSessionUpdated;
 use App\Support\DeviceMobileSession;
+use App\Support\DeviceSessionBroadcaster;
+use App\Support\DeviceLogoutBroadcaster;
 use App\Support\QbLogoutBroadcaster;
 use App\Support\QbMobileSession;
 use Illuminate\Support\Str;
