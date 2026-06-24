@@ -105,30 +105,50 @@ class TeamGroupController extends Controller
         $team = \App\Models\LeagueTeam::findOrFail($teamId);
 
         if ((int) ($team->is_practice ?? 0) === 1) {
-            $ptpRows = \App\Models\PracticeTeamPlayer::where('team_id', $teamId)
-                ->with(['TeamPlayer.teamPlayerPosition' => fn ($q) => $q->orderBy('sort')])
-                ->get();
+            $ptpRows = \App\Models\PracticeTeamPlayer::where('team_id', $teamId)->get();
 
-            // Deduplicate by player name, preferring records that have position data.
-            // practice_team_players may contain duplicate entries per player (one with a
-            // now-deleted TeamPlayer FK and one with a valid one). Keep the richer record.
+            // Build a positions lookup from My Team's TeamPlayers.
+            // PTP.player_id may be either TeamPlayer.id (direct FK) or players.id
+            // (= TeamPlayer.player_id) depending on when the practice team was created.
+            // Index by both so either variant resolves.
+            $positionsMap = [];
+            $myTeam = \App\Models\LeagueTeam::where('league_id', $team->league_id)
+                ->where('type', 1)
+                ->where(function ($q) { $q->where('is_practice', 0)->orWhereNull('is_practice'); })
+                ->first();
+
+            if ($myTeam) {
+                $myTPs = \App\Models\TeamPlayer::where('team_id', $myTeam->id)
+                    ->with(['teamPlayerPosition' => fn ($q) => $q->orderBy('sort')])
+                    ->get();
+
+                foreach ($myTPs as $tp) {
+                    $pos = $tp->teamPlayerPosition->pluck('position_name')->filter()->values()->all();
+                    $positionsMap['id:' . $tp->id] = $pos;
+                    if ($tp->player_id) {
+                        $positionsMap['pid:' . $tp->player_id] = $pos;
+                    }
+                }
+            }
+
+            // Deduplicate by name, preferring records with positions.
+            // Some practice teams store each player twice (orphaned + valid FK).
             $byName = [];
             foreach ($ptpRows as $p) {
-                $tp = $p->TeamPlayer;
-                $positions = ($tp && $tp->teamPlayerPosition)
-                    ? $tp->teamPlayerPosition->pluck('position_name')->filter()->values()->all()
-                    : [];
+                $positions = $positionsMap['pid:' . $p->player_id]
+                    ?? $positionsMap['id:' . $p->player_id]
+                    ?? [];
 
                 $nameKey = mb_strtolower(trim($p->name ?? ''));
 
                 $entry = [
                     'id'             => $p->id,
-                    'name'           => $p->name ?? ($tp?->name) ?? null,
-                    'number'         => $p->number ?? ($tp?->number) ?? null,
-                    'position'       => $p->position ?? ($tp?->position) ?? null,
-                    'position_value' => $p->position_value ?? ($tp?->position_value) ?? null,
-                    'rpp'            => $p->rpp ?? ($tp?->rpp) ?? null,
-                    'type'           => $p->type ?? ($tp?->type) ?? null,
+                    'name'           => $p->name,
+                    'number'         => $p->number,
+                    'position'       => $p->position,
+                    'position_value' => $p->position_value,
+                    'rpp'            => $p->rpp,
+                    'type'           => $p->type,
                     'positions'      => $positions,
                 ];
 
@@ -137,8 +157,7 @@ class TeamGroupController extends Controller
                 }
             }
 
-            $players = array_values($byName);
-            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Players fetched', $players);
+            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Players fetched', array_values($byName));
         }
 
         $rows = \App\Models\TeamPlayer::where('team_id', $teamId)
