@@ -25,24 +25,6 @@ return new class extends Migration
             }
         }
 
-        // Add foreign key for league_id only if column now exists and FK doesn't
-        if (Schema::hasColumn('team_groups', 'league_id')) {
-            $fkExists = DB::select("
-                SELECT COUNT(*) as cnt
-                FROM information_schema.KEY_COLUMN_USAGE
-                WHERE TABLE_SCHEMA = DATABASE()
-                  AND TABLE_NAME = 'team_groups'
-                  AND COLUMN_NAME = 'league_id'
-                  AND REFERENCED_TABLE_NAME = 'leagues'
-            ");
-            if (($fkExists[0]->cnt ?? 0) === 0) {
-                DB::statement("
-                    ALTER TABLE `team_groups`
-                    ADD CONSTRAINT `team_groups_league_id_foreign`
-                    FOREIGN KEY (`league_id`) REFERENCES `leagues`(`id`) ON DELETE SET NULL
-                ");
-            }
-        }
     }
 
     public function down(): void
