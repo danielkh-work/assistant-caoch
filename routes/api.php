@@ -25,9 +25,11 @@ use App\Http\Controllers\Api\BenchPlayerController;
 use App\Http\Controllers\Api\BroadCastScoreController;
 use App\Http\Controllers\QBController;
 use App\Http\Controllers\PersionalGroupingController;
+use App\Http\Controllers\Api\TeamGroupController;
 
 use App\Http\Controllers\Api\WebQrController;
 use App\Http\Controllers\Api\ConfigurationController;
+use App\Http\Controllers\Api\TeamGroupConfigurationController;
 
 
 
@@ -170,7 +172,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/get-play-offensive-target/{id}',[PlayController::class,'getOffensiveTargetsByPlay'])->name('uplaod-play');
 
     Route::get('/upload-play-list',[PlayController::class,'index'])->name('upload-play-list');
-    Route::get('/match-plays', [MatchPlaysController::class, 'index']);
     Route::get('/delete-play/{id}',[PlayController::class,'delete'])->name('delete-play');
     Route::get('/get-offense-target-play/{id}',[PlayController::class,'getTargetOffensePosition'])->name('delete-play');
     Route::get('/edit-play/{id}',[PlayController::class,'editPlay'])->name('edit-play');
@@ -195,6 +196,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('view-team/{id}',[TeamController::class,'view']);
     Route::get('team/{id}/players-paginated', [TeamController::class, 'paginatedTeamPlayers']);
     Route::get('practice-team/{id}/players-paginated', [TeamController::class, 'paginatedPracticeTeamPlayers']);
+    Route::get('teams/{id}/players', [TeamController::class, 'players']);
     Route::get('practice-team-list/{id}',[TeamController::class,'practiceTeamList']);
 
     Route::post('practice-update-team/{id}',[PracticeTeamPlayerController::class,'update']);
@@ -234,7 +236,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/penalities', 'Penalities');
             Route::get('/penalty-list', 'penaltyList');
             Route::get('/delete-game/{id}','delete');
-            Route::get('/end-game-clearplayers/{id}','endMatchClearGroundPlayers');
+            Route::post('/matches/{id}/end', 'end');
     });
 
     Route::controller(SubscriptionPlanController::class)->group(function () {
@@ -259,9 +261,6 @@ Route::middleware('auth:sanctum')->group(function () {
    Route::post('logout-qb', [WebQrController::class, 'logoutQb']);
    Route::get('/scoreboard', [BroadCastScoreController::class, 'getWebSocketScoreBoard']);
    Route::get('/practice-scoreboard', [BroadCastScoreController::class, 'getPracticeWebSocketScoreBoard']);
-   Route::get('/delete-scoreboard/{gameId}',[BroadCastScoreController::class,'delete'])->name('deleteScoreBoard');
-   Route::get('/practice/delete-scoreboard/{gameId}',[BroadCastScoreController::class,'deletePractice'])->name('deletePracticeScoreBoard');
-
   Route::post('/persional-groups', [PersionalGroupingController::class, 'storeAllGroups']);
   Route::post('/personal-groupings/{group}/plays/sync', [PersionalGroupingController::class, 'syncPlays']);
   Route::post('/update/{group}/group', [PersionalGroupingController::class, 'updateGroup']);
@@ -272,7 +271,13 @@ Route::middleware('auth:sanctum')->group(function () {
   Route::get('/personal-groupings/{group}/roster-repair-missing', [PersionalGroupingController::class, 'rosterRepairMissing']);
   Route::get('/delete/{group}/group', [PersionalGroupingController::class, 'deleteGroup']);
 
-  Route::get('/persional-groups-players', [PersionalGroupingController::class, 'getGroupsByTeamAndGame']);
+    Route::get('/persional-groups-players', [PersionalGroupingController::class, 'getGroupsByTeamAndGame']);
+
+    Route::get('/teams/{team}/groups', [TeamGroupController::class, 'index']);
+    Route::post('/teams/{team}/groups', [TeamGroupController::class, 'store']);
+    Route::put('/teams/{team}/groups/{group}', [TeamGroupController::class, 'update']);
+    Route::delete('/teams/{team}/groups/{group}', [TeamGroupController::class, 'destroy']);
+    Route::put('/teams/{team}/group-config', [TeamGroupConfigurationController::class, 'sync']);
 
 
    Route::prefix('leagues')->group(function () {
@@ -315,5 +320,3 @@ Route::post('/verify-code', [AuthController::class, 'verifyCode']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/forget-password',[AuthController::class,'forgotPassword'])->name('forget.change');
 Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('password.reset');
-
-

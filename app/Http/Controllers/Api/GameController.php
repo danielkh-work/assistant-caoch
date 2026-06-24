@@ -2,12 +2,18 @@
 
 namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
+use App\Events\MatchStarted;
+use App\Events\PracticeScoreUpdated;
+use App\Events\ScoreUpdated;
 use App\Models\Game;
 use App\Models\BenchPlayer;
-use App\Models\PersionalGrouping;
+use App\Models\WebsocketPracticeScoreboard;
+use App\Models\WebsocketScoreboard;
 use Illuminate\Http\Request;
 use App\Http\Responses\BaseResponse;
 use App\Models\Penality;
+use App\Support\ActiveGameModeGuard;
+use Illuminate\Support\Facades\DB;
 
 class GameController extends Controller
 {
@@ -29,24 +35,75 @@ class GameController extends Controller
     }
     
 
-    public function endMatchClearGroundPlayers($id)
+    public function end(Request $request, $id)
     {
-        $gamePk = (int) $id;
-
-        BenchPlayer::where('game_id', $gamePk)->delete();
-
         try {
-            PersionalGrouping::syncInvalidActivePracticeGroupStatusesForMatchEnd($gamePk);
-            PersionalGrouping::pruneMatchConfigurePlayersNotInAnyGroup($gamePk);
-        } catch (\Throwable $e) {
-            \Log::error('endMatchClearGroundPlayers failed', [
-                'game_id' => $gamePk,
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-        }
+            $gamePk = (int) $id;
+            $game = Game::query()->findOrFail($gamePk);
+            $isPractice = filter_var($request->input('is_practice', false), FILTER_VALIDATE_BOOLEAN);
+            $coachGroupId = ActiveGameModeGuard::resolveHeadCoachId(auth()->user());
+            $leagueId = $game->league_id ? (int) $game->league_id : null;
 
-        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Players cleared successfully', null);
+            DB::transaction(function () use ($gamePk, $coachGroupId, $leagueId, $isPractice) {
+                BenchPlayer::where('game_id', $gamePk)->delete();
+
+                ActiveGameModeGuard::completeActiveSessionsForMode(
+                    $coachGroupId,
+                    $isPractice ? 'practice' : 'play',
+                    $leagueId
+                );
+
+                if ($isPractice) {
+                    WebsocketPracticeScoreboard::where('user_id', $coachGroupId)
+                        ->where('game_id', $gamePk)
+                        ->delete();
+                } else {
+                    WebsocketScoreboard::where('user_id', $coachGroupId)
+                        ->where('game_id', $gamePk)
+                        ->delete();
+                }
+            });
+
+            $payload = (object) [];
+
+            if ($isPractice) {
+                broadcast(new MatchStarted($leagueId, 'ended', [
+                    'mode' => 'practice',
+                    'is_play_mode' => false,
+                    'scoreboard' => 'practice',
+                    'game_id' => $gamePk,
+                    'session_id' => null,
+                ]))->toOthers();
+
+                broadcast(new PracticeScoreUpdated($payload, $coachGroupId, $gamePk, $leagueId))->toOthers();
+
+                return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Match ended successfully', null);
+            }
+
+            broadcast(new MatchStarted($leagueId, 'ended', [
+                'mode' => 'real',
+                'is_play_mode' => false,
+                'scoreboard' => 'play',
+                'game_id' => $gamePk,
+                'session_id' => null,
+            ]))->toOthers();
+
+            broadcast(new ScoreUpdated($payload, $coachGroupId, $gamePk, $leagueId))->toOthers();
+
+            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Match ended successfully', null);
+        } catch (\Throwable $th) {
+            \Log::error('Match end failed', [
+                'game_id' => $id,
+                'is_practice' => $request->boolean('is_practice'),
+                'message' => $th->getMessage(),
+            ]);
+
+            return new BaseResponse(
+                STATUS_CODE_UNPROCESSABLE,
+                STATUS_CODE_UNPROCESSABLE,
+                'Unable to end match.'
+            );
+        }
     }
 
     public function index() {

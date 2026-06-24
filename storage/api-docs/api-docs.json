@@ -1444,6 +1444,89 @@
                 }
             }
         },
+        "/api/start-game-mode": {
+            "post": {
+                "tags": [
+                    "Matches"
+                ],
+                "summary": "Start a match",
+                "description": "Creates a new active match session. The `is_practice` flag controls whether the session is started in practice or normal game mode. The endpoint validates league ownership, device readiness, and existing active sessions before creating the match-mode record.",
+                "operationId": "2b1071d350e2d6b86d7738e4fa5f834d",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MatchStartRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Game Start SuccessFully"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/matches/{id}/end": {
+            "post": {
+                "tags": [
+                    "Matches"
+                ],
+                "summary": "End a match",
+                "description": "Unified match-ending endpoint for both practice and normal matches. The `is_practice` flag controls which scoreboard table and session mode are closed. The endpoint clears match bench rows, completes active game-mode sessions, broadcasts a match-ended event, and emits the legacy scoreboard cleanup payload for the selected mode.",
+                "operationId": "012dd6f3723271a20f5f7944b8962bd6",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 36
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MatchEndRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Match ended successfully"
+                    },
+                    "404": {
+                        "description": "Match not found"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/api/leagues/{league}": {
             "put": {
                 "tags": [
@@ -2206,6 +2289,367 @@
                     }
                 ]
             }
+        },
+        "/api/teams/{team}/groups": {
+            "get": {
+                "tags": [
+                    "Team Groups"
+                ],
+                "summary": "List team groups",
+                "description": "Returns team-scoped groups. Supported filters: `name`, `search`, `status`, `type`, and `segment`. The team is resolved from the route `/teams/{team}`.",
+                "operationId": "7dff8ef97845308d689a5ee9cad0c697",
+                "parameters": [
+                    {
+                        "name": "team",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 216
+                        }
+                    },
+                    {
+                        "name": "name",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "pressure"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "pressure"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "active",
+                                "inactive",
+                                "draft"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "type",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "offense",
+                                "defense"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "segment",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "enum": [
+                                7,
+                                11,
+                                12
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Team groups listed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Team groups fetched successfully"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/TeamGroup"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Team Groups"
+                ],
+                "summary": "Create team group",
+                "description": "Creates a persistent group under a team and attaches the provided team player IDs through the pivot table.",
+                "operationId": "0030fdeeeaa19af556cff1ecdf18e90d",
+                "parameters": [
+                    {
+                        "name": "team",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 216
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TeamGroupWriteRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Team group created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TeamGroup"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/teams/{team}/groups/{group}": {
+            "put": {
+                "tags": [
+                    "Team Groups"
+                ],
+                "summary": "Update team group",
+                "description": "Updates the group attributes and synchronizes attached players through the pivot table. The `team` segment must match the owning team of the group.",
+                "operationId": "32a68dcf2d8516ad43542321f9ac4d41",
+                "parameters": [
+                    {
+                        "name": "team",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 216
+                        }
+                    },
+                    {
+                        "name": "group",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 12
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TeamGroupWriteRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Team group updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TeamGroup"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Team Groups"
+                ],
+                "summary": "Delete team group",
+                "description": "Deletes a team-scoped group. The `team` segment must match the owning team of the group.",
+                "operationId": "9b1a69ed7b9e0b5679e5955813ce389f",
+                "parameters": [
+                    {
+                        "name": "team",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 216
+                        }
+                    },
+                    {
+                        "name": "group",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 12
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Team group deleted successfully"
+                    },
+                    "422": {
+                        "description": "Group not found"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/teams/{team}/group-config": {
+            "put": {
+                "tags": [
+                    "Team Groups"
+                ],
+                "summary": "Sync team group configuration",
+                "description": "Replace-all sync endpoint for a team's configured groups. Submitted group IDs are added, and any previously configured groups missing from the request are removed. Validation rejects groups that do not belong to the team, are not active, or do not have a player count matching the group segment.",
+                "operationId": "5c0f7659ce24745b891cc396d013b516",
+                "parameters": [
+                    {
+                        "name": "team",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 216
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TeamGroupConfigurationSyncRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Team group configuration synced successfully"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/teams/{team}/players": {
+            "get": {
+                "tags": [
+                    "Team Groups"
+                ],
+                "summary": "List team roster for grouping",
+                "description": "Returns the team player roster used by the team-group editor.",
+                "operationId": "684c91c2b00bf7568ed7f64f7aa07346",
+                "parameters": [
+                    {
+                        "name": "team",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 216
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Team players listed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Team players fetched successfully"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/TeamPlayerRosterItem"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
         }
     },
     "components": {
@@ -2626,6 +3070,43 @@
                             }
                         },
                         "type": "object"
+                    }
+                },
+                "type": "object"
+            },
+            "MatchStartRequest": {
+                "required": [
+                    "league_id",
+                    "my_team_id",
+                    "oponent_team_id"
+                ],
+                "properties": {
+                    "league_id": {
+                        "type": "integer",
+                        "example": 22
+                    },
+                    "my_team_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "oponent_team_id": {
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "is_practice": {
+                        "description": "Optional mode flag. `true` starts a practice match, `false` starts a normal game match.",
+                        "type": "boolean",
+                        "example": false
+                    }
+                },
+                "type": "object"
+            },
+            "MatchEndRequest": {
+                "properties": {
+                    "is_practice": {
+                        "description": "Set to true for practice matches, false for normal game matches.",
+                        "type": "boolean",
+                        "example": false
                     }
                 },
                 "type": "object"
@@ -3430,6 +3911,226 @@
                     }
                 },
                 "type": "object"
+            },
+            "TeamGroup": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 12
+                    },
+                    "team_id": {
+                        "type": "integer",
+                        "example": 216
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Pressure Front"
+                    },
+                    "group_name": {
+                        "description": "Legacy alias for `name`",
+                        "type": "string",
+                        "example": "Pressure Front"
+                    },
+                    "description": {
+                        "type": "string",
+                        "example": "Third-down pressure and stunt package",
+                        "nullable": true
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "offense",
+                            "defense"
+                        ],
+                        "example": "defense"
+                    },
+                    "segment": {
+                        "description": "Legacy alias: `group_level`",
+                        "type": "integer",
+                        "enum": [
+                            7,
+                            11,
+                            12
+                        ],
+                        "example": 11
+                    },
+                    "group_level": {
+                        "description": "Legacy alias for `segment`",
+                        "type": "integer",
+                        "example": 11,
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "active",
+                            "inactive",
+                            "draft"
+                        ],
+                        "example": "active"
+                    },
+                    "is_playing": {
+                        "description": "True when the group is included in the team's active configuration",
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "players": {
+                        "type": "array",
+                        "items": {
+                            "type": "object"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "TeamPlayerRosterItem": {
+                "properties": {
+                    "player_id": {
+                        "type": "integer",
+                        "example": 88
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Will Johnson"
+                    },
+                    "player": {
+                        "type": "string",
+                        "example": "Will Johnson"
+                    },
+                    "target": {
+                        "type": "string",
+                        "example": "WR"
+                    },
+                    "number": {
+                        "type": "string",
+                        "example": "12"
+                    },
+                    "strength": {
+                        "type": "integer",
+                        "example": 80
+                    },
+                    "height": {
+                        "type": "string",
+                        "example": "6-1"
+                    },
+                    "weight": {
+                        "type": "string",
+                        "example": "210"
+                    },
+                    "dob_raw": {
+                        "type": "string",
+                        "example": "2001-04-20",
+                        "nullable": true
+                    },
+                    "speed": {
+                        "type": "integer",
+                        "example": 92
+                    },
+                    "positions": {
+                        "type": "array",
+                        "items": {
+                            "type": "object"
+                        }
+                    },
+                    "ofp": {
+                        "type": "string",
+                        "example": "N/A"
+                    },
+                    "size": {
+                        "type": "integer",
+                        "example": 0
+                    },
+                    "is_playing": {
+                        "description": "True when the player belongs to a configured playing group",
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "fromDatabase": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "position": {
+                        "type": "string",
+                        "example": "N/A"
+                    }
+                },
+                "type": "object"
+            },
+            "TeamGroupWriteRequest": {
+                "required": [
+                    "name",
+                    "type",
+                    "segment"
+                ],
+                "properties": {
+                    "team_id": {
+                        "description": "Optional consistency check; should match the route team",
+                        "type": "integer",
+                        "example": 216,
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255,
+                        "example": "Pressure Front"
+                    },
+                    "description": {
+                        "type": "string",
+                        "example": "Third-down pressure and stunt package",
+                        "nullable": true
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "offense",
+                            "defense"
+                        ],
+                        "example": "defense"
+                    },
+                    "segment": {
+                        "type": "integer",
+                        "enum": [
+                            7,
+                            11,
+                            12
+                        ],
+                        "example": 11
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "active",
+                            "inactive",
+                            "draft"
+                        ],
+                        "example": "draft"
+                    },
+                    "player_ids": {
+                        "description": "Team player IDs to attach to the group",
+                        "type": "array",
+                        "items": {
+                            "type": "integer",
+                            "example": 88
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "TeamGroupConfigurationSyncRequest": {
+                "required": [
+                    "group_ids"
+                ],
+                "properties": {
+                    "group_ids": {
+                        "description": "Full replacement list of group IDs to keep configured for the team. Any previously configured group not included here will be removed.",
+                        "type": "array",
+                        "items": {
+                            "type": "integer",
+                            "example": 12
+                        }
+                    }
+                },
+                "type": "object"
             }
         },
         "securitySchemes": {
@@ -3455,12 +4156,20 @@
             "description": "Device management per league for parallel game execution"
         },
         {
+            "name": "Matches",
+            "description": "Match lifecycle management"
+        },
+        {
             "name": "Leagues",
             "description": "League settings and configuration"
         },
         {
             "name": "Plays",
             "description": "Offensive play create, update, and listing (H-mark images). Includes configured game play lists, system-suggested plays for scoreboard/match flow, filtered by down and expected yardage."
+        },
+        {
+            "name": "Team Groups",
+            "description": "Team-level group management"
         }
     ]
 }
