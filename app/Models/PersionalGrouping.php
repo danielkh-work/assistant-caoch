@@ -50,6 +50,7 @@ class PersionalGrouping extends Model
         'group_level',
         'status',
         'roster_repair_player_ids',
+        'source_team_group_id',
     ];
 
     protected $casts = [
