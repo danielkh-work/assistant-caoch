@@ -7,9 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Laravel\Sanctum\HasApiTokens;
 
-class Device extends Model
+class Device extends Model implements \Illuminate\Contracts\Auth\Authenticatable
 {
-    use HasApiTokens, HasFactory, SoftDeletes;
+    use HasApiTokens, HasFactory, SoftDeletes, \Illuminate\Auth\Authenticatable;
 
     protected $fillable = [
         'device_name',
