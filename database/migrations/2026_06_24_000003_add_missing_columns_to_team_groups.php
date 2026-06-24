@@ -10,16 +10,20 @@ return new class extends Migration
     {
         Schema::table('team_groups', function (Blueprint $table) {
             if (!Schema::hasColumn('team_groups', 'league_id')) {
-                $table->unsignedBigInteger('league_id')->nullable()->after('team_id');
+                $table->unsignedBigInteger('league_id')->nullable();
                 $table->foreign('league_id')->references('id')->on('leagues')->onDelete('set null');
             }
 
             if (!Schema::hasColumn('team_groups', 'description')) {
-                $table->text('description')->nullable()->after('group_name');
+                $table->text('description')->nullable();
+            }
+
+            if (!Schema::hasColumn('team_groups', 'players')) {
+                $table->json('players')->nullable();
             }
 
             if (!Schema::hasColumn('team_groups', 'practice_players')) {
-                $table->json('practice_players')->nullable()->after('players');
+                $table->json('practice_players')->nullable();
             }
         });
     }
