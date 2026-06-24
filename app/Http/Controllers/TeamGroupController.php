@@ -105,25 +105,47 @@ class TeamGroupController extends Controller
         $team = \App\Models\LeagueTeam::findOrFail($teamId);
 
         if ((int) ($team->is_practice ?? 0) === 1) {
-            $rows = \App\Models\PracticeTeamPlayer::where('team_id', $teamId)->get();
+            $rows = \App\Models\PracticeTeamPlayer::where('team_id', $teamId)
+                ->with(['TeamPlayer.teamPlayerPosition' => fn ($q) => $q->orderBy('sort')])
+                ->get();
         } else {
             $rows = \App\Models\TeamPlayer::where('team_id', $teamId)
                 ->with(['teamPlayerPosition' => fn ($q) => $q->orderBy('sort')])
                 ->get();
         }
 
-        $players = $rows->map(fn ($p) => [
-            'id'             => $p->id,
-            'name'           => $p->name ?? $p->player_name ?? null,
-            'number'         => $p->number ?? null,
-            'position'       => $p->position ?? $p->player_position ?? null,
-            'position_value' => $p->position_value ?? null,
-            'rpp'            => $p->rpp ?? null,
-            'type'           => $p->type ?? null,
-            'positions'      => isset($p->teamPlayerPosition)
-                ? $p->teamPlayerPosition->pluck('position_name')->filter()->values()->all()
-                : [],
-        ])->values();
+        $isPractice = (int) ($team->is_practice ?? 0) === 1;
+
+        $players = $rows->map(function ($p) use ($isPractice) {
+            if ($isPractice) {
+                $tp = $p->TeamPlayer;
+                $positions = $tp && isset($tp->teamPlayerPosition)
+                    ? $tp->teamPlayerPosition->pluck('position_name')->filter()->values()->all()
+                    : [];
+                return [
+                    'id'             => $p->id,
+                    'name'           => $p->name ?? ($tp?->name) ?? null,
+                    'number'         => $p->number ?? ($tp?->number) ?? null,
+                    'position'       => $p->position ?? ($tp?->position) ?? null,
+                    'position_value' => $p->position_value ?? ($tp?->position_value) ?? null,
+                    'rpp'            => $p->rpp ?? ($tp?->rpp) ?? null,
+                    'type'           => $p->type ?? ($tp?->type) ?? null,
+                    'positions'      => $positions,
+                ];
+            }
+            return [
+                'id'             => $p->id,
+                'name'           => $p->name ?? $p->player_name ?? null,
+                'number'         => $p->number ?? null,
+                'position'       => $p->position ?? $p->player_position ?? null,
+                'position_value' => $p->position_value ?? null,
+                'rpp'            => $p->rpp ?? null,
+                'type'           => $p->type ?? null,
+                'positions'      => isset($p->teamPlayerPosition)
+                    ? $p->teamPlayerPosition->pluck('position_name')->filter()->values()->all()
+                    : [],
+            ];
+        })->values();
 
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Players fetched', $players);
     }
