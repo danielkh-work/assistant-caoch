@@ -268,6 +268,21 @@ class TeamGroupController extends Controller
                 ->values()
                 ->all();
 
+            // Only create configure rows if the group has the correct roster size.
+            // A group with the wrong size will be demoted to inactive by syncStatusesForConfigureLanding
+            // on the next fetch; demote it immediately here so configure rows are never created for it.
+            $playerCount  = count($playerIds);
+            $groupIsValid = $isPractice
+                ? in_array($playerCount, [7, 11, 12])
+                : ($playerCount === \App\Models\PersionalGrouping::leagueNonPracticePlayerLimitForGroup($gameGroup));
+
+            if (!$groupIsValid) {
+                $gameGroup->status = 'inactive';
+                $gameGroup->saveQuietly();
+                $created[] = $gameGroup->fresh();
+                continue;
+            }
+
             foreach ($playerIds as $playerId) {
                 \App\Models\ConfiguredPlayingTeamPlayer::firstOrCreate(
                     [
