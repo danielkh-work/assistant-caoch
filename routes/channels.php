@@ -33,7 +33,24 @@ Broadcast::channel('user.{userId}.practice.{gameId}', function ($user, $userId, 
 });
 
 Broadcast::channel('headcoach.{headCoachId}.qb', function ($user, $headCoachId) {
-    // Handle device IDs (e.g., QB-2224)
+    // Handle Device authentication
+    if ($user instanceof Device) {
+        // If authenticating as device, check if device belongs to the head coach
+        if ((int) $user->user_id === (int) $headCoachId) {
+            $owner = User::find($user->user_id);
+            if ($owner) {
+                return [
+                    'id' => $owner->id,
+                    'name' => $owner->name,
+                    'role' => $owner->role,
+                    'head_coach_id' => $owner->head_coach_id,
+                ];
+            }
+        }
+        return false;
+    }
+
+    // Handle device IDs in channel name (e.g., QB-2224)
     if (str_starts_with($headCoachId, 'QB-')) {
         $device = Device::where('device_id', $headCoachId)->first();
         if ($device && (int) $device->user_id === (int) $user->id) {
@@ -76,6 +93,15 @@ Broadcast::channel('headcoach.{headCoachId}.league.{leagueId}.qb', function ($us
     return BroadcastChannelAuth::headCoachOwnsLeague($user, (int) $headCoachId, (int) $leagueId);
 });
 Broadcast::channel('headcoach.{headCoachId}.league.{leagueId}.play', function ($user, $headCoachId, $leagueId) {
+    // Handle Device authentication
+    if ($user instanceof Device) {
+        // If authenticating as device, check if device belongs to the head coach and league
+        if ((int) $user->user_id === (int) $headCoachId) {
+            return BroadcastChannelAuth::deviceBelongsToLeague($user, (int) $leagueId);
+        }
+        return false;
+    }
+
     if (! $user instanceof User) {
         return false;
     }
