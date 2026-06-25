@@ -84,14 +84,33 @@ class MigrateLegacyGroupsToTeamLevel extends Command
             // Map status: NULL → 'draft', else keep as-is ('active' / 'inactive')
             $status = $row->status ?? 'draft';
 
+            // Derive valid group_level (7 / 11 / 12) from actual player count.
+            // personal_groupings.group_level = 1 or 2 (game/practice mode flag),
+            // NOT a player-count — so we must recalculate from the JSON arrays.
+            $playerData   = json_decode($row->players ?? $row->practice_players ?? '[]', true) ?? [];
+            $playerCount  = count($playerData);
+            if ($playerCount >= 12) {
+                $groupLevel = 12;
+            } elseif ($playerCount >= 8) {
+                $groupLevel = 11;
+            } else {
+                $groupLevel = 7;
+            }
+
+            // Active is only valid when count matches group_level
+            if ($status === 'active' && $playerCount !== $groupLevel) {
+                $status = 'inactive';
+            }
+
             $this->line(sprintf(
-                '  %s  team=%d group="%s" type=%s status=%s players=%d',
+                '  %s  team=%d group="%s" type=%s status=%s players=%d level=%d',
                 $dryRun ? 'WOULD INSERT' : 'INSERT',
                 $row->team_id,
                 $row->group_name,
                 $row->type ?? '?',
                 $status,
-                $total
+                $playerCount,
+                $groupLevel
             ));
 
             if (!$dryRun) {
@@ -103,7 +122,7 @@ class MigrateLegacyGroupsToTeamLevel extends Command
                     'type'             => $row->type,
                     'players'          => $row->players,
                     'practice_players' => $row->practice_players,
-                    'group_level'      => $row->group_level,
+                    'group_level'      => $groupLevel,
                     'status'           => $status,
                     'created_at'       => now(),
                     'updated_at'       => now(),
