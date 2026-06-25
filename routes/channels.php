@@ -84,7 +84,8 @@ Broadcast::channel('headcoach.{headCoachId}.league.{leagueId}.play', function ($
     if (str_starts_with($headCoachId, 'QB-')) {
         $device = Device::where('device_id', $headCoachId)->first();
         if ($device && (int) $device->user_id === (int) $user->id) {
-            return BroadcastChannelAuth::headCoachOwnsLeague($user, (int) $user->id, (int) $leagueId);
+            // Check if device belongs to the league
+            return BroadcastChannelAuth::deviceBelongsToLeague($device, (int) $leagueId);
         }
         return false;
     }
