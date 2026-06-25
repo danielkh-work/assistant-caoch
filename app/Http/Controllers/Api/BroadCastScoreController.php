@@ -493,12 +493,16 @@ class BroadCastScoreController extends Controller
                 $status = ($action === 'Start') ? 'started' : 'ended';
                 broadcast(new MatchStarted($request->league_id, $status, $scope))->toOthers();
             }
-            broadcast(new PracticeScoreUpdated(
-                $payload,
-                $coachGroupId,
-                $request->game_id,
-                $request->league_id ? (int) $request->league_id : BroadcastLeagueResolver::fromGameId((int) $request->game_id)
-            ))->toOthers();
+
+            // Only broadcast score update if not ending the match
+            if ($action !== 'EndMatch') {
+                broadcast(new PracticeScoreUpdated(
+                    $payload,
+                    $coachGroupId,
+                    $request->game_id,
+                    $request->league_id ? (int) $request->league_id : BroadcastLeagueResolver::fromGameId((int) $request->game_id)
+                ))->toOthers();
+            }
             \Log::info('After broadcast');
         } catch (\Exception $e) {
             \Log::error('PracticeScoreUpdated broadcast failed: ' . $e->getMessage());
@@ -941,12 +945,16 @@ class BroadCastScoreController extends Controller
                 $status = ($action === 'Start') ? 'started' : 'ended';
                 broadcast(new MatchStarted($request->league_id, $status, $scope))->toOthers();
             }
-            broadcast(new ScoreUpdated(
-                $payload,
-                $coachGroupId,
-                $request->game_id,
-                $request->league_id ? (int) $request->league_id : BroadcastLeagueResolver::fromGameId((int) $request->game_id)
-            ))->toOthers();
+
+            // Only broadcast score update if not ending the match
+            if ($action !== 'EndMatch') {
+                broadcast(new ScoreUpdated(
+                    $payload,
+                    $coachGroupId,
+                    $request->game_id,
+                    $request->league_id ? (int) $request->league_id : BroadcastLeagueResolver::fromGameId((int) $request->game_id)
+                ))->toOthers();
+            }
         } catch (\Exception $e) {
             \Log::error('ScoreUpdated broadcast failed: ' . $e->getMessage());
         }
