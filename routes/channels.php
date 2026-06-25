@@ -33,12 +33,37 @@ Broadcast::channel('user.{userId}.practice.{gameId}', function ($user, $userId, 
 });
 
 Broadcast::channel('headcoach.{headCoachId}.qb', function ($user, $headCoachId) {
+    // Handle device IDs (e.g., QB-2224)
+    if (str_starts_with($headCoachId, 'QB-')) {
+        $device = Device::where('device_id', $headCoachId)->first();
+        if ($device && (int) $device->user_id === (int) $user->id) {
+            return [
+                'id' => $user->id,
+                'name' => $user->name,
+                'role' => $user->role,
+                'head_coach_id' => $user->head_coach_id,
+            ];
+        }
+        return false;
+    }
+
+    // Handle numeric user IDs (legacy)
     if ($user->role === 'head_coach' && (int) $user->id === (int) $headCoachId) {
-        return true;
+        return [
+            'id' => $user->id,
+            'name' => $user->name,
+            'role' => $user->role,
+            'head_coach_id' => $user->head_coach_id,
+        ];
     }
     if (in_array($user->role, ['assistant_coach', 'performance_coach'], true)
         && (int) $user->head_coach_id === (int) $headCoachId) {
-        return true;
+        return [
+            'id' => $user->id,
+            'name' => $user->name,
+            'role' => $user->role,
+            'head_coach_id' => $user->head_coach_id,
+        ];
     }
 
     return false;
@@ -55,6 +80,16 @@ Broadcast::channel('headcoach.{headCoachId}.league.{leagueId}.play', function ($
         return false;
     }
 
+    // Handle device IDs (e.g., QB-2224)
+    if (str_starts_with($headCoachId, 'QB-')) {
+        $device = Device::where('device_id', $headCoachId)->first();
+        if ($device && (int) $device->user_id === (int) $user->id) {
+            return BroadcastChannelAuth::headCoachOwnsLeague($user, (int) $user->id, (int) $leagueId);
+        }
+        return false;
+    }
+
+    // Handle numeric user IDs (legacy)
     return BroadcastChannelAuth::headCoachOwnsLeague($user, (int) $headCoachId, (int) $leagueId);
 });
 Broadcast::channel('headcoach.{headCoachId}.league.{leagueId}.devices', function ($user, $headCoachId, $leagueId) {
