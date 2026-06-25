@@ -162,19 +162,19 @@ Route::middleware('auth:sanctum')->group(function () {
     //profile
     Route::get('view-profile',[AuthController::class,'viewProfile'])->name('view-profile');
     Route::post('profile-update',[AuthController::class,'profileUpdate'])->name('profile-update');
-    Route::post('change-password',[AuthController::class,'changePassword'])->name('change-password');
+    Route::post('change-password',[AuthController::class,'changePassword'])->name('profile-update');
 
     // upload Play
     Route::post('/uplaod-play',[PlayController::class,'store'])->name('uplaod-play');
-    Route::post('/play-offensive-target-store',[PlayController::class,'playOffenseTargetStore'])->name('play-offensive-target-store');
-    Route::get('/get-play-offensive-target/{id}',[PlayController::class,'getOffensiveTargetsByPlay'])->name('get-play-offensive-target');
+    Route::post('/play-offensive-target-store',[PlayController::class,'playOffenseTargetStore'])->name('uplaod-play');
+    Route::get('/get-play-offensive-target/{id}',[PlayController::class,'getOffensiveTargetsByPlay'])->name('uplaod-play');
 
     Route::get('/upload-play-list',[PlayController::class,'index'])->name('upload-play-list');
     Route::get('/match-plays', [MatchPlaysController::class, 'index']);
     Route::get('/delete-play/{id}',[PlayController::class,'delete'])->name('delete-play');
-    Route::get('/get-offense-target-play/{id}',[PlayController::class,'getTargetOffensePosition'])->name('get-offense-target-play');
+    Route::get('/get-offense-target-play/{id}',[PlayController::class,'getTargetOffensePosition'])->name('delete-play');
     Route::get('/edit-play/{id}',[PlayController::class,'editPlay'])->name('edit-play');
-    Route::get('/duplicate-play/{id}',[PlayController::class,'duplicatePlay'])->name('duplicate-play');
+    Route::get('/duplicate-play/{id}',[PlayController::class,'duplicatePlay'])->name('edit-play');
     Route::get('/delete-play-results/{id}', [PlayController::class, 'deletePlayResults']);
 
 
@@ -221,10 +221,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/delete-play-parameters/{id}', [DefensivePlayParameterController::class, 'delete']);
     Route::get('/edit-defensive-play-parameter/{id}', [DefensivePlayParameterController::class, 'edit']);
     Route::put('/update-defensive-play-parameter/{id}',[DefensivePlayParameterController::class,'update'])->name('update.defensive-player');
-    Route::get('/upload-defensive-play-list',[DefensivePlayController::class,'index'])->name('upload-defensive-play-list');
+    Route::get('/upload-defensive-play-list',[DefensivePlayController::class,'index'])->name('upload-play-list');
     Route::get('/edit-defensive-play/{id}',[DefensivePlayController::class,'editDefensivePlay'])->name('edit-defensive-play');
-    Route::post('/update-defensive-play/{id}',[DefensivePlayController::class,'update'])->name('update-defensive-play');
-    Route::get('/duplicate-defensive-play/{id}',[DefensivePlayController::class,'duplicateDefensivePlay'])->name('duplicate-defensive-play');
+    Route::post('/update-defensive-play/{id}',[DefensivePlayController::class,'update'])->name('update.defensive-player');
+    Route::get('/duplicate-defensive-play/{id}',[DefensivePlayController::class,'duplicateDefensivePlay'])->name('edit-play');
     Route::controller(GameController::class)->group(function () {
             Route::get('/games/id', 'index');
             Route::post('/games', 'store');
