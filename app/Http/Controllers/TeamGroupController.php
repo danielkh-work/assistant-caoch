@@ -251,7 +251,7 @@ class TeamGroupController extends Controller
                     'group_name'               => $teamGroup->group_name,
                     'type'                     => $teamGroup->type,
                     'players'                  => $isPractice ? null : $teamGroup->players,
-                    'practice_players'         => $isPractice ? $teamGroup->practice_players : null,
+                    'practice_players'         => $isPractice ? $teamGroup->players : null,
                     'group_level'              => $isPractice ? 2 : 1,
                     'status'                   => 'active',
                     'source_team_group_id'     => $teamGroup->id,
@@ -259,7 +259,7 @@ class TeamGroupController extends Controller
                 ]);
             });
 
-            $rawPlayers = $isPractice ? $teamGroup->practice_players : $teamGroup->players;
+            $rawPlayers = $teamGroup->players;
             $slotType   = str_contains(strtolower($teamGroup->type ?? ''), 'offen') ? 'offensive' : 'defensive';
             $playerIds  = collect(is_array($rawPlayers) ? $rawPlayers : [])
                 ->map(fn ($p) => is_array($p) ? (int) ($p['id'] ?? 0) : (int) $p)
