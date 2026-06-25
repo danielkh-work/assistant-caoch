@@ -107,11 +107,27 @@ class TeamGroupController extends Controller
         if ((int) ($team->is_practice ?? 0) === 1) {
             $ptpRows = \App\Models\PracticeTeamPlayer::where('team_id', $teamId)->get();
 
-            // Build a positions lookup from My Team's TeamPlayers.
-            // PTP.player_id may be either TeamPlayer.id (direct FK) or players.id
-            // (= TeamPlayer.player_id) depending on when the practice team was created.
-            // Index by both so either variant resolves.
+            // Two-source positions lookup.
+            // Source 1: practice team's OWN team_players (covers players added directly
+            //   via Add Player — their positions live under team_id=practice_team_id).
+            // Source 2: league's My Team (type=1, not practice) — covers players imported
+            //   from the main roster. My Team data overrides Source 1 when non-empty.
+            // PTP.player_id may be TeamPlayer.id OR players.id depending on when the
+            // practice team was created, so we index by both keys.
             $positionsMap = [];
+
+            $practiceOwnTPs = \App\Models\TeamPlayer::where('team_id', $teamId)
+                ->with(['teamPlayerPosition' => fn ($q) => $q->orderBy('sort')])
+                ->get();
+
+            foreach ($practiceOwnTPs as $tp) {
+                $pos = $tp->teamPlayerPosition->pluck('position_name')->filter()->values()->all();
+                $positionsMap['id:' . $tp->id] = $pos;
+                if ($tp->player_id) {
+                    $positionsMap['pid:' . $tp->player_id] = $pos;
+                }
+            }
+
             $myTeam = \App\Models\LeagueTeam::where('league_id', $team->league_id)
                 ->where('type', 1)
                 ->where(function ($q) { $q->where('is_practice', 0)->orWhereNull('is_practice'); })
@@ -124,8 +140,11 @@ class TeamGroupController extends Controller
 
                 foreach ($myTPs as $tp) {
                     $pos = $tp->teamPlayerPosition->pluck('position_name')->filter()->values()->all();
-                    $positionsMap['id:' . $tp->id] = $pos;
-                    if ($tp->player_id) {
+                    // My Team overrides practice-team entry only when it has richer data
+                    if (!empty($pos) || !isset($positionsMap['id:' . $tp->id])) {
+                        $positionsMap['id:' . $tp->id] = $pos;
+                    }
+                    if ($tp->player_id && (!empty($pos) || !isset($positionsMap['pid:' . $tp->player_id]))) {
                         $positionsMap['pid:' . $tp->player_id] = $pos;
                     }
                 }
