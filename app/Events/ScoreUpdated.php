@@ -14,15 +14,15 @@ class ScoreUpdated implements ShouldBroadcast
 {
    use Dispatchable, InteractsWithSockets, SerializesModels;
 
-   public $scores;
+   public $data;
    protected $userId;
    protected $gameId;
    protected ?int $leagueId;
 
 
-   public function __construct($scores,$userId,$gameId, ?int $leagueId = null)
+   public function __construct($data,$userId,$gameId, ?int $leagueId = null)
    {
-     $this->scores = $scores;
+     $this->data = $data;
      $this->userId = $userId;
      $this->gameId = $gameId;
      $this->leagueId = $leagueId;
@@ -30,7 +30,7 @@ class ScoreUpdated implements ShouldBroadcast
    }
     public function broadcastOn()
     {
-           \Log::info([' in sockeet before all request data'=>$this->scores]);
+           \Log::info([' in sockeet before all request data'=>$this->data]);
 
          $channels = [
              new PrivateChannel("user.{$this->userId}.game.{$this->gameId}"),
@@ -51,12 +51,7 @@ class ScoreUpdated implements ShouldBroadcast
 
     public function broadcastWith()
     {
-        $data = $this->scores;
-
-        // Remove the outer "scores" wrapper if it exists
-        if (isset($data['scores']) && is_array($data['scores'])) {
-            $data = $data['scores'];
-        }
+        $data = $this->data;
 
         // Add team names inside scores structure
         if (isset($data['scores']) && isset($data['game_id'])) {
