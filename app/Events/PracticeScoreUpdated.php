@@ -53,6 +53,11 @@ class PracticeScoreUpdated implements ShouldBroadcast
     {
         $data = $this->data;
 
+        // Convert object to array if needed
+        if (is_object($data)) {
+            $data = (array) $data;
+        }
+
         // Add team names inside scores structure if not already present
         if (isset($data['scores']) && isset($data['game_id'])) {
             if (!isset($data['scores']['left']['name']) || !isset($data['scores']['right']['name'])) {
