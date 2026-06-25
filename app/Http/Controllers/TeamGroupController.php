@@ -105,25 +105,98 @@ class TeamGroupController extends Controller
         $team = \App\Models\LeagueTeam::findOrFail($teamId);
 
         if ((int) ($team->is_practice ?? 0) === 1) {
-            $rows = \App\Models\PracticeTeamPlayer::where('team_id', $teamId)->get();
-        } else {
-            $rows = \App\Models\TeamPlayer::where('team_id', $teamId)
+            $ptpRows = \App\Models\PracticeTeamPlayer::where('team_id', $teamId)->get();
+
+            // Two-source positions lookup.
+            // Source 1: practice team's OWN team_players (covers players added directly
+            //   via Add Player — their positions live under team_id=practice_team_id).
+            // Source 2: league's My Team (type=1, not practice) — covers players imported
+            //   from the main roster. My Team data overrides Source 1 when non-empty.
+            // PTP.player_id may be TeamPlayer.id OR players.id depending on when the
+            // practice team was created, so we index by both keys.
+            $positionsMap = [];
+
+            $practiceOwnTPs = \App\Models\TeamPlayer::where('team_id', $teamId)
                 ->with(['teamPlayerPosition' => fn ($q) => $q->orderBy('sort')])
                 ->get();
+
+            foreach ($practiceOwnTPs as $tp) {
+                $pos = $tp->teamPlayerPosition->pluck('position_name')->filter()->values()->all();
+                $positionsMap['id:' . $tp->id] = $pos;
+                if ($tp->player_id) {
+                    $positionsMap['pid:' . $tp->player_id] = $pos;
+                }
+            }
+
+            $myTeam = \App\Models\LeagueTeam::where('league_id', $team->league_id)
+                ->where('type', 1)
+                ->where(function ($q) { $q->where('is_practice', 0)->orWhereNull('is_practice'); })
+                ->first();
+
+            if ($myTeam) {
+                $myTPs = \App\Models\TeamPlayer::where('team_id', $myTeam->id)
+                    ->with(['teamPlayerPosition' => fn ($q) => $q->orderBy('sort')])
+                    ->get();
+
+                foreach ($myTPs as $tp) {
+                    $pos = $tp->teamPlayerPosition->pluck('position_name')->filter()->values()->all();
+                    // My Team overrides practice-team entry only when it has richer data
+                    if (!empty($pos) || !isset($positionsMap['id:' . $tp->id])) {
+                        $positionsMap['id:' . $tp->id] = $pos;
+                    }
+                    if ($tp->player_id && (!empty($pos) || !isset($positionsMap['pid:' . $tp->player_id]))) {
+                        $positionsMap['pid:' . $tp->player_id] = $pos;
+                    }
+                }
+            }
+
+            // Deduplicate by name, preferring records with positions.
+            // Some practice teams store each player twice (orphaned + valid FK).
+            $byName = [];
+            foreach ($ptpRows as $p) {
+                $positions = $positionsMap['pid:' . $p->player_id]
+                    ?? $positionsMap['id:' . $p->player_id]
+                    ?? [];
+
+                $nameKey = mb_strtolower(trim($p->name ?? ''));
+
+                $entry = [
+                    'id'             => $p->id,
+                    'name'           => $p->name,
+                    'number'         => $p->number,
+                    'position'       => $p->position,
+                    'position_value' => $p->position_value,
+                    'rpp'            => $p->rpp,
+                    'type'           => $p->type,
+                    'positions'      => $positions,
+                ];
+
+                if (!isset($byName[$nameKey]) || (!empty($positions) && empty($byName[$nameKey]['positions']))) {
+                    $byName[$nameKey] = $entry;
+                }
+            }
+
+            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Players fetched', array_values($byName));
         }
 
-        $players = $rows->map(fn ($p) => [
-            'id'             => $p->id,
-            'name'           => $p->name ?? $p->player_name ?? null,
-            'number'         => $p->number ?? null,
-            'position'       => $p->position ?? $p->player_position ?? null,
-            'position_value' => $p->position_value ?? null,
-            'rpp'            => $p->rpp ?? null,
-            'type'           => $p->type ?? null,
-            'positions'      => isset($p->teamPlayerPosition)
-                ? $p->teamPlayerPosition->pluck('position_name')->filter()->values()->all()
-                : [],
-        ])->values();
+        $rows = \App\Models\TeamPlayer::where('team_id', $teamId)
+            ->with(['teamPlayerPosition' => fn ($q) => $q->orderBy('sort')])
+            ->get();
+
+        $players = $rows->map(function ($p) {
+            return [
+                'id'             => $p->id,
+                'name'           => $p->name ?? $p->player_name ?? null,
+                'number'         => $p->number ?? null,
+                'position'       => $p->position ?? $p->player_position ?? null,
+                'position_value' => $p->position_value ?? null,
+                'rpp'            => $p->rpp ?? null,
+                'type'           => $p->type ?? null,
+                'positions'      => isset($p->teamPlayerPosition)
+                    ? $p->teamPlayerPosition->pluck('position_name')->filter()->values()->all()
+                    : [],
+            ];
+        })->values();
 
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Players fetched', $players);
     }

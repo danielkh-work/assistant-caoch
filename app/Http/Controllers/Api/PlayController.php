@@ -288,12 +288,11 @@ class PlayController extends Controller
             if (!is_array($groups)) {
                 $groups = [];
             }
-            $groups = array_filter($groups, fn($g) => !is_null($g) && $g !== '');
+            $groups = array_values(array_filter($groups, fn($g) => !is_null($g) && $g !== ''));
 
-
-                if (!empty($groups)) {
-                    $play->personalGroupings()->sync($groups);
-                }
+            if (!empty($groups)) {
+                $play->teamGroups()->sync($groups);
+            }
             
             if (is_array($request->offensive)) {
                 $offensivePositions = OffensivePosition::pluck('id', 'name')->toArray();

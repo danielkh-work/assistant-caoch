@@ -51,5 +51,16 @@ class Play extends Model
             'personal_grouping_id'
         );
     }
+
+    public function teamGroups()
+    {
+        return $this->belongsToMany(
+            TeamGroup::class,
+            'team_group_play',
+            'play_id',
+            'team_group_id'
+        );
+    }
 }
+
  
