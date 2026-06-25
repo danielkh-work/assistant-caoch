@@ -53,15 +53,17 @@ class PracticeScoreUpdated implements ShouldBroadcast
     {
         $data = $this->data;
 
-        // Add team names inside scores structure
+        // Add team names inside scores structure if not already present
         if (isset($data['scores']) && isset($data['game_id'])) {
-            $game = \App\Models\PlayGameMode::find($data['game_id']);
-            if ($game) {
-                if (!isset($data['scores']['left']['name']) && $game->myTeam) {
-                    $data['scores']['left']['name'] = $game->myTeam->team_name;
-                }
-                if (!isset($data['scores']['right']['name']) && $game->opponentTeam) {
-                    $data['scores']['right']['name'] = $game->opponentTeam->team_name;
+            if (!isset($data['scores']['left']['name']) || !isset($data['scores']['right']['name'])) {
+                $game = \App\Models\PlayGameMode::find($data['game_id']);
+                if ($game) {
+                    if (!isset($data['scores']['left']['name']) && $game->myTeam) {
+                        $data['scores']['left']['name'] = $game->myTeam->team_name;
+                    }
+                    if (!isset($data['scores']['right']['name']) && $game->opponentTeam) {
+                        $data['scores']['right']['name'] = $game->opponentTeam->team_name;
+                    }
                 }
             }
         }

@@ -449,6 +449,13 @@ class BroadCastScoreController extends Controller
             $practiceValues
         );
 
+        // Add team names to scores from request
+        if ($request->leftTeamName) {
+            self::$scores['left']['name'] = $request->leftTeamName;
+        }
+        if ($request->rightTeamName) {
+            self::$scores['right']['name'] = $request->rightTeamName;
+        }
 
         $payload = [
             'scores' => self::$scores,
@@ -886,6 +893,13 @@ class BroadCastScoreController extends Controller
             $scoreboardValues
         );
 
+        // Add team names to scores from request
+        if ($request->leftTeamName) {
+            self::$scores['left']['name'] = $request->leftTeamName;
+        }
+        if ($request->rightTeamName) {
+            self::$scores['right']['name'] = $request->rightTeamName;
+        }
 
         $payload = [
             'scores' => self::$scores,
