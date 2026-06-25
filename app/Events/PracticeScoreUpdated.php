@@ -49,4 +49,29 @@ class PracticeScoreUpdated implements ShouldBroadcast
         return 'practice.score.updated';
     }
 
+    public function broadcastWith()
+    {
+        $data = $this->scores;
+
+        // Remove the outer "scores" wrapper if it exists
+        if (isset($data['scores']) && is_array($data['scores'])) {
+            $data = $data['scores'];
+        }
+
+        // Add team names inside scores structure
+        if (isset($data['scores']) && isset($data['game_id'])) {
+            $game = \App\Models\PlayGameMode::find($data['game_id']);
+            if ($game) {
+                if (!isset($data['scores']['left']['name']) && $game->myTeam) {
+                    $data['scores']['left']['name'] = $game->myTeam->team_name;
+                }
+                if (!isset($data['scores']['right']['name']) && $game->opponentTeam) {
+                    $data['scores']['right']['name'] = $game->opponentTeam->team_name;
+                }
+            }
+        }
+
+        return $data;
+    }
+
 }
