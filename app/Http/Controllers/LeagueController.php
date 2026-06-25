@@ -156,10 +156,9 @@ class LeagueController extends Controller
                 foreach ($request->team_name as $index => $value) {
                     if (!empty($value)) {
                         if (isset($existingTeams[$index])) {
-                            // Update existing team
+                            // Update existing team - only change name, preserve type and is_practice
                             $team = $existingTeams[$index];
                             $team->team_name = $value;
-                            $team->type = $index == 0 ? 1 : null;
                             $team->save();
                         } else {
                             // Create new team
