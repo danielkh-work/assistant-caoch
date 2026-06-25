@@ -37,14 +37,21 @@ class TeamGroupController extends Controller
             ->values()
             ->all();
 
+        $playerCount     = count($players);
+        $groupLevel      = (int) $request->group_level;
+        $requestedStatus = $request->status ?? 'active';
+        $finalStatus     = ($requestedStatus === 'active' && $playerCount !== $groupLevel)
+            ? 'inactive'
+            : $requestedStatus;
+
         $group = TeamGroup::create([
             'team_id'     => $teamId,
             'league_id'   => $request->league_id,
             'group_name'  => $request->group_name,
             'description' => $request->description,
             'type'        => $request->type,
-            'group_level' => (int) $request->group_level,
-            'status'      => $request->status ?? 'active',
+            'group_level' => $groupLevel,
+            'status'      => $finalStatus,
             'players'     => $players ?: null,
         ]);
 
