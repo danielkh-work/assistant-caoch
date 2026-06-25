@@ -147,17 +147,31 @@ class LeagueController extends Controller
             $League->flag_tbd = $request->flag_tbd;
             $League->save();
 
-            $League->roles()->sync($request->role_id);
-            // Delete existing teams and recreate
-            // LeagueTeam::where('league_id', $League->id)->delete();
+            $League->roles()->sync($request->role_id ?? []);
 
-            // foreach ($request->team_name as $index => $value) {
-            //     $team = new LeagueTeam;
-            //     $team->league_id = $League->id;
-            //     $team->type = $index == 0 ? 1 : null;
-            //     $team->team_name = $value;
-            //     $team->save();
-            // }
+            // Update teams if provided
+            if ($request->has('team_name') && is_array($request->team_name)) {
+                $existingTeams = LeagueTeam::where('league_id', $League->id)->get()->values();
+
+                foreach ($request->team_name as $index => $value) {
+                    if (!empty($value)) {
+                        if (isset($existingTeams[$index])) {
+                            // Update existing team
+                            $team = $existingTeams[$index];
+                            $team->team_name = $value;
+                            $team->type = $index == 0 ? 1 : null;
+                            $team->save();
+                        } else {
+                            // Create new team
+                            $team = new LeagueTeam;
+                            $team->league_id = $League->id;
+                            $team->type = $index == 0 ? 1 : null;
+                            $team->team_name = $value;
+                            $team->save();
+                        }
+                    }
+                }
+            }
 
             DB::commit();
 
