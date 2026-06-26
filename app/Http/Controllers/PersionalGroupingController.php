@@ -332,8 +332,12 @@ public function storeAllGroups(Request $request)
             $q->where('team_id', $teamId)
               ->where('game_id', $gameId);
         })
-        ->when((!$teamId || !$gameId) && $leagueId, function ($q) use ($leagueId) {
+        ->when((!$teamId || !$gameId) && $leagueId, function ($q) use ($teamId, $leagueId) {
             $q->where('league_id', $leagueId);
+            // Always filter by team_id when available to prevent cross-team contamination
+            if ($teamId) {
+                $q->where('team_id', $teamId);
+            }
         })
         // Match-Start / substitution view (for_practice_mode=1) shows the same set as
         // Configure → "Active" tab: every group with status='active'. Practice size 7/11/12 is
