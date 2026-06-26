@@ -216,15 +216,16 @@ class ActiveGameModeGuard
             return null;
         }
 
-        if (isset($row->updated_at)) {
-            $updatedAt = $row->updated_at instanceof \DateTimeInterface
-                ? $row->updated_at
-                : \Carbon\Carbon::parse($row->updated_at);
+        // Removed 30-second timeout - scoreboard should persist for entire match duration
+        // if (isset($row->updated_at)) {
+        //     $updatedAt = $row->updated_at instanceof \DateTimeInterface
+        //         ? $row->updated_at
+        //         : \Carbon\Carbon::parse($row->updated_at);
 
-            if ($updatedAt->diffInSeconds(now()) < 30) {
-                return $row;
-            }
-        }
+        //     if ($updatedAt->diffInSeconds(now()) < 30) {
+        //         return $row;
+        //     }
+        // }
 
         if (! self::scoreboardIndicatesLive($row, $headCoachId, $gameMode)) {
             if ($row->is_start) {
