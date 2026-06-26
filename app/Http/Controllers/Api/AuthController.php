@@ -478,7 +478,7 @@ class AuthController extends Controller
         // Bind session to device
         \App\Support\DeviceMobileSession::bind($device, $request->session_id);
         $device->session_id = $request->session_id;
-        $device->save();
+        $device->markAsPaired();
 
         // Broadcast to head coach
         \App\Support\DeviceSessionBroadcaster::broadcastForLeagues($device, 'login', true);
