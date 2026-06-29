@@ -44,7 +44,7 @@ return [
                  * Absolute paths to directory containing the swagger annotations are stored.
                  */
                 'annotations' => [
-                    base_path('app'),
+                    base_path('app/OpenApi'),
                 ],
             ],
         ],
@@ -281,7 +281,13 @@ return [
                  * 'full' (expands the tags and operations),
                  * 'none' (expands nothing).
                  */
-                'doc_expansion' => env('L5_SWAGGER_UI_DOC_EXPANSION', 'none'),
+                'doc_expansion' => env('L5_SWAGGER_UI_DOC_EXPANSION', 'list'),
+
+                /*
+                 * When true, opening tags/operations updates the URL hash (#/Tag/operationId).
+                 * Set false to keep a stable URL. Use doc_expansion `list` to open tag accordions only on load.
+                 */
+                'deep_linking' => env('L5_SWAGGER_UI_DEEP_LINKING', false),
 
                 /**
                  * If set, enables filtering. The top bar will show an edit box that

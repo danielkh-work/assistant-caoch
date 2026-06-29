@@ -13,5 +13,7 @@ class WebsocketPracticeScoreboard extends Model
 
     protected $casts = [
         'session_id' => 'integer',
+        'timer_remaining' => 'integer',
+        'quarter' => 'integer',
     ];
 }

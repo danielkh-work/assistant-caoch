@@ -6,35 +6,19 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\MobileSession;
 use App\Models\User;
+use App\Models\Device;
 use App\Events\MobileSessionApproved;
-use App\Events\MobileSessionLogout;
 use App\Events\QbSessionUpdated;
+use App\Support\DeviceMobileSession;
+use App\Support\DeviceSessionBroadcaster;
+use App\Support\DeviceLogoutBroadcaster;
+use App\Support\QbLogoutBroadcaster;
+use App\Support\QbMobileSession;
 use Illuminate\Support\Str;
+use Laravel\Sanctum\PersonalAccessToken;
 
-/**
- * @OA\Tag(
- *     name="Human Dashboard",
- *     description="QB session flows (Human Dashboard Postman collection)"
- * )
- */
 class WebQrController extends Controller
 {
-    // Mobile generates session
-    public function createSession(Request $request)
-    {
-        // $user = $request->user(); // mobile user authenticated
-
-        $session = MobileSession::create([
-            'mobile_user_id' => null,
-            'session_id' => Str::uuid()->toString(),
-        ]);
-
-        return response()->json([
-            'session_id' => $session->session_id,
-        ]);
-    }
-
-  
     public function scanQr(Request $request)
     {
         $request->validate([
@@ -76,7 +60,7 @@ class WebQrController extends Controller
             ], 401);
         }
 
-        $user->session_id = $request->session_id;
+        QbMobileSession::bind($user, $request->session_id);
         $user->is_loggin = true;
         $user->save();
 
@@ -95,7 +79,8 @@ class WebQrController extends Controller
 
         broadcast(new QbSessionUpdated(
             (int) $authId,
-            $user->only(['id', 'name', 'email', 'session_id', 'code', 'head_coach_id', 'is_loggin']),
+            (int) ($user->league_id ?? 0),
+            $user->only(['id', 'name', 'email', 'session_id', 'code', 'head_coach_id', 'league_id', 'team_id', 'is_loggin']),
             true,
             'login',
         ))->toOthers();
@@ -103,136 +88,11 @@ class WebQrController extends Controller
         return response()->json($userData, 201);
     }
 
-    /**
-     * @OA\Get(
-     *     path="/api/logout-qb-applicaion/{id}",
-     *     operationId="logoutQbApplication",
-     *     tags={"Human Dashboard"},
-     *     summary="QB application logout",
-     *     description="Clears `session_id` and `is_loggin` for the QB user. Postman: **QB Logout Success**.",
-     *     @OA\Parameter(
-     *         name="id",
-     *         in="path",
-     *         required=true,
-     *         description="QB user primary key",
-     *         @OA\Schema(type="integer", example=78)
-     *     ),
-     *     @OA\Response(
-     *         response=200,
-     *         description="Logout succeeded, or user was not found (see `status` and `message` in the JSON body; HTTP code may still be 200).",
-     *         @OA\JsonContent(
-     *             oneOf={
-     *                 @OA\Schema(
-     *                     @OA\Property(property="status", type="integer", example=200),
-     *                     @OA\Property(property="message", type="string", example="logout successful"),
-     *                     @OA\Property(
-     *                         property="user",
-     *                         type="object",
-     *                         @OA\Property(property="name", type="string"),
-     *                         @OA\Property(property="session_id", type="string", nullable=true),
-     *                         @OA\Property(property="code", type="string", nullable=true),
-     *                         @OA\Property(property="head_coach_id", type="integer", nullable=true)
-     *                     )
-     *                 ),
-     *                 @OA\Schema(
-     *                     @OA\Property(property="status", type="integer", example=404),
-     *                     @OA\Property(property="message", type="string", example="User not found")
-     *                 )
-     *             }
-     *         )
-     *     )
-     * )
-     */
-    public function logouQbApplicaion(string $id)
-    {
-        $user = User::find($id);
-
-        if (!$user) {
-            return response()->json([
-                'status' => 404,
-                'message' => 'User not found'
-            ]);
-        }
-
-        $user->session_id = null;
-        $user->is_loggin = false;
-        $user->save();
-
-        $userData = [
-            'status'  => 200,
-            'message' => 'logout successful',
-            'user'    => $user->only(['id', 'name', 'session_id', 'code', 'head_coach_id', 'is_loggin']),
-        ];
-
-        if ($user->head_coach_id) {
-            broadcast(new QbSessionUpdated(
-                (int) $user->head_coach_id,
-                $userData['user'],
-                false,
-                'logout',
-            ))->toOthers();
-        }
-
-        return response()->json($userData);
-    }
-
-    /**
-     * @OA\Get(
-     *     path="/api/qb-session-login-status/{session_id}",
-     *     operationId="qbSessionLoginStatus",
-     *     tags={"Human Dashboard"},
-     *     summary="Check QB login status",
-     *     description="Returns **200** when a QB user is bound to the given mobile session UUID. Returns **401** when no QB has this `session_id` (Postman **Check QB Login Status 200** / invalid session **Check QB Login Status 403** — API uses **401 Unauthenticated**).",
-     *     @OA\Parameter(
-     *         name="session_id",
-     *         in="path",
-     *         required=true,
-     *         description="Mobile pairing session UUID from `POST /api/mobile/create-session`",
-     *         @OA\Schema(type="string", format="uuid", example="822fc835-75aa-48bf-8473-354a4913aab2")
-     *     ),
-     *     @OA\Response(
-     *         response=200,
-     *         description="QB is linked to this session",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="status", type="integer", example=200),
-     *             @OA\Property(property="session_id", type="string", format="uuid"),
-     *             @OA\Property(property="logged_in", type="boolean", description="Mirrors the QB user's `is_loggin` flag in the database.", example=true)
-     *         )
-     *     ),
-     *     @OA\Response(
-     *         response=401,
-     *         description="Unauthenticated — no QB user with this session_id",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="status", type="integer", example=401),
-     *             @OA\Property(property="message", type="string", example="Unauthenticated")
-     *         )
-     *     )
-     * )
-     */
-    public function qbSessionLoginStatus(string $session_id)
-    {
-        $user = User::where('session_id', $session_id)
-            ->where('role', 'qb')
-            ->first();
-
-        if ($user === null) {
-            return response()->json([
-                'status' => 401,
-                'message' => 'Unauthenticated',
-            ], 401);
-        }
-
-        return response()->json([
-            'status' => 200,
-            'session_id' => $session_id,
-            'logged_in' => (bool) $user->is_loggin,
-        ]);
-    }
-
     public function logoutQb(Request $request)
     {
         $request->validate([
             'id' => 'required|integer|exists:users,id',
+            'session_id' => 'sometimes|nullable|string|uuid',
         ]);
 
         $coach = $request->user();
@@ -256,39 +116,83 @@ class WebQrController extends Controller
             ], 404);
         }
 
-        $sessionId = $user->session_id;
+        return response()->json(QbLogoutBroadcaster::logoutAndBroadcast(
+            $user,
+            $coach,
+            array_filter([$request->input('session_id')]),
+        ));
+    }
 
-        $user->is_loggin = false;
-        $user->save();
+    /**
+     * Logout device application by device ID
+     */
+    public function logoutDeviceApplication(string $id)
+    {
+        $device = Device::find($id);
 
-        $payload = [
-            'status' => 200,
-            'message' => 'logout successful',
-            'user' => $user->only(['id', 'name', 'session_id', 'code', 'head_coach_id']),
-            'is_loggin' => (bool) $user->is_loggin,
-        ];
-
-        if ($sessionId) {
-            broadcast(new MobileSessionLogout([
-                'status' => 200,
-                'message' => 'logout successful',
-                'user' => array_merge(
-                    $user->only(['id', 'name', 'code', 'head_coach_id']),
-                    ['session_id' => $sessionId]
-                ),
-            ]))->toOthers();
+        if (!$device) {
+            return response()->json([
+                'status' => 404,
+                'message' => 'Device not found'
+            ]);
         }
 
-        broadcast(new QbSessionUpdated(
-            (int) $coach->id,
-            $user->only(['id', 'name', 'email', 'session_id', 'code', 'head_coach_id', 'is_loggin']),
-            false,
-            'logout',
-        ))->toOthers();
+        $coach = $device->user_id ? User::find($device->user_id) : null;
 
-        return response()->json($payload);
+        return response()->json(DeviceLogoutBroadcaster::logoutAndBroadcast(
+            $device,
+            $coach,
+            []
+        ));
+    }
+
+    /**
+     * Check device session login status by session ID
+     */
+    public function deviceSessionStatus(string $session_id)
+    {
+        $device = Device::where('session_id', $session_id)->first();
+
+        if ($device === null) {
+            return response()->json([
+                'status' => 401,
+                'message' => 'Unauthenticated',
+            ], 401);
+        }
+
+        return response()->json([
+            'status' => 200,
+            'session_id' => $session_id,
+            'logged_in' => $device->tokens()->exists(),
+            'device' => DeviceSessionBroadcaster::deviceFields($device),
+        ]);
+    }
+
+    private function optionalSanctumTokenable(Request $request): User|Device|null
+    {
+        $user = $request->user('sanctum');
+        if ($user instanceof User || $user instanceof Device) {
+            return $user;
+        }
+
+        $token = $request->bearerToken();
+        if (! $token) {
+            return null;
+        }
+
+        $accessToken = PersonalAccessToken::findToken($token);
+        $tokenable = $accessToken?->tokenable;
+
+        return $tokenable instanceof User || $tokenable instanceof Device ? $tokenable : null;
+    }
+
+    private function optionalSanctumUser(Request $request): ?User
+    {
+        $tokenable = $this->optionalSanctumTokenable($request);
+
+        return $tokenable instanceof User ? $tokenable : null;
     }
 
 
- 
+
 }

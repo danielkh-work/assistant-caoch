@@ -16,6 +16,11 @@ class LeagueTeam extends Model
     {
         return $this->belongTo(League::class,'league_id');
     }
+
+    public function qb()
+    {
+        return $this->hasOne(User::class, 'team_id')->where('role', 'qb');
+    }
      public function practiceTeamplayer()
     {
         return $this->hasMany(PracticeTeamPlayer::class,'team_id');

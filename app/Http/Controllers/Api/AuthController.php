@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Mail;
 use App\Mail\UserLoggedIn;
 use App\Models\PendingUser;
 use App\Mail\UserApprovalRequest;
+use App\Support\QbMobileSession;
 use Illuminate\Support\Str;
 class AuthController extends Controller
 {
@@ -23,7 +24,7 @@ class AuthController extends Controller
 
     public function signupRequest(Request $request)
     {
-       
+
         \Log::info(['all re'=>$request->all()]);
        $request->validate([
 
@@ -32,7 +33,7 @@ class AuthController extends Controller
             'password' => 'required|string|min:6',
         ]);
 
-         
+
         $password= Hash::make($request->password);
         PendingUser::create([
             'name' => $request->name,
@@ -48,14 +49,14 @@ class AuthController extends Controller
         $token = $user->createToken('auth_token')->plainTextToken;
 
         $pendingUser = PendingUser::latest()->first();
-        
+
         $user['pendingUser']=  $pendingUser;
         $user['role']=  'head_coach';
         $user->loadCount('assistants');
          $approvalUrl = url("/api/approve-user/{$pendingUser->id}");
-        
+
          Mail::to('robert.taillefer@ekeau.com')->send(new UserApprovalRequest($request->name, $request->email, $approvalUrl));
-       
+
         // Mail::raw("New signup request from {$request->name} ({$request->email})\n\nApprove here: " . url("/api/approve-user/" . PendingUser::latest()->first()->id), function ($msg) {
         //     $msg->to('aminnoorulamin977@gmail.com')->subject('User Signup Approval');
         // });
@@ -85,7 +86,7 @@ class AuthController extends Controller
          return redirect()->route('pending-users.index') // or wherever you want
                      ->with('success', 'User approved and verification code sent.');
 
-       
+
     }
     public function verifyCode(Request $request)
     {
@@ -108,7 +109,7 @@ class AuthController extends Controller
     }
     public function register(Request $request)
     {
-      
+
         $request->validate([
 
             'name' => 'required|string|max:255',
@@ -122,12 +123,12 @@ class AuthController extends Controller
             'password' => Hash::make($request->password),
             'status' => 'pending',
         ]);
-     
-        $token = $user->createToken('auth_token')->plainTextToken;
-        $qrCodeString = Str::uuid()->toString(); 
 
-        $user->qr_code = $qrCodeString; 
-        
+        $token = $user->createToken('auth_token')->plainTextToken;
+        $qrCodeString = Str::uuid()->toString();
+
+        $user->qr_code = $qrCodeString;
+
         broadcast(new UserQrGenerated($user));
         $user->loadCount('assistants');
         $user['role']=  'head_coach';
@@ -199,14 +200,14 @@ class AuthController extends Controller
                 if ($user->role === 'performance_coach') {
                     $uiPermissions['show_performance'] = true;
                 }
-            } 
+            }
             else {
                     $uiPermissions['show_scoreboard'] = true;
                     $uiPermissions['show_performance'] = true;
             }
 
       }
-        
+
 
         $user['ui_permissions'] = $uiPermissions;
         $user['roles_under_head_coach'] = $rolesUnderHeadCoach->values();
@@ -264,7 +265,7 @@ class AuthController extends Controller
         }
     }
 
-    
+
     public function forgotPassword(Request $request)
     {
         // Validate email
@@ -312,8 +313,8 @@ class AuthController extends Controller
                 $user->save();
             }
         );
-        
-      
+
+
         return $status === Password::PASSWORD_RESET
             ? response()->json(['message' => 'Password reset successfully.'], 200)
             : response()->json(['error' => 'Invalid token or email.'], 500);
@@ -328,7 +329,7 @@ class AuthController extends Controller
 
     public function profileUpdate(Request $request)
     {
-   
+
         $user  = auth('sanctum')->user();
         $user->name =  $request->name;
         $user->email =  $request->email;
@@ -353,11 +354,11 @@ class AuthController extends Controller
 
     public function addAssistantCoach(Request $request){
 
-         
+
             $request->validate([
                 'name'     => 'required|string',
-                'email'    => 'required|email|unique:users', 
-                'password' => 'required|string|min:8', 
+                'email'    => 'required|email|unique:users',
+                'password' => 'required|string|min:8',
             ]);
             $headCoach = auth()->user();
             if ($headCoach->role !== 'head_coach') {
@@ -373,19 +374,19 @@ class AuthController extends Controller
                 'sport_id' => $headCoach->sport_id,
                 'is_subscribe' => $headCoach->is_subscribe,
                 'subscription_id' => $headCoach->subscription_id,
-               
+
             ]);
-            $headCoachRoles = $headCoach->roles->pluck('name'); 
-            $assistant->assignRole($headCoachRoles); 
+            $headCoachRoles = $headCoach->roles->pluck('name');
+            $assistant->assignRole($headCoachRoles);
             return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Add Assistant Coach Successfully",$assistant );
-           
+
     }
 
     public function addQB(Request $request){
 
             $request->validate([
                 'name'     => 'required|string',
-                'email'    => 'required|email|unique:users', 
+                'email'    => 'required|email|unique:users',
             ]);
             $headCoach = auth()->user();
             if ($headCoach->role !== 'head_coach') {
@@ -415,7 +416,7 @@ class AuthController extends Controller
                 'Add QB Successfully',
                 $assistant->fresh()->load('roles')
             );
-           
+
     }
 
 
@@ -430,7 +431,7 @@ class AuthController extends Controller
 
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "qb list", $qbUser);
 
-       
+
     }
          public function getQAssistantCoach(Request $request)
     {
@@ -440,62 +441,60 @@ class AuthController extends Controller
 
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "assistant coach list",$coach );
 
-       
+
     }
 
-  
 
-    public function loginWithSession(Request $request)
+    /**
+     * Login device with pairing code (FOR APP)
+     */
+    public function loginDeviceWithCode(Request $request)
     {
-
-        
-       
         $request->validate([
-            'session_id' => 'nullable|string',  // optional string
-            'code'       => 'required|digits:4' // required 4-digit code
+            'session_id' => 'required|string|uuid',
+            'code' => 'required|digits:4',
         ]);
-      
-        \Log::info(['code'=>$request->code]);
-       
-        $user = User::where('code', $request->code)
-                    ->where('role', 'qb')
-                    ->first();
-                    
 
-        \Log::info(['data'=>$user]);            
+        \Log::info(['device_code'=>$request->code]);
 
-        if (!$user) {
+        $device = \App\Models\Device::where('pairing_code', $request->code)->first();
+
+        \Log::info(['device_data'=>$device]);
+
+        if (!$device) {
             return response()->json([
                 'status' => 401,
-                'message' => 'Invalid code'
+                'message' => 'Invalid pairing code'
             ], 401);
         }
 
-        // QB is on the device once code auth succeeds; dashboards use is_loggin (see get-qb-user).
-        if ($request->filled('session_id')) {
-            $user->session_id = $request->session_id;
+        if ($device->status === 'inactive') {
+            return response()->json([
+                'status' => 403,
+                'message' => 'Device has been deactivated'
+            ], 403);
         }
-        $user->is_loggin = true;
-        $user->save();
 
-        if ($user->head_coach_id) {
-            broadcast(new QbSessionUpdated(
-                (int) $user->head_coach_id,
-                $user->only(['id', 'name', 'email', 'session_id', 'code', 'head_coach_id', 'is_loggin']),
-                true,
-                'login',
-            ));
-        }
+        // Bind session to device
+        \App\Support\DeviceMobileSession::bind($device, $request->session_id);
+        $device->session_id = $request->session_id;
+        $device->markAsPaired();
+
+        // Broadcast to head coach
+        \App\Support\DeviceSessionBroadcaster::broadcastForLeagues($device, 'login', true);
 
         // Generate Laravel Sanctum token
-        $token = $user->createToken('QB-App-Token')->plainTextToken;
+        $token = $device->createToken('Device-App-Token')->plainTextToken;
+
+        $device->load('leagues');
 
         return response()->json([
             'status'       => 200,
             'message'      => 'Login successful',
-            'user'         => $user->only(['id', 'name', 'session_id', 'code', 'head_coach_id']),
+            'device'       => \App\Support\DeviceSessionBroadcaster::deviceFields($device),
+            'league_ids'   => $device->leagues->pluck('id')->values()->all(),
             'access_token' => $token,
             'token_type'   => 'Bearer'
         ]);
-     }  
+    }
 }

@@ -2,7 +2,6 @@
 
 namespace App\Events;
 
-use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PresenceChannel;
 use Illuminate\Broadcasting\PrivateChannel;
@@ -15,9 +14,16 @@ class MatchStarted implements ShouldBroadcast
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public $leagueId;
+
     public $type;
+
+    /** @var array<string, mixed>|string */
     public $scope;
-    public function __construct($leagueId , $type = 'started', $scope)
+
+    /**
+     * @param  array<string, mixed>|string  $scope  Match context, e.g. practice vs real/play mode and game_id.
+     */
+    public function __construct($leagueId, $type = 'started', $scope = [])
     {
         $this->leagueId = $leagueId;
         $this->type = $type;
@@ -25,29 +31,72 @@ class MatchStarted implements ShouldBroadcast
     }
 
     public function broadcastOn()
-    { 
-
-        return [
-            new PresenceChannel('league.global'), 
-            new PresenceChannel('league.' . $this->leagueId), 
+    {
+        $channels = [
+            new PresenceChannel('league.global'),
+            new PresenceChannel('league.'.$this->leagueId),
         ];
-        
-        //return new PresenceChannel('league.' . $this->leagueId);
+
+        if ($this->leagueId > 0) {
+            $channels[] = new PrivateChannel('league.'.$this->leagueId.'.devices');
+        }
+
+        return $channels;
     }
 
-     public function broadcastAs()
+    public function broadcastAs()
     {
-        return 'match.' . $this->type; // 🔥 IMPORTANT
+        return 'match.'.$this->type;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function normalizedScope(): array
+    {
+        if (is_array($this->scope)) {
+            return $this->scope;
+        }
+
+        if (is_string($this->scope) && $this->scope !== '') {
+            return [
+                'mode' => $this->scope,
+                'is_play_mode' => $this->scope === 'real',
+            ];
+        }
+
+        return [
+            'mode' => 'practice',
+            'is_play_mode' => false,
+        ];
+    }
+
+    /**
+     * Staging/mobile expect scope as the string "real" or "practice".
+     */
+    protected function legacyScopeString(): string
+    {
+        $scope = $this->normalizedScope();
+
+        if (($scope['is_play_mode'] ?? false) === true || ($scope['mode'] ?? '') === 'real') {
+            return 'real';
+        }
+
+        return 'practice';
     }
 
     public function broadcastWith()
     {
+        $scopeDetail = $this->normalizedScope();
+
         return [
             'league_id' => $this->leagueId,
-            'scope' => $this->scope,
+            'type' => $this->type,
+            'scope' => $this->legacyScopeString(),
+            'scope_detail' => $scopeDetail,
             'message' => $this->type === 'started'
                 ? 'Match has started'
-                : 'Match has ended'
+                : 'Match has ended',
         ];
     }
 }

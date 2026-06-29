@@ -56,7 +56,9 @@ class PlayControllerTest extends TestCase
         $this->auth();
 
         Storage::fake('public');
-        $file = UploadedFile::fake()->image('play.jpg');
+        $leftFile = UploadedFile::fake()->image('play-left.jpg');
+        $centerFile = UploadedFile::fake()->image('play-center.jpg');
+        $rightFile = UploadedFile::fake()->image('play-right.jpg');
 
         $response = $this->postJson('/api/uplaod-play', [
             'play_name' => 'Demo Play',
@@ -72,13 +74,157 @@ class PlayControllerTest extends TestCase
             'play_action_fake' => 1,
             'preferred_down' => 1,
             'possession' => 'offensive',
-            'image' => $file
+            'hmark_left' => $leftFile,
+            'hmark_center' => $centerFile,
+            'hmark_right' => $rightFile,
         ]);
 
         $response->assertStatus(200);
         $this->assertDatabaseHas('plays', [
             'play_name' => 'Demo Play',
-            'league_id' => $this->league->id
+            'league_id' => $this->league->id,
+        ]);
+
+        $play = Play::where('play_name', 'Demo Play')->first();
+        $this->assertNotNull($play->hmark_left);
+        $this->assertNotNull($play->hmark_center);
+        $this->assertNotNull($play->hmark_right);
+    }
+
+    public function test_play_list_includes_hmark_image_columns()
+    {
+        $this->auth();
+
+        $play = new Play();
+        $play->play_name = 'Hmark List Play';
+        $play->league_id = $this->league->id;
+        $play->play_type = 1;
+        $play->zone_selection = 1;
+        $play->min_expected_yard = '0';
+        $play->max_expected_yard = '0';
+        $play->pre_snap_motion = 1;
+        $play->play_action_fake = 1;
+        $play->possession = 'offensive';
+        $play->video_path = '';
+        $play->hmark_left = 'uploads/public/left.png';
+        $play->hmark_center = 'uploads/public/center.png';
+        $play->hmark_right = 'uploads/public/right.png';
+        $play->save();
+
+        $response = $this->getJson('/api/upload-play-list?league_id=' . $this->league->id);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.0.hmark_left', $play->hmark_left)
+            ->assertJsonPath('data.0.hmark_center', $play->hmark_center)
+            ->assertJsonPath('data.0.hmark_right', $play->hmark_right);
+    }
+
+    public function test_edit_play_includes_hmark_image_columns()
+    {
+        $this->auth();
+
+        $play = new Play();
+        $play->play_name = 'Hmark Edit Play';
+        $play->league_id = $this->league->id;
+        $play->play_type = 1;
+        $play->zone_selection = 1;
+        $play->min_expected_yard = '0';
+        $play->max_expected_yard = '0';
+        $play->pre_snap_motion = 1;
+        $play->play_action_fake = 1;
+        $play->possession = 'offensive';
+        $play->video_path = '';
+        $play->hmark_left = 'uploads/public/left.png';
+        $play->hmark_center = 'uploads/public/center.png';
+        $play->hmark_right = 'uploads/public/right.png';
+        $play->save();
+
+        $response = $this->getJson('/api/edit-play/' . $play->id);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.hmark_left', $play->hmark_left)
+            ->assertJsonPath('data.hmark_center', $play->hmark_center)
+            ->assertJsonPath('data.hmark_right', $play->hmark_right);
+    }
+
+    public function test_update_play_requires_all_hmark_images_when_missing()
+    {
+        $this->auth();
+
+        $play = new Play();
+        $play->play_name = 'Update Play';
+        $play->league_id = $this->league->id;
+        $play->play_type = 1;
+        $play->zone_selection = 1;
+        $play->min_expected_yard = '0';
+        $play->max_expected_yard = '0';
+        $play->pre_snap_motion = 1;
+        $play->play_action_fake = 1;
+        $play->possession = 'offensive';
+        $play->video_path = '';
+        $play->hmark_center = 'uploads/public/center.png';
+        $play->save();
+
+        $response = $this->postJson('/api/update-play/' . $play->id, [
+            'play_name' => 'Update Play',
+            'league_id' => $this->league->id,
+            'play_type' => 1,
+            'playType' => 'run',
+            'zone_selection' => 1,
+            'min_expected_yard' => '0',
+            'max_expected_yard' => '0',
+            'target_offensive' => 1,
+            'opposing_defensive' => 1,
+            'pre_snap_motion' => 1,
+            'play_action_fake' => 1,
+            'possession' => 'offensive',
+        ]);
+
+        $response->assertStatus(422);
+    }
+
+    public function test_can_update_play_without_reuploading_hmark_images()
+    {
+        $this->auth();
+
+        $play = new Play();
+        $play->play_name = 'Update Play Existing Images';
+        $play->league_id = $this->league->id;
+        $play->play_type = 1;
+        $play->zone_selection = 1;
+        $play->min_expected_yard = '0';
+        $play->max_expected_yard = '0';
+        $play->pre_snap_motion = 1;
+        $play->play_action_fake = 1;
+        $play->possession = 'offensive';
+        $play->video_path = '';
+        $play->hmark_left = 'uploads/public/left.png';
+        $play->hmark_center = 'uploads/public/center.png';
+        $play->hmark_right = 'uploads/public/right.png';
+        $play->save();
+
+        $response = $this->postJson('/api/update-play/' . $play->id, [
+            'play_name' => 'Updated Play Name',
+            'league_id' => $this->league->id,
+            'play_type' => 1,
+            'playType' => 'run',
+            'zone_selection' => 1,
+            'min_expected_yard' => '0',
+            'max_expected_yard' => '0',
+            'target_offensive' => 1,
+            'opposing_defensive' => 1,
+            'pre_snap_motion' => 1,
+            'play_action_fake' => 1,
+            'possession' => 'offensive',
+        ]);
+
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('plays', [
+            'id' => $play->id,
+            'play_name' => 'Updated Play Name',
+            'hmark_left' => 'uploads/public/left.png',
+            'hmark_center' => 'uploads/public/center.png',
+            'hmark_right' => 'uploads/public/right.png',
         ]);
     }
 

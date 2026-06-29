@@ -174,10 +174,14 @@ class PreSeasonModeTest extends TestCase
         $league = $this->createLeague();
 
         Storage::fake('public');
-        $file = UploadedFile::fake()->image('offense.jpg');
+        $leftFile = UploadedFile::fake()->image('offense-left.jpg');
+        $centerFile = UploadedFile::fake()->image('offense-center.jpg');
+        $rightFile = UploadedFile::fake()->image('offense-right.jpg');
 
         $response = $this->postJson('/api/uplaod-play', [
-            'image' => $file,
+            'hmark_left' => $leftFile,
+            'hmark_center' => $centerFile,
+            'hmark_right' => $rightFile,
             'play_name' => 'Offensive Test Play',
             'playType' => 'run',
             'league_id' => $league->id,

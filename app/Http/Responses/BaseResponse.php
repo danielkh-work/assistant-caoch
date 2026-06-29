@@ -42,6 +42,7 @@ class BaseResponse implements Responsable
      */
     protected $token;
     protected $pagination;
+    protected string $paginationKey = 'pagination';
     protected $emptyArray;
 
     /**
@@ -50,8 +51,9 @@ class BaseResponse implements Responsable
      * @param mixed $message
      * @param mixed $data
      * @param string|null $view
+     * @param string $paginationKey JSON key for pagination payload (e.g. pagination or meta)
      */
-    public function __construct(int $httpCode, int $statusCode, string $message, mixed $data = [], $token = null, $view = null, $pagination = null, $emptyArray = false)
+    public function __construct(int $httpCode, int $statusCode, string $message, mixed $data = [], $token = null, $view = null, $pagination = null, $emptyArray = false, string $paginationKey = 'pagination')
     {
         $this->httpCode    = $httpCode;
         $this->statusCode    = $statusCode;
@@ -60,6 +62,7 @@ class BaseResponse implements Responsable
         $this->token    = $token;
         $this->view    = $view;
         $this->pagination    = $pagination;
+        $this->paginationKey = $paginationKey;
         $this->emptyArray    = $emptyArray;
     }
 
@@ -89,7 +92,7 @@ class BaseResponse implements Responsable
         }
 
         if ($this->pagination) {
-            $jsonData['pagination'] = $this->pagination;
+            $jsonData[$this->paginationKey] = $this->pagination;
         }
 
         if ($this->token) {

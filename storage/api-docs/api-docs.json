@@ -2,85 +2,215 @@
     "openapi": "3.0.0",
     "info": {
         "title": "Human Dashboard API",
-        "description": "Human Dashboard",
         "version": "1.0.0"
     },
-    "servers": [
-        {
-            "url": "/",
-            "description": "Relative to the host serving this OpenAPI document (staging, production, or local). No hardcoded localhost."
-        }
-    ],
     "paths": {
-        "/api/logout-qb-applicaion/{id}": {
-            "get": {
+        "/api/play/show-yardage/assistant-coach": {
+            "post": {
                 "tags": [
-                    "Human Dashboard"
+                    "Broadcast"
                 ],
-                "summary": "QB application logout",
-                "description": "Clears `session_id` and `is_loggin` for the QB user. Postman: **QB Logout Success**.",
-                "operationId": "logoutQbApplication",
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "description": "QB user primary key",
-                        "required": true,
-                        "schema": {
-                            "type": "integer",
-                            "example": 78
+                "summary": "Head coach → assistant: broadcast play run so AC opens the position-after-play modal",
+                "operationId": "yardagePlayToAssistant",
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/YardagePlayToAssistantRequest"
+                            }
                         }
                     }
-                ],
+                },
                 "responses": {
                     "200": {
-                        "description": "Logout succeeded, or user was not found (see `status` and `message` in the JSON body; HTTP code may still be 200).",
+                        "description": "Broadcast dispatched to assistant coach",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/YardagePlayToAssistantResponse"
+                                },
+                                "example": {
+                                    "status": 200,
+                                    "message": "Yardage play broadcast sent to assistant coach.",
+                                    "data": {
+                                        "head_coach_id": 5,
+                                        "channel": "coach-group.5.league.22",
+                                        "event": "assistant.coaches",
+                                        "payload": {
+                                            "playName": "IN 25(4)-RAM ALL-CHECK",
+                                            "yardageGain": 45,
+                                            "sliderDirection": "ltr",
+                                            "targetTeam": "offensive",
+                                            "suggestionData": {
+                                                "yardage": 10,
+                                                "positionNumber": 45,
+                                                "quarter": 1,
+                                                "down": 2,
+                                                "target": "12",
+                                                "myteamId": 1,
+                                                "oppteamId": 2,
+                                                "strategies": "regular",
+                                                "weather_status": "Normal",
+                                                "game_id": 36,
+                                                "league_id": 22,
+                                                "time": "12:00",
+                                                "my_points": 7,
+                                                "oponent_points": 0,
+                                                "mode": "practice"
+                                            },
+                                            "selectedPlayIds": 280,
+                                            "play": {
+                                                "id": 280,
+                                                "title": "IN 25(4)-RAM ALL-CHECK"
+                                            },
+                                            "type": "offensive",
+                                            "targetPlayers": [
+                                                {
+                                                    "value": 101,
+                                                    "text": "RB Player"
+                                                }
+                                            ],
+                                            "my_team": 1,
+                                            "opponent_team": 2,
+                                            "mode": "practice"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "422": {
+                        "description": "Caller not linked to a head coach group",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Head coach group is not available for this user."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Pusher broadcast failed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Broadcast failed"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/assistant-coach/system-suggestion/broadcast": {
+            "post": {
+                "tags": [
+                    "Broadcast"
+                ],
+                "summary": "Assistant coach → head coach: broadcast scoreboard context for System Suggestions",
+                "operationId": "assistantSystemSuggestionBroadcast",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AssistantSystemSuggestionBroadcastRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Broadcast dispatched to head coach",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AssistantSystemSuggestionBroadcastResponse"
+                                },
+                                "example": {
+                                    "status": 200,
+                                    "message": "System suggestion broadcast sent to head coach.",
+                                    "data": {
+                                        "head_coach_id": 5,
+                                        "channel": "coach-group.5.league.22",
+                                        "event": "head.coach.suggestion",
+                                        "payload": {
+                                            "down": 2,
+                                            "weather": "Rain",
+                                            "strategies": "regular",
+                                            "expected_yardage_gain": 10,
+                                            "h_mark_position": "hmark_center",
+                                            "game_id": 36,
+                                            "league_id": 22,
+                                            "mode": "practice",
+                                            "actor_id": 15,
+                                            "actor_name": "Assistant Coach"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden — caller is not an assistant coach",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Forbidden"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error or assistant not linked to a head coach",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "oneOf": [
                                         {
                                             "properties": {
-                                                "status": {
-                                                    "type": "integer",
-                                                    "example": 200
-                                                },
                                                 "message": {
                                                     "type": "string",
-                                                    "example": "logout successful"
-                                                },
-                                                "user": {
-                                                    "properties": {
-                                                        "name": {
-                                                            "type": "string"
-                                                        },
-                                                        "session_id": {
-                                                            "type": "string",
-                                                            "nullable": true
-                                                        },
-                                                        "code": {
-                                                            "type": "string",
-                                                            "nullable": true
-                                                        },
-                                                        "head_coach_id": {
-                                                            "type": "integer",
-                                                            "nullable": true
-                                                        }
-                                                    },
-                                                    "type": "object"
+                                                    "example": "Head coach is not linked to this assistant."
                                                 }
                                             },
                                             "type": "object"
                                         },
                                         {
                                             "properties": {
-                                                "status": {
-                                                    "type": "integer",
-                                                    "example": 404
-                                                },
                                                 "message": {
                                                     "type": "string",
-                                                    "example": "User not found"
+                                                    "example": "The given data was invalid."
+                                                },
+                                                "errors": {
+                                                    "type": "object"
                                                 }
                                             },
                                             "type": "object"
@@ -89,23 +219,1127 @@
                                 }
                             }
                         }
+                    },
+                    "500": {
+                        "description": "Pusher broadcast failed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Broadcast failed"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/configurations": {
+            "get": {
+                "tags": [
+                    "Configuration"
+                ],
+                "summary": "Get all configurations",
+                "description": "Returns every configuration entry as key and value.",
+                "operationId": "listConfigurations",
+                "responses": {
+                    "200": {
+                        "description": "List of configurations",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "properties": {
+                                            "key": {
+                                                "type": "string",
+                                                "example": "RPP_CONFIGURATION"
+                                            },
+                                            "value": {
+                                                "type": "string",
+                                                "example": "with_rpp"
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Configuration"
+                ],
+                "summary": "Update configurations",
+                "description": "Bulk upsert configuration entries by key.",
+                "operationId": "updateConfigurations",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "configurations"
+                                ],
+                                "properties": {
+                                    "configurations": {
+                                        "type": "array",
+                                        "items": {
+                                            "required": [
+                                                "key",
+                                                "value"
+                                            ],
+                                            "properties": {
+                                                "key": {
+                                                    "type": "string",
+                                                    "example": "RPP_CONFIGURATION"
+                                                },
+                                                "value": {
+                                                    "oneOf": [
+                                                        {
+                                                            "type": "string",
+                                                            "maxLength": 255,
+                                                            "pattern": "^[A-Za-z0-9_]+$",
+                                                            "example": "with_rpp"
+                                                        },
+                                                        {
+                                                            "type": "boolean",
+                                                            "example": true
+                                                        },
+                                                        {
+                                                            "type": "integer",
+                                                            "example": 11
+                                                        }
+                                                    ]
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "minItems": 1
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Updated configurations",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "properties": {
+                                            "key": {
+                                                "type": "string"
+                                            },
+                                            "value": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Configuration"
+                ],
+                "summary": "Create a configuration",
+                "description": "Add a new configuration key. Key and value must contain only letters, numbers, and underscores. Value max length is 255.",
+                "operationId": "createConfiguration",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "key",
+                                    "value"
+                                ],
+                                "properties": {
+                                    "key": {
+                                        "type": "string",
+                                        "pattern": "^[A-Za-z0-9_]+$",
+                                        "example": "RPP_CONFIGURATION"
+                                    },
+                                    "value": {
+                                        "oneOf": [
+                                            {
+                                                "type": "string",
+                                                "maxLength": 255,
+                                                "pattern": "^[A-Za-z0-9_]+$",
+                                                "example": "with_rpp"
+                                            },
+                                            {
+                                                "type": "boolean",
+                                                "example": true
+                                            },
+                                            {
+                                                "type": "integer",
+                                                "example": 11
+                                            }
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Created configuration",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "key": {
+                                            "type": "string",
+                                            "pattern": "^[A-Za-z0-9_]+$",
+                                            "example": "RPP_CONFIGURATION"
+                                        },
+                                        "value": {
+                                            "type": "string",
+                                            "maxLength": 255,
+                                            "pattern": "^[A-Za-z0-9_]+$",
+                                            "example": "with_rpp"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "422": {
+                        "description": "Validation error (including duplicate key)"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/configurations/{key}": {
+            "get": {
+                "tags": [
+                    "Configuration"
+                ],
+                "summary": "Get a single configuration by key",
+                "description": "Returns one configuration entry for the given key.",
+                "operationId": "getConfigurationByKey",
+                "parameters": [
+                    {
+                        "name": "key",
+                        "in": "path",
+                        "description": "Configuration key",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "RPP_CONFIGURATION"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Configuration entry",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "key": {
+                                            "type": "string",
+                                            "pattern": "^[A-Za-z0-9_]+$",
+                                            "example": "RPP_CONFIGURATION"
+                                        },
+                                        "value": {
+                                            "type": "string",
+                                            "maxLength": 255,
+                                            "pattern": "^[A-Za-z0-9_]+$",
+                                            "example": "with_rpp"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "404": {
+                        "description": "Configuration not found"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/leagues/{league}/devices": {
+            "get": {
+                "tags": [
+                    "Devices"
+                ],
+                "summary": "Get all devices for a league",
+                "description": "Retrieve all devices configured for a specific league. Requires the league to belong to the authenticated head coach.",
+                "operationId": "getLeagueDevices",
+                "parameters": [
+                    {
+                        "name": "league",
+                        "in": "path",
+                        "description": "League primary key",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Devices retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Devices retrieved successfully"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "device_id": {
+                                                        "description": "Unique public device identifier (auto-generated)",
+                                                        "type": "string",
+                                                        "example": "QB-4821"
+                                                    },
+                                                    "device_name": {
+                                                        "type": "string",
+                                                        "example": "Device 1"
+                                                    },
+                                                    "pairing_code": {
+                                                        "type": "string",
+                                                        "example": "1234"
+                                                    },
+                                                    "qr_token": {
+                                                        "type": "string",
+                                                        "nullable": true
+                                                    },
+                                                    "status": {
+                                                        "description": "Lifecycle status (e.g. pending, registered, inactive; string for future values such as connected/disconnected)",
+                                                        "type": "string",
+                                                        "example": "registered"
+                                                    },
+                                                    "team_id": {
+                                                        "type": "integer",
+                                                        "nullable": true
+                                                    },
+                                                    "user_id": {
+                                                        "type": "integer",
+                                                        "nullable": true
+                                                    },
+                                                    "paired_at": {
+                                                        "type": "string",
+                                                        "format": "date-time",
+                                                        "nullable": true
+                                                    },
+                                                    "created_at": {
+                                                        "type": "string",
+                                                        "format": "date-time"
+                                                    },
+                                                    "updated_at": {
+                                                        "type": "string",
+                                                        "format": "date-time"
+                                                    },
+                                                    "team": {
+                                                        "type": "object",
+                                                        "nullable": true
+                                                    },
+                                                    "user": {
+                                                        "type": "object",
+                                                        "nullable": true
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "League not owned by authenticated head coach"
+                    },
+                    "404": {
+                        "description": "League not found"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Devices"
+                ],
+                "summary": "Create a new device for a league",
+                "description": "Create a new device and associate it with a league. Automatically generates a unique public `device_id` (QB-####), pairing code, and QR token. Requires the league to belong to the authenticated head coach.",
+                "operationId": "createLeagueDevice",
+                "parameters": [
+                    {
+                        "name": "league",
+                        "in": "path",
+                        "description": "League primary key",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "device_name"
+                                ],
+                                "properties": {
+                                    "device_name": {
+                                        "type": "string",
+                                        "example": "My Device"
+                                    },
+                                    "team_id": {
+                                        "type": "integer",
+                                        "example": 1,
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Device created successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Device created successfully"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "device_id": {
+                                                    "type": "string",
+                                                    "example": "QB-4821"
+                                                },
+                                                "device_name": {
+                                                    "type": "string",
+                                                    "example": "My Device"
+                                                },
+                                                "pairing_code": {
+                                                    "type": "string",
+                                                    "example": "1234"
+                                                },
+                                                "qr_token": {
+                                                    "type": "string",
+                                                    "example": "abc123xyz789"
+                                                },
+                                                "status": {
+                                                    "type": "string",
+                                                    "example": "pending"
+                                                },
+                                                "team_id": {
+                                                    "type": "integer",
+                                                    "nullable": true
+                                                },
+                                                "user_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "paired_at": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "nullable": true
+                                                },
+                                                "created_at": {
+                                                    "type": "string",
+                                                    "format": "date-time"
+                                                },
+                                                "updated_at": {
+                                                    "type": "string",
+                                                    "format": "date-time"
+                                                },
+                                                "team": {
+                                                    "type": "object",
+                                                    "nullable": true
+                                                },
+                                                "user": {
+                                                    "type": "object",
+                                                    "nullable": true
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "League not owned by authenticated head coach"
+                    },
+                    "404": {
+                        "description": "League not found"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/leagues/{league}/devices/{device}": {
+            "put": {
+                "tags": [
+                    "Devices"
+                ],
+                "summary": "Update a device",
+                "description": "Update a device's properties. Can update device name, team association, or status. Requires the league to belong to the authenticated head coach.",
+                "operationId": "updateLeagueDevice",
+                "parameters": [
+                    {
+                        "name": "league",
+                        "in": "path",
+                        "description": "League primary key",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "device",
+                        "in": "path",
+                        "description": "Device primary key",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "device_name": {
+                                        "type": "string",
+                                        "example": "Updated Device Name"
+                                    },
+                                    "team_id": {
+                                        "type": "integer",
+                                        "example": 2,
+                                        "nullable": true
+                                    },
+                                    "status": {
+                                        "description": "Lifecycle status string (e.g. pending, registered, inactive)",
+                                        "type": "string",
+                                        "maxLength": 50,
+                                        "example": "registered"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Device updated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Device updated successfully"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "device_id": {
+                                                    "type": "string",
+                                                    "example": "QB-4821"
+                                                },
+                                                "device_name": {
+                                                    "type": "string",
+                                                    "example": "Updated Device Name"
+                                                },
+                                                "pairing_code": {
+                                                    "type": "string",
+                                                    "example": "1234"
+                                                },
+                                                "status": {
+                                                    "type": "string",
+                                                    "example": "registered"
+                                                },
+                                                "team": {
+                                                    "type": "object",
+                                                    "nullable": true
+                                                },
+                                                "user": {
+                                                    "type": "object",
+                                                    "nullable": true
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "League not owned by authenticated head coach"
+                    },
+                    "404": {
+                        "description": "Device not found or not associated with this league"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Devices"
+                ],
+                "summary": "Delete a device from a league",
+                "description": "Remove a device from a league. If the device has an active session, it is logged out first. If the device is not associated with any other leagues, it is deleted. Requires the league to belong to the authenticated head coach.",
+                "operationId": "deleteLeagueDevice",
+                "parameters": [
+                    {
+                        "name": "league",
+                        "in": "path",
+                        "description": "League primary key",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "device",
+                        "in": "path",
+                        "description": "Device primary key",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Device removed from league successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Device removed from league successfully"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "League not owned by authenticated head coach"
+                    },
+                    "404": {
+                        "description": "Device not found or not associated with this league"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/leagues/{league}/devices/{device}/scan-qr": {
+            "post": {
+                "tags": [
+                    "Devices"
+                ],
+                "summary": "Pair mobile session to a league device",
+                "description": "Head coach scans the QR code displayed on the mobile app. Broadcasts `session.approved` to `qb-user.{session_id}` and `qb.session.updated` to `headcoach.{headCoachId}.league.{leagueId}.qb`.",
+                "operationId": "scanLeagueDeviceQr",
+                "parameters": [
+                    {
+                        "name": "league",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 22
+                        }
+                    },
+                    {
+                        "name": "device",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 5
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "session_id": {
+                                        "type": "string",
+                                        "format": "uuid"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Device paired and token issued"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/leagues/{league}/devices/{device}/logout": {
+            "post": {
+                "tags": [
+                    "Devices"
+                ],
+                "summary": "Log out a device session",
+                "description": "Single logout endpoint for head coach dashboard and mobile app. Revokes device tokens, broadcasts `session.logout` to the mobile app and `qb.session.updated` with `is_loggin=false` to the web dashboard. Callable by the authenticated head coach or by the device itself (Sanctum device token).",
+                "operationId": "logoutLeagueDevice",
+                "parameters": [
+                    {
+                        "name": "league",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "device",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "session_id": {
+                                        "type": "string",
+                                        "format": "uuid",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Device logged out successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/devices/login-with-code": {
+            "post": {
+                "tags": [
+                    "Devices"
+                ],
+                "summary": "Login device with pairing code (FOR APP)",
+                "description": "Authenticate device using 4-digit pairing code and session UUID. Issues Sanctum device token and broadcasts login event to head coach. FOR APP - Mobile device authentication endpoint.",
+                "operationId": "loginDeviceWithCode",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "session_id",
+                                    "code"
+                                ],
+                                "properties": {
+                                    "session_id": {
+                                        "description": "Client-generated session UUID",
+                                        "type": "string",
+                                        "format": "uuid"
+                                    },
+                                    "code": {
+                                        "description": "4-digit pairing code from device",
+                                        "type": "string",
+                                        "pattern": "^[0-9]{4}$"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Device logged in successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Login successful"
+                                        },
+                                        "device": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 5
+                                                },
+                                                "device_id": {
+                                                    "type": "string",
+                                                    "example": "QB-4821"
+                                                },
+                                                "device_name": {
+                                                    "type": "string",
+                                                    "example": "Device Name"
+                                                },
+                                                "pairing_code": {
+                                                    "type": "string",
+                                                    "example": "1234"
+                                                },
+                                                "status": {
+                                                    "type": "string",
+                                                    "example": "registered"
+                                                },
+                                                "team_id": {
+                                                    "type": "integer",
+                                                    "nullable": true
+                                                },
+                                                "user_id": {
+                                                    "type": "integer",
+                                                    "nullable": true
+                                                },
+                                                "session_id": {
+                                                    "type": "string",
+                                                    "nullable": true
+                                                },
+                                                "paired_at": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "nullable": true
+                                                },
+                                                "is_connected": {
+                                                    "type": "boolean",
+                                                    "example": true
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "league_ids": {
+                                            "description": "Associated league IDs",
+                                            "type": "array",
+                                            "items": {
+                                                "type": "integer"
+                                            }
+                                        },
+                                        "access_token": {
+                                            "type": "string",
+                                            "example": "1|device-token"
+                                        },
+                                        "token_type": {
+                                            "type": "string",
+                                            "example": "Bearer"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid pairing code"
+                    },
+                    "403": {
+                        "description": "Device has been deactivated"
                     }
                 }
             }
         },
-        "/api/qb-session-login-status/{session_id}": {
+        "/api/devices/logout/{id}": {
             "get": {
                 "tags": [
-                    "Human Dashboard"
+                    "Devices"
                 ],
-                "summary": "Check QB login status",
-                "description": "Returns **200** when a QB user is bound to the given mobile session UUID. Returns **401** when no QB has this `session_id` (Postman **Check QB Login Status 200** / invalid session **Check QB Login Status 403** — API uses **401 Unauthenticated**).",
-                "operationId": "qbSessionLoginStatus",
+                "summary": "Logout device application by device ID (FOR APP)",
+                "description": "Revokes device tokens, clears session_id, and broadcasts logout events to mobile app and head coach dashboard. FOR APP - Mobile device logout endpoint.",
+                "operationId": "logoutDeviceApplication",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Device primary key",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 5
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Device logged out successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "logout successful"
+                                        },
+                                        "is_loggin": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "user": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 5
+                                                },
+                                                "device_id": {
+                                                    "type": "string",
+                                                    "example": "QB-4821"
+                                                },
+                                                "name": {
+                                                    "type": "string",
+                                                    "example": "Device Name"
+                                                },
+                                                "email": {
+                                                    "type": "string",
+                                                    "example": ""
+                                                },
+                                                "role": {
+                                                    "type": "string",
+                                                    "example": "device"
+                                                },
+                                                "session_id": {
+                                                    "type": "string",
+                                                    "nullable": true
+                                                },
+                                                "code": {
+                                                    "type": "string",
+                                                    "example": "1234"
+                                                },
+                                                "head_coach_id": {
+                                                    "type": "integer",
+                                                    "nullable": true
+                                                },
+                                                "league_id": {
+                                                    "type": "integer",
+                                                    "nullable": true
+                                                },
+                                                "team_id": {
+                                                    "type": "integer",
+                                                    "nullable": true
+                                                },
+                                                "is_loggin": {
+                                                    "type": "boolean",
+                                                    "example": false
+                                                },
+                                                "device_name": {
+                                                    "type": "string"
+                                                },
+                                                "pairing_code": {
+                                                    "type": "string"
+                                                },
+                                                "status": {
+                                                    "type": "string",
+                                                    "example": "registered"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Device not found"
+                    }
+                }
+            }
+        },
+        "/api/devices/session-status/{session_id}": {
+            "get": {
+                "tags": [
+                    "Devices"
+                ],
+                "summary": "Check device session login status (FOR APP)",
+                "description": "Returns 200 when a device is bound to the given mobile session UUID. Returns 401 when no device has this session_id. FOR APP - Mobile device session check endpoint.",
+                "operationId": "deviceSessionStatus",
                 "parameters": [
                     {
                         "name": "session_id",
                         "in": "path",
-                        "description": "Mobile pairing session UUID from `POST /api/mobile/create-session`",
+                        "description": "Mobile pairing session UUID",
                         "required": true,
                         "schema": {
                             "type": "string",
@@ -116,7 +1350,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "QB is linked to this session",
+                        "description": "Device is linked to this session",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -130,9 +1364,56 @@
                                             "format": "uuid"
                                         },
                                         "logged_in": {
-                                            "description": "Mirrors the QB user's `is_loggin` flag in the database.",
+                                            "description": "True if device has active Sanctum tokens",
                                             "type": "boolean",
                                             "example": true
+                                        },
+                                        "device": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 5
+                                                },
+                                                "device_id": {
+                                                    "type": "string",
+                                                    "example": "QB-4821"
+                                                },
+                                                "device_name": {
+                                                    "type": "string",
+                                                    "example": "Device Name"
+                                                },
+                                                "pairing_code": {
+                                                    "type": "string",
+                                                    "example": "1234"
+                                                },
+                                                "status": {
+                                                    "type": "string",
+                                                    "example": "registered"
+                                                },
+                                                "team_id": {
+                                                    "type": "integer",
+                                                    "nullable": true
+                                                },
+                                                "user_id": {
+                                                    "type": "integer",
+                                                    "nullable": true
+                                                },
+                                                "session_id": {
+                                                    "type": "string",
+                                                    "nullable": true
+                                                },
+                                                "paired_at": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "nullable": true
+                                                },
+                                                "is_connected": {
+                                                    "description": "True if device has active Sanctum tokens",
+                                                    "type": "boolean",
+                                                    "example": true
+                                                }
+                                            },
+                                            "type": "object"
                                         }
                                     },
                                     "type": "object"
@@ -141,7 +1422,7 @@
                         }
                     },
                     "401": {
-                        "description": "Unauthenticated — no QB user with this session_id",
+                        "description": "Unauthenticated — no device with this session_id",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -162,12 +1443,2024 @@
                     }
                 }
             }
+        },
+        "/api/leagues/{league}": {
+            "put": {
+                "tags": [
+                    "Leagues"
+                ],
+                "summary": "Update league",
+                "description": "Partial update: only fields included in the request body are changed. Omitted fields are left unchanged. Requires the league to belong to the authenticated head coach.",
+                "operationId": "updateLeague",
+                "parameters": [
+                    {
+                        "name": "league",
+                        "in": "path",
+                        "description": "League primary key",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 22
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "title": {
+                                        "type": "string",
+                                        "example": "Updated League"
+                                    },
+                                    "sport_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "league_rule_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "location": {
+                                        "type": "string",
+                                        "example": "Toronto",
+                                        "nullable": true
+                                    },
+                                    "number_of_team": {
+                                        "type": "integer",
+                                        "example": 4,
+                                        "nullable": true
+                                    },
+                                    "number_of_downs": {
+                                        "type": "string",
+                                        "example": "4",
+                                        "nullable": true
+                                    },
+                                    "length_of_field": {
+                                        "type": "string",
+                                        "example": "100",
+                                        "nullable": true
+                                    },
+                                    "number_of_timeouts": {
+                                        "type": "integer",
+                                        "example": 3,
+                                        "nullable": true
+                                    },
+                                    "clock_time": {
+                                        "type": "string",
+                                        "example": "NFL",
+                                        "nullable": true
+                                    },
+                                    "number_of_quarters": {
+                                        "type": "integer",
+                                        "example": 4,
+                                        "nullable": true
+                                    },
+                                    "length_of_quarters": {
+                                        "type": "integer",
+                                        "example": 15,
+                                        "nullable": true
+                                    },
+                                    "stop_time_reason": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "overtime_rules": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "number_of_players": {
+                                        "type": "integer",
+                                        "example": 11,
+                                        "nullable": true
+                                    },
+                                    "practice_number_players": {
+                                        "type": "integer",
+                                        "example": 7,
+                                        "nullable": true
+                                    },
+                                    "warning_time_minutes": {
+                                        "type": "integer",
+                                        "example": 2,
+                                        "nullable": true
+                                    },
+                                    "flag_tbd": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "rpp_configuration": {
+                                        "type": "string",
+                                        "enum": [
+                                            "with_rpp",
+                                            "without_rpp"
+                                        ],
+                                        "example": "with_rpp",
+                                        "nullable": true
+                                    },
+                                    "team_name": {
+                                        "type": "array",
+                                        "items": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 10,
+                                                    "nullable": true
+                                                },
+                                                "name": {
+                                                    "type": "string",
+                                                    "example": "Team A"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "League updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "League updated successfully"
+                                        },
+                                        "data": {
+                                            "description": "Updated league with teams, league_rule, and sport relations",
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "404": {
+                        "description": "League not found or not owned by the authenticated head coach"
+                    },
+                    "422": {
+                        "description": "Validation error or empty payload"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/upload-play-list": {
+            "get": {
+                "tags": [
+                    "Plays"
+                ],
+                "summary": "List offensive plays",
+                "description": "Returns plays for a league including `hmark_left`, `hmark_center`, and `hmark_right`. Pass `page`, `per_page`, or `search` to enable pagination.",
+                "operationId": "listPlays",
+                "parameters": [
+                    {
+                        "name": "league_id",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 22
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 4
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "Brazil"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Play list",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PlayListBaseResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/uplaod-play": {
+            "post": {
+                "tags": [
+                    "Plays"
+                ],
+                "summary": "Create offensive play",
+                "description": "Upload a new offensive play. Requires all three H-mark images (`hmark_left`, `hmark_center`, `hmark_right`). Note: route path uses legacy spelling `uplaod-play`.",
+                "operationId": "createPlay",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PlayMultipartFields"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Play created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PlayBaseResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/update-play/{id}": {
+            "post": {
+                "tags": [
+                    "Plays"
+                ],
+                "summary": "Update offensive play",
+                "description": "Update an existing play. H-mark images are optional when existing paths are already stored; send new files to replace. `playType` is optional on update.",
+                "operationId": "updatePlay",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 191
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PlayMultipartFields"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Play updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PlayBaseResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/match-plays": {
+            "get": {
+                "tags": [
+                    "Plays"
+                ],
+                "summary": "List match plays with filters and sorting",
+                "description": "Returns all plays for the league (offensive or defensive via `possession`), filtered by optional down, expectedyard, and search. `matchId` is used for RPP `total_score` sorting context. Multi-sort via `sort` (comma-separated `field:direction` pairs, applied left-to-right). Rate sorts use SQL ratios; `total_score` uses RPP matchup scoring (meaningful for offensive plays). Plays with zero attempts sort as 0% for rate fields. Offensive: pass `h_mark_position` (`hmark_left`, `hmark_center`, `hmark_right`; default `hmark_center`) — the response includes only `image` for that selection, not the other hmark columns. Defensive: uses the play `image` column.",
+                "operationId": "listMatchPlays",
+                "parameters": [
+                    {
+                        "name": "league_id",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 22
+                        }
+                    },
+                    {
+                        "name": "matchId",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 36
+                        }
+                    },
+                    {
+                        "name": "possession",
+                        "in": "query",
+                        "description": "Offensive or defensive plays to return",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "offensive",
+                                "defensive"
+                            ],
+                            "example": "offensive"
+                        }
+                    },
+                    {
+                        "name": "down",
+                        "in": "query",
+                        "description": "Filter by preferred down (1-4)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "enum": [
+                                1,
+                                2,
+                                3,
+                                4
+                            ],
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "expectedyard",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "short",
+                                "medium",
+                                "long",
+                                "open_down"
+                            ],
+                            "example": "short"
+                        }
+                    },
+                    {
+                        "name": "h_mark_position",
+                        "in": "query",
+                        "description": "Offensive only: H-mark column used for response `image`",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "hmark_center",
+                            "enum": [
+                                "hmark_left",
+                                "hmark_center",
+                                "hmark_right"
+                            ],
+                            "example": "hmark_center"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 9,
+                            "example": 9
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Offensive: play_name; defensive: name",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "Brazil"
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "description": "Multi-column sort. Comma-separated clauses `field:direction` applied left-to-right. Allowed fields: play_success_rate, practice_success_rate, rain_success_rate, snow_success_rate, total_score. Directions: asc, desc. Max 5 clauses. Default (omitted): win_result desc.",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "^([a-z_]+:(asc|desc))(,[a-z_]+:(asc|desc))*$",
+                            "example": "play_success_rate:asc,practice_success_rate:asc"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Match play list",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MatchPlaysBaseResponse"
+                                },
+                                "examples": {
+                                    "offensive_hmark_left": {
+                                        "summary": "Offensive with h_mark_position=hmark_left",
+                                        "value": {
+                                            "data": [
+                                                {
+                                                    "id": 191,
+                                                    "play_name": "Brazil",
+                                                    "image": "uploads/public/left-only.png",
+                                                    "min_expected_yard": "short",
+                                                    "possession": "offensive",
+                                                    "win_result": 3
+                                                }
+                                            ],
+                                            "meta": {
+                                                "total": 1,
+                                                "current_page": 1,
+                                                "per_page": 9,
+                                                "last_page": 1
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/leagues/{league}/get-suggested-plays": {
+            "get": {
+                "tags": [
+                    "Plays"
+                ],
+                "summary": "Get system-suggested plays for a match",
+                "description": "Used from practice/play scoreboard **System Suggestion** flow (PlaySuggestion component). Returns raw `Play` / `DefensivePlay` JSON (not wrapped in status/message). Offensive: `{ top_by_score, top_by_success }`. Pass `h_mark_position` (`hmark_left`, `hmark_center`, `hmark_right`; default `hmark_center`) to set `image` from that H-mark column; other hmark fields are omitted. Defensive: uses play `image` column.",
+                "operationId": "getSuggestedPlays",
+                "parameters": [
+                    {
+                        "name": "league",
+                        "in": "path",
+                        "description": "League id (same as route param `id` in /practice-mode/{id}/...)",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 22
+                        }
+                    },
+                    {
+                        "name": "league_id",
+                        "in": "query",
+                        "description": "Duplicate of path league id; sent by frontend",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 22
+                        }
+                    },
+                    {
+                        "name": "match_id",
+                        "in": "query",
+                        "description": "Game/match id (route gameId, e.g. 36)",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 36
+                        }
+                    },
+                    {
+                        "name": "possession",
+                        "in": "query",
+                        "description": "Determines offensive vs defensive handler",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "offensive",
+                                "defensive"
+                            ],
+                            "example": "offensive"
+                        }
+                    },
+                    {
+                        "name": "is_practice",
+                        "in": "query",
+                        "description": "true/1 for practice mode; false/0 for play mode",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "example": true
+                        }
+                    },
+                    {
+                        "name": "h_mark_position",
+                        "in": "query",
+                        "description": "Offensive only: H-mark column mapped to response `image` (same as match-plays)",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "hmark_center",
+                            "enum": [
+                                "hmark_left",
+                                "hmark_center",
+                                "hmark_right"
+                            ],
+                            "example": "hmark_center"
+                        }
+                    },
+                    {
+                        "name": "down",
+                        "in": "query",
+                        "description": "Current down (1-4); maps to preferred_down filter",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "enum": [
+                                1,
+                                2,
+                                3,
+                                4
+                            ],
+                            "example": 2
+                        }
+                    },
+                    {
+                        "name": "strategy",
+                        "in": "query",
+                        "description": "Scoreboard strategy value; maps to strategies column (FIND_IN_SET)",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "regular"
+                        }
+                    },
+                    {
+                        "name": "expectedyard",
+                        "in": "query",
+                        "description": "Expected yard gain from scoreboard; maps to min_expected_yard",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "45"
+                        }
+                    },
+                    {
+                        "name": "pkg",
+                        "in": "query",
+                        "description": "Opponent team package id (defensive suggestions)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 5
+                        }
+                    },
+                    {
+                        "name": "zone",
+                        "in": "query",
+                        "description": "Legacy zone filter; sent by frontend but not applied in current offensive handler",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 2
+                        }
+                    },
+                    {
+                        "name": "quarter",
+                        "in": "query",
+                        "description": "Sent by frontend; not applied in current offensive handler",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "1st quarter"
+                        }
+                    },
+                    {
+                        "name": "player",
+                        "in": "query",
+                        "description": "Selected offensive players from scoreboard (serialized as query params by the Vue client)",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "properties": {
+                                    "value": {
+                                        "type": "integer"
+                                    },
+                                    "text": {
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    },
+                    {
+                        "name": "opponent_personal_group",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 3
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Suggested plays. Shape depends on possession.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "oneOf": [
+                                        {
+                                            "$ref": "#/components/schemas/SuggestedOffensivePlaysResponse"
+                                        },
+                                        {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/SuggestedDefensivePlay"
+                                            }
+                                        }
+                                    ]
+                                },
+                                "examples": {
+                                    "offensive": {
+                                        "summary": "Offensive possession",
+                                        "value": {
+                                            "top_by_score": [],
+                                            "top_by_success": [
+                                                {
+                                                    "id": 280,
+                                                    "play_name": "IN 25(4)-RAM ALL-CHECK",
+                                                    "image": "uploads/public/918d00bc211bb556a7dcb320952f3a0a.png",
+                                                    "min_expected_yard": "short",
+                                                    "possession": "offensive",
+                                                    "strategies": "regular",
+                                                    "win_result": 0,
+                                                    "practice_win_result": 3,
+                                                    "total_practice_count": 7,
+                                                    "total_score": 0,
+                                                    "matchups": []
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "defensive": {
+                                        "summary": "Defensive possession",
+                                        "value": [
+                                            {
+                                                "id": 55,
+                                                "name": "Cover 2",
+                                                "image": "uploads/public/defense.png",
+                                                "win_result": 2,
+                                                "practice_win_result": 1
+                                            }
+                                        ]
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "YardagePlayToAssistantRequest": {
+                "description": "Exact JSON keys read by BroadCastScoreController::yardagePlaytoAssistant (Vue client may send `play`; stored in broadcast payload as `play`).",
+                "properties": {
+                    "PlayName": {
+                        "type": "string",
+                        "example": "IN 25(4)-RAM ALL-CHECK"
+                    },
+                    "playYardageGain": {
+                        "description": "Current ball position / yardage slider value",
+                        "type": "integer",
+                        "example": 45,
+                        "nullable": true
+                    },
+                    "playSliderDirection": {
+                        "type": "string",
+                        "example": "ltr",
+                        "nullable": true
+                    },
+                    "targetTeam": {
+                        "description": "Possession / target team id or type from scoreboard",
+                        "type": "string",
+                        "example": "offensive",
+                        "nullable": true
+                    },
+                    "suggestionData": {
+                        "description": "Scoreboard context when HC opened System Suggestions",
+                        "properties": {
+                            "yardage": {
+                                "type": "integer",
+                                "example": 10
+                            },
+                            "positionNumber": {
+                                "type": "integer",
+                                "example": 45
+                            },
+                            "quarter": {
+                                "type": "integer",
+                                "example": 1
+                            },
+                            "down": {
+                                "type": "integer",
+                                "example": 2
+                            },
+                            "target": {
+                                "type": "string",
+                                "example": "12"
+                            },
+                            "myteamId": {
+                                "type": "integer",
+                                "example": 1
+                            },
+                            "oppteamId": {
+                                "type": "integer",
+                                "example": 2
+                            },
+                            "strategies": {
+                                "type": "string",
+                                "example": "regular"
+                            },
+                            "weather_status": {
+                                "type": "string",
+                                "example": "Normal"
+                            },
+                            "weatherSelection": {
+                                "type": "string",
+                                "example": "Normal"
+                            },
+                            "game_id": {
+                                "type": "integer",
+                                "example": 36
+                            },
+                            "league_id": {
+                                "type": "integer",
+                                "example": 22
+                            },
+                            "time": {
+                                "type": "string",
+                                "example": "12:00"
+                            },
+                            "my_points": {
+                                "type": "integer",
+                                "example": 7
+                            },
+                            "oponent_points": {
+                                "type": "integer",
+                                "example": 0
+                            },
+                            "mode": {
+                                "type": "string",
+                                "example": "practice"
+                            }
+                        },
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "selectedPlayIds": {
+                        "type": "integer",
+                        "example": 280,
+                        "nullable": true
+                    },
+                    "playObject": {
+                        "description": "Selected play object (Vue also sends `play` as alias)",
+                        "properties": {
+                            "id": {
+                                "type": "integer",
+                                "example": 280
+                            },
+                            "title": {
+                                "type": "string",
+                                "example": "IN 25(4)-RAM ALL-CHECK"
+                            }
+                        },
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "offensive",
+                            "defensive"
+                        ],
+                        "example": "offensive",
+                        "nullable": true
+                    },
+                    "targetPlayers": {
+                        "type": "array",
+                        "items": {
+                            "properties": {
+                                "value": {
+                                    "type": "integer"
+                                },
+                                "text": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        },
+                        "nullable": true
+                    },
+                    "my_team": {
+                        "type": "integer",
+                        "example": 1,
+                        "nullable": true
+                    },
+                    "opponent_team": {
+                        "type": "integer",
+                        "example": 2,
+                        "nullable": true
+                    },
+                    "mode": {
+                        "type": "string",
+                        "enum": [
+                            "practice",
+                            "play"
+                        ],
+                        "example": "practice",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "YardagePlayBroadcastPayload": {
+                "properties": {
+                    "playName": {
+                        "type": "string",
+                        "example": "IN 25(4)-RAM ALL-CHECK",
+                        "nullable": true
+                    },
+                    "yardageGain": {
+                        "type": "integer",
+                        "example": 45,
+                        "nullable": true
+                    },
+                    "sliderDirection": {
+                        "type": "string",
+                        "example": "ltr",
+                        "nullable": true
+                    },
+                    "targetTeam": {
+                        "type": "string",
+                        "example": "offensive",
+                        "nullable": true
+                    },
+                    "suggestionData": {
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "selectedPlayIds": {
+                        "type": "integer",
+                        "example": 280,
+                        "nullable": true
+                    },
+                    "play": {
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "type": {
+                        "type": "string",
+                        "example": "offensive",
+                        "nullable": true
+                    },
+                    "targetPlayers": {
+                        "type": "array",
+                        "items": {
+                            "type": "object"
+                        },
+                        "nullable": true
+                    },
+                    "my_team": {
+                        "type": "integer",
+                        "example": 1,
+                        "nullable": true
+                    },
+                    "opponent_team": {
+                        "type": "integer",
+                        "example": 2,
+                        "nullable": true
+                    },
+                    "mode": {
+                        "type": "string",
+                        "example": "practice",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "YardagePlayToAssistantResponse": {
+                "properties": {
+                    "status": {
+                        "type": "integer",
+                        "example": 200
+                    },
+                    "message": {
+                        "type": "string",
+                        "example": "Yardage play broadcast sent to assistant coach."
+                    },
+                    "data": {
+                        "properties": {
+                            "head_coach_id": {
+                                "type": "integer",
+                                "example": 5
+                            },
+                            "league_id": {
+                                "type": "integer",
+                                "example": 22
+                            },
+                            "channel": {
+                                "type": "string",
+                                "example": "coach-group.5.league.22"
+                            },
+                            "event": {
+                                "type": "string",
+                                "example": "assistant.coaches"
+                            },
+                            "payload": {
+                                "$ref": "#/components/schemas/YardagePlayBroadcastPayload"
+                            }
+                        },
+                        "type": "object"
+                    }
+                },
+                "type": "object"
+            },
+            "AssistantSystemSuggestionBroadcastRequest": {
+                "required": [
+                    "down",
+                    "weather",
+                    "strategies",
+                    "expected_yardage_gain",
+                    "h_mark_position"
+                ],
+                "properties": {
+                    "down": {
+                        "type": "integer",
+                        "maximum": 4,
+                        "minimum": 1,
+                        "example": 2
+                    },
+                    "weather": {
+                        "description": "Alias: weather_status",
+                        "type": "string",
+                        "enum": [
+                            "Normal",
+                            "Rain",
+                            "Snow"
+                        ],
+                        "example": "Rain"
+                    },
+                    "strategies": {
+                        "type": "string",
+                        "enum": [
+                            "regular",
+                            "red zone",
+                            "hurry up",
+                            "aggressive",
+                            "chew clock"
+                        ],
+                        "example": "regular"
+                    },
+                    "expected_yardage_gain": {
+                        "description": "Aliases: expectedyard, yardage",
+                        "type": "integer",
+                        "example": 10
+                    },
+                    "h_mark_position": {
+                        "type": "string",
+                        "enum": [
+                            "hmark_left",
+                            "hmark_center",
+                            "hmark_right"
+                        ],
+                        "example": "hmark_center"
+                    },
+                    "game_id": {
+                        "type": "integer",
+                        "example": 36,
+                        "nullable": true
+                    },
+                    "league_id": {
+                        "type": "integer",
+                        "example": 22,
+                        "nullable": true
+                    },
+                    "mode": {
+                        "type": "string",
+                        "enum": [
+                            "practice",
+                            "play"
+                        ],
+                        "example": "practice",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "HeadCoachSystemSuggestionPayload": {
+                "properties": {
+                    "down": {
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "weather": {
+                        "type": "string",
+                        "example": "Rain"
+                    },
+                    "strategies": {
+                        "type": "string",
+                        "example": "regular"
+                    },
+                    "expected_yardage_gain": {
+                        "type": "integer",
+                        "example": 10
+                    },
+                    "h_mark_position": {
+                        "type": "string",
+                        "example": "hmark_center"
+                    },
+                    "game_id": {
+                        "type": "integer",
+                        "example": 36,
+                        "nullable": true
+                    },
+                    "league_id": {
+                        "type": "integer",
+                        "example": 22,
+                        "nullable": true
+                    },
+                    "mode": {
+                        "type": "string",
+                        "example": "practice",
+                        "nullable": true
+                    },
+                    "actor_id": {
+                        "type": "integer",
+                        "example": 15
+                    },
+                    "actor_name": {
+                        "type": "string",
+                        "example": "Assistant Coach"
+                    }
+                },
+                "type": "object"
+            },
+            "AssistantSystemSuggestionBroadcastResponse": {
+                "properties": {
+                    "status": {
+                        "type": "integer",
+                        "example": 200
+                    },
+                    "message": {
+                        "type": "string",
+                        "example": "System suggestion broadcast sent to head coach."
+                    },
+                    "data": {
+                        "properties": {
+                            "head_coach_id": {
+                                "type": "integer",
+                                "example": 5
+                            },
+                            "league_id": {
+                                "type": "integer",
+                                "example": 22
+                            },
+                            "channel": {
+                                "type": "string",
+                                "example": "coach-group.5.league.22"
+                            },
+                            "event": {
+                                "type": "string",
+                                "example": "head.coach.suggestion"
+                            },
+                            "payload": {
+                                "$ref": "#/components/schemas/HeadCoachSystemSuggestionPayload"
+                            }
+                        },
+                        "type": "object"
+                    }
+                },
+                "type": "object"
+            },
+            "Play": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 191
+                    },
+                    "league_id": {
+                        "type": "integer",
+                        "example": 22
+                    },
+                    "play_name": {
+                        "type": "string",
+                        "example": "Brazil"
+                    },
+                    "play_type": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "offensive_play_type": {
+                        "type": "string",
+                        "enum": [
+                            "run",
+                            "pass",
+                            "rpo",
+                            "play_action"
+                        ],
+                        "example": "pass"
+                    },
+                    "zone_selection": {
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "min_expected_yard": {
+                        "type": "string",
+                        "example": "short"
+                    },
+                    "max_expected_yard": {
+                        "type": "string",
+                        "example": "1"
+                    },
+                    "possession": {
+                        "type": "string",
+                        "enum": [
+                            "offensive",
+                            "defensive"
+                        ],
+                        "example": "offensive"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "hmark_left": {
+                        "type": "string",
+                        "example": "uploads/public/abc.png",
+                        "nullable": true
+                    },
+                    "hmark_center": {
+                        "type": "string",
+                        "example": "uploads/public/def.png",
+                        "nullable": true
+                    },
+                    "hmark_right": {
+                        "type": "string",
+                        "example": "uploads/public/ghi.png",
+                        "nullable": true
+                    },
+                    "preferred_down": {
+                        "type": "string",
+                        "example": "1,2,3",
+                        "nullable": true
+                    },
+                    "strategies": {
+                        "type": "string",
+                        "example": "regular,hurry up",
+                        "nullable": true
+                    },
+                    "read_1": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "read_2": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "win_result": {
+                        "description": "Present on list responses",
+                        "type": "integer",
+                        "example": 3
+                    },
+                    "loss_result": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "yardage_difference": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 12.5,
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "PlayBaseResponse": {
+                "properties": {
+                    "status": {
+                        "type": "integer",
+                        "example": 200
+                    },
+                    "message": {
+                        "type": "string",
+                        "example": "Play Uploaded Successfully"
+                    },
+                    "data": {
+                        "$ref": "#/components/schemas/Play"
+                    }
+                },
+                "type": "object"
+            },
+            "PlayListBaseResponse": {
+                "properties": {
+                    "status": {
+                        "type": "integer",
+                        "example": 200
+                    },
+                    "message": {
+                        "type": "string",
+                        "example": "Play Uploaded List "
+                    },
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Play"
+                        }
+                    },
+                    "pagination": {
+                        "properties": {
+                            "total": {
+                                "type": "integer",
+                                "example": 12
+                            },
+                            "current_page": {
+                                "type": "integer",
+                                "example": 1
+                            },
+                            "per_page": {
+                                "type": "integer",
+                                "example": 4
+                            },
+                            "last_page": {
+                                "type": "integer",
+                                "example": 3
+                            }
+                        },
+                        "type": "object",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "PlayMultipartFields": {
+                "required": [
+                    "play_name",
+                    "playType",
+                    "league_id",
+                    "play_type",
+                    "zone_selection",
+                    "min_expected_yard",
+                    "max_expected_yard",
+                    "target_offensive",
+                    "opposing_defensive",
+                    "pre_snap_motion",
+                    "play_action_fake",
+                    "possession"
+                ],
+                "properties": {
+                    "play_name": {
+                        "type": "string",
+                        "example": "Brazil"
+                    },
+                    "playType": {
+                        "type": "string",
+                        "enum": [
+                            "run",
+                            "pass",
+                            "rpo",
+                            "play_action"
+                        ],
+                        "example": "pass"
+                    },
+                    "league_id": {
+                        "type": "integer",
+                        "example": 22
+                    },
+                    "play_type": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "zone_selection": {
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "min_expected_yard": {
+                        "type": "string",
+                        "example": "short"
+                    },
+                    "max_expected_yard": {
+                        "type": "string",
+                        "example": "1"
+                    },
+                    "target_offensive": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "opposing_defensive": {
+                        "type": "integer",
+                        "example": 3
+                    },
+                    "pre_snap_motion": {
+                        "type": "integer",
+                        "example": 0
+                    },
+                    "play_action_fake": {
+                        "type": "integer",
+                        "example": 0
+                    },
+                    "possession": {
+                        "type": "string",
+                        "enum": [
+                            "offensive",
+                            "defensive"
+                        ],
+                        "example": "offensive"
+                    },
+                    "quarter": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "preferred_down": {
+                        "type": "string",
+                        "example": "1,2,3"
+                    },
+                    "strategies": {
+                        "type": "string",
+                        "example": "regular,hurry up"
+                    },
+                    "read_2": {
+                        "description": "Stored as read_1",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "read_3": {
+                        "description": "Stored as read_2",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "position_status": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "groups[]": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    },
+                    "offensive[40]": {
+                        "description": "Offensive position strength keyed by position id",
+                        "type": "integer",
+                        "example": 0
+                    },
+                    "defensive[70]": {
+                        "description": "Defensive position strength keyed by position id",
+                        "type": "integer",
+                        "example": 0
+                    },
+                    "hmark_left": {
+                        "description": "Required on create",
+                        "type": "string",
+                        "format": "binary"
+                    },
+                    "hmark_center": {
+                        "description": "Required on create",
+                        "type": "string",
+                        "format": "binary"
+                    },
+                    "hmark_right": {
+                        "description": "Required on create",
+                        "type": "string",
+                        "format": "binary"
+                    },
+                    "video": {
+                        "type": "string",
+                        "format": "binary",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "ConfiguredOffensivePlay": {
+                "description": "Configured offensive play. Only `image` is returned for the diagram (from `h_mark_position`); hmark_left/center/right are not included in the response.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 191
+                    },
+                    "league_id": {
+                        "type": "integer",
+                        "example": 22
+                    },
+                    "play_name": {
+                        "type": "string",
+                        "example": "Brazil"
+                    },
+                    "play_type": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "zone_selection": {
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "min_expected_yard": {
+                        "type": "string",
+                        "example": "short"
+                    },
+                    "possession": {
+                        "type": "string",
+                        "example": "offensive"
+                    },
+                    "preferred_down": {
+                        "type": "string",
+                        "example": "1,2,3",
+                        "nullable": true
+                    },
+                    "strategies": {
+                        "type": "string",
+                        "example": "regular",
+                        "nullable": true
+                    },
+                    "image": {
+                        "description": "Single diagram path from the `h_mark_position` query param (hmark_left, hmark_center, or hmark_right; default hmark_center)",
+                        "type": "string",
+                        "example": "uploads/public/abc.png",
+                        "nullable": true
+                    },
+                    "win_result": {
+                        "type": "integer",
+                        "example": 3
+                    },
+                    "loss_result": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "practice_win_result": {
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "practice_loss_result": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "total_count": {
+                        "type": "integer",
+                        "example": 4
+                    },
+                    "total_practice_count": {
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "win_result_rain": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "win_result_snow": {
+                        "type": "integer",
+                        "example": 0
+                    },
+                    "total_rain": {
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "total_snow": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "yardage_difference": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 12.5,
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "MatchPlaysBaseResponse": {
+                "description": "HTTP status conveys success or error; body is only data and meta.",
+                "properties": {
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ConfiguredOffensivePlay"
+                        }
+                    },
+                    "meta": {
+                        "properties": {
+                            "total": {
+                                "type": "integer",
+                                "example": 12
+                            },
+                            "current_page": {
+                                "type": "integer",
+                                "example": 1
+                            },
+                            "per_page": {
+                                "type": "integer",
+                                "example": 9
+                            },
+                            "last_page": {
+                                "type": "integer",
+                                "example": 3
+                            }
+                        },
+                        "type": "object"
+                    }
+                },
+                "type": "object"
+            },
+            "MatchPlaySortField": {
+                "description": "Sort field keys for match-plays. Rate fields divide win counts by attempt counts (zero attempts = 0). total_score is RPP-based (offensive only; defensive sorts as 0).",
+                "type": "string",
+                "enum": [
+                    "play_success_rate",
+                    "practice_success_rate",
+                    "rain_success_rate",
+                    "snow_success_rate",
+                    "total_score"
+                ]
+            },
+            "SuggestedPlayBenchPlayer": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 12,
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "John Doe",
+                        "nullable": true
+                    },
+                    "number": {
+                        "type": "string",
+                        "example": "22",
+                        "nullable": true
+                    },
+                    "position_value": {
+                        "type": "string",
+                        "example": "Wide receiver W",
+                        "nullable": true
+                    },
+                    "position": {
+                        "type": "string",
+                        "example": "WR",
+                        "nullable": true
+                    },
+                    "rpp": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 8,
+                        "nullable": true
+                    },
+                    "ofp": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 85,
+                        "nullable": true
+                    },
+                    "speed": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 88,
+                        "nullable": true
+                    },
+                    "strength": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 82,
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "SuggestedPlayMatchup": {
+                "properties": {
+                    "offensive_position": {
+                        "type": "string",
+                        "example": "Wide receiver W"
+                    },
+                    "defensive_position": {
+                        "type": "string",
+                        "example": "Cornerback"
+                    },
+                    "strength": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 75
+                    },
+                    "offensive_rpp": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 16
+                    },
+                    "defensive_rpp": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 12
+                    },
+                    "rpp_difference": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 4
+                    },
+                    "strength_percentage": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 0.75
+                    },
+                    "rpp_difference_percentage": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 3
+                    },
+                    "offensive_players": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/SuggestedPlayBenchPlayer"
+                        }
+                    },
+                    "defensive_players": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/SuggestedPlayBenchPlayer"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "SuggestedOffensivePlay": {
+                "description": "Offensive play enriched with RPP scoring, matchup breakdown, and result counts for the current match context.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 191
+                    },
+                    "league_id": {
+                        "type": "integer",
+                        "example": 22
+                    },
+                    "play_name": {
+                        "type": "string",
+                        "example": "Brazil"
+                    },
+                    "play_type": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "image": {
+                        "description": "Play diagram path from `h_mark_position` query param (default hmark_center). Only `image` is returned; hmark_left/center/right are not in the response.",
+                        "type": "string",
+                        "example": "uploads/public/918d00bc211bb556a7dcb320952f3a0a.png",
+                        "nullable": true
+                    },
+                    "zone_selection": {
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "min_expected_yard": {
+                        "type": "string",
+                        "example": "45"
+                    },
+                    "possession": {
+                        "type": "string",
+                        "enum": [
+                            "offensive",
+                            "defensive"
+                        ],
+                        "example": "offensive"
+                    },
+                    "preferred_down": {
+                        "type": "string",
+                        "example": "1,2",
+                        "nullable": true
+                    },
+                    "strategies": {
+                        "type": "string",
+                        "example": "regular",
+                        "nullable": true
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "read_1": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "read_2": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "total_score": {
+                        "description": "RPP-based score used to rank suggestions",
+                        "type": "number",
+                        "format": "float",
+                        "example": 12.45
+                    },
+                    "win_result": {
+                        "description": "Play-mode wins (is_practice=0)",
+                        "type": "integer",
+                        "example": 3
+                    },
+                    "loss_result": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "practice_win_result": {
+                        "description": "Practice-mode wins (is_practice=1)",
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "practice_loss_result": {
+                        "type": "integer",
+                        "example": 0
+                    },
+                    "total_count": {
+                        "type": "integer",
+                        "example": 4
+                    },
+                    "total_practice_count": {
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "win_result_rain": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "win_result_snow": {
+                        "type": "integer",
+                        "example": 0
+                    },
+                    "total_rain": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "total_snow": {
+                        "type": "integer",
+                        "example": 0
+                    },
+                    "yardage_difference": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 8.5,
+                        "nullable": true
+                    },
+                    "matchups": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/SuggestedPlayMatchup"
+                        }
+                    },
+                    "rpp_percentage_sum_by_offense": {
+                        "type": "object",
+                        "example": {
+                            "Wide receiver W": 3.2
+                        },
+                        "additionalProperties": {
+                            "type": "number",
+                            "format": "float"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "SuggestedOffensivePlaysResponse": {
+                "description": "Returned when possession is offensive (default). Up to 3 plays per bucket.",
+                "properties": {
+                    "top_by_score": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/SuggestedOffensivePlay"
+                        }
+                    },
+                    "top_by_success": {
+                        "description": "Ranked by historical win rate; practice uses practice_win_result when is_practice=true",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/SuggestedOffensivePlay"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "SuggestedDefensivePlay": {
+                "description": "Defensive play suggestion returned when possession=defensive.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 55
+                    },
+                    "league_id": {
+                        "type": "integer",
+                        "example": 22
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Cover 2"
+                    },
+                    "image": {
+                        "type": "string",
+                        "example": "uploads/public/def.png",
+                        "nullable": true
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "coverage_type": {
+                        "type": "string",
+                        "example": "zone",
+                        "nullable": true
+                    },
+                    "coverage_category": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "preferred_down": {
+                        "type": "string",
+                        "example": "1,2,3",
+                        "nullable": true
+                    },
+                    "strategies": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "min_expected_yard": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "opponent_personnel_grouping": {
+                        "type": "integer",
+                        "example": 3,
+                        "nullable": true
+                    },
+                    "win_result": {
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "practice_win_result": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "loss_result": {
+                        "type": "integer",
+                        "example": 0
+                    },
+                    "total_count": {
+                        "type": "integer",
+                        "example": 3
+                    },
+                    "total_practice_count": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "yardage_difference": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 4.2,
+                        "nullable": true
+                    },
+                    "personals": {
+                        "type": "array",
+                        "items": {
+                            "type": "object"
+                        }
+                    },
+                    "formation": {
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "strategyBlitz": {
+                        "type": "object",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            }
+        },
+        "securitySchemes": {
+            "sanctum": {
+                "type": "http",
+                "description": "Sanctum bearer token. Use format: Bearer {token}",
+                "bearerFormat": "Token",
+                "scheme": "bearer"
+            }
         }
     },
     "tags": [
         {
-            "name": "Human Dashboard",
-            "description": "QB session flows (Human Dashboard Postman collection)"
+            "name": "Broadcast",
+            "description": "Coach-group Pusher broadcasts between head coach and assistant coach"
+        },
+        {
+            "name": "Configuration",
+            "description": "Application configuration key-value store"
+        },
+        {
+            "name": "Devices",
+            "description": "Device management per league for parallel game execution"
+        },
+        {
+            "name": "Leagues",
+            "description": "League settings and configuration"
+        },
+        {
+            "name": "Plays",
+            "description": "Offensive play create, update, and listing (H-mark images). Includes configured game play lists, system-suggested plays for scoreboard/match flow, filtered by down and expected yardage."
         }
     ]
 }
