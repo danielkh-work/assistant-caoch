@@ -97,8 +97,8 @@ class Handler extends ExceptionHandler
             DB::rollback();
 
             return (new BaseResponse(
-                STATUS_CODE_BADREQUEST,
-                STATUS_CODE_BADREQUEST,
+                STATUS_CODE_UNPROCESSABLE,
+                STATUS_CODE_UNPROCESSABLE,
                 $e->validator->errors()->first()
             ))->toResponse($request);
         }

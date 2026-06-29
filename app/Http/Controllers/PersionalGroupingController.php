@@ -332,8 +332,12 @@ public function storeAllGroups(Request $request)
             $q->where('team_id', $teamId)
               ->where('game_id', $gameId);
         })
-        ->when((!$teamId || !$gameId) && $leagueId, function ($q) use ($leagueId) {
+        ->when((!$teamId || !$gameId) && $leagueId, function ($q) use ($teamId, $leagueId) {
             $q->where('league_id', $leagueId);
+            // Always filter by team_id when available to prevent cross-team contamination
+            if ($teamId) {
+                $q->where('team_id', $teamId);
+            }
         })
         // Match-Start / substitution view (for_practice_mode=1) shows the same set as
         // Configure → "Active" tab: every group with status='active'. Practice size 7/11/12 is
@@ -360,14 +364,44 @@ public function storeAllGroups(Request $request)
 
    public function deleteGroup($id)
 {
-    // Find the group by ID
     $group = PersionalGrouping::find($id);
-     if ($group)
+    if ($group) {
+        $isPractice    = !empty($group->practice_players);
+        $playerCol     = $isPractice ? 'practice_player_id' : 'player_id';
+        $rawPlayers    = $isPractice ? $group->practice_players : $group->players;
+
+        $deletedPlayerIds = collect(is_array($rawPlayers) ? $rawPlayers : [])
+            ->map(fn ($p) => is_array($p) ? (int) ($p['id'] ?? 0) : (int) $p)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
         $group->delete();
-        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "group Delete Successfully ");
 
+        // Remove configure players that belonged only to this group (not in any remaining group)
+        if (!empty($deletedPlayerIds)) {
+            $remaining = PersionalGrouping::where('game_id', $group->game_id)
+                ->where('team_id', $group->team_id)
+                ->get();
 
+            $stillGrouped = $remaining->flatMap(function ($g) use ($isPractice) {
+                $raw = $isPractice ? $g->practice_players : $g->players;
+                return collect(is_array($raw) ? $raw : [])
+                    ->map(fn ($p) => is_array($p) ? (int) ($p['id'] ?? 0) : (int) $p)
+                    ->filter(fn ($id) => $id > 0);
+            })->unique()->values()->all();
 
+            $toRemove = array_values(array_diff($deletedPlayerIds, $stillGrouped));
+            if (!empty($toRemove)) {
+                \App\Models\ConfiguredPlayingTeamPlayer::where('match_id', $group->game_id)
+                    ->where('team_id', $group->team_id)
+                    ->whereIn($playerCol, $toRemove)
+                    ->delete();
+            }
+        }
+    }
+    return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "group Delete Successfully");
   }
 
     public function getPlays(PersionalGrouping $group)

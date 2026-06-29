@@ -25,37 +25,18 @@ class SportController extends Controller
 
     public function league(Request $request)
     {
-        // "role":"assistant_coach","head_coach_id":30
-        \Log::info('Authenticated user:', ['user' => auth()->user()->assistant_coach]);
-        $id =  auth()->user()->id;
-        $user=auth()->user();
-        $userRoleIds = auth()->user()->roles->pluck('id');
-        $league = League::with([
-            'teams',  // Selecting only 'id' and 'name' from teams
-            'league_rule:id,title', // Selecting only 'id' and 'title' from leaque_rule
-            'sport:id,title',
-            'roles' 
-        ])
-        ->when(in_array($user->role, ['assistant_coach', 'performance_coach']), function ($query) use ($user) {
-                return $query->where(function ($q) use ($user) {
-                    $q->where('user_id', $user->id)
-                    ->orWhere('user_id', $user->head_coach_id);
-                });
+        $user = auth()->user();
 
-            }, function ($query) use ($user) {
-                return $query->orWhere('user_id', $user->id);
-        })
-        ->where('sport_id',$request->sport_id)
-        ->orWhereHas('roles', function ($query) use ($userRoleIds) {
-            $query->where(function ($q) use ($userRoleIds) {
-                $q->whereIn('roleables.role_id', $userRoleIds);
-            });
-       })
-       ->get();
-        
-        
-       
-        
+        $league = League::with([
+            'teams',
+            'league_rule:id,title',
+            'sport:id,title',
+            'roles',
+        ])
+            ->visibleToUser($user)
+            ->where('sport_id', $request->sport_id)
+            ->get();
+
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "leauqe List  ", $league);
     }
     public function leagueRule(Request $request)
@@ -135,6 +116,9 @@ class SportController extends Controller
         try {
 
            $League =  League::find($request->id);
+           if (!$League || !auth()->user()->can('update', $League)) {
+               return new BaseResponse(STATUS_CODE_BADREQUEST, STATUS_CODE_BADREQUEST, 'League not found or access denied');
+           }
            $League->sport_id=$request->sport_id;
            $League->league_rule_id=$request->league_rule_id;
            $League->number_of_team=$request->number_of_team;
@@ -195,6 +179,12 @@ class SportController extends Controller
         DB::beginTransaction();
         try {
             $league = League::findOrFail($id);
+            if (!auth()->user()->can('update', $league)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'League not found or access denied.',
+                ], 403);
+            }
             if ($request->has('number_of_players')) {
                     $league->number_of_players = $request->number_of_players;
                 }
@@ -235,6 +225,14 @@ class SportController extends Controller
             ], 404);
         }
 
+        $league = League::find($team->league_id);
+        if (!$league || !auth()->user()->can('update', $league)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'League not found or access denied',
+            ], 403);
+        }
+
         $team->won = $request->won;
         $team->drawn = $request->drawn;
         $team->lost = $request->lost;
@@ -249,7 +247,7 @@ class SportController extends Controller
     {
       $leauqe = League::with('teams','league_rule','sport')->find($request->id); 
       
-      if (!$leauqe) {
+      if (!$leauqe || !auth()->user()->can('view', $leauqe)) {
           return response()->json([
               'success' => false,
               'message' => 'League not found'
@@ -260,7 +258,16 @@ class SportController extends Controller
         $q->where('type', 1)
           ->orWhereNull('type');
       })->where('is_practice',0)->get();
-      $matches = PlayGameMode::where('league_id', $leauqe->id)->where('status', 4)->get();
+      $matches = PlayGameMode::query()
+          ->where('league_id', $leauqe->id)
+          ->where('status', 4)
+          ->where('game_mode', 'play')
+          ->get();
+      $matches = PlayGameMode::query()
+          ->where('league_id', $leauqe->id)
+          ->where('status', 4)
+          ->where('game_mode', 'play')
+          ->get();
  
       $pointsTable = [];
  
@@ -281,8 +288,26 @@ class SportController extends Controller
       foreach ($matches as $match) {
           $teamA = $match->my_team_id;
           $teamB = $match->oponent_team_id;
+
+          if (! isset($pointsTable[$teamA], $pointsTable[$teamB])) {
+              continue;
+          }
+
+
+          if (! isset($pointsTable[$teamA], $pointsTable[$teamB])) {
+              continue;
+          }
+
           $scoreA = $match->my_team_score;
           $scoreB = $match->oponent_team_score;
+
+          if ($scoreA === null || $scoreB === null) {
+              continue;
+          }
+
+          if ($scoreA === null || $scoreB === null) {
+              continue;
+          }
  
           // Increment played
           $pointsTable[$teamA]['played']++;
@@ -337,8 +362,10 @@ class SportController extends Controller
 
     public function dashboard(Request $request)
     {
-        
-        $leauqe =  League::with('teams','league_rule','sport')->get();
+        $leauqe = League::with('teams', 'league_rule', 'sport')
+            ->visibleToUser(auth()->user())
+            ->get();
+
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "leauqe List  ", $leauqe);
     }
 

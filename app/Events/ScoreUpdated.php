@@ -14,30 +14,74 @@ class ScoreUpdated implements ShouldBroadcast
 {
    use Dispatchable, InteractsWithSockets, SerializesModels;
 
-   public $scores;
+   public $data;
    protected $userId;
    protected $gameId;
+   protected ?int $leagueId;
 
 
-   public function __construct($scores,$userId,$gameId)
+   public function __construct($data,$userId,$gameId, ?int $leagueId = null)
    {
-     $this->scores = $scores;
+     $this->data = $data;
      $this->userId = $userId;
      $this->gameId = $gameId;
-    //   $this->leagueId = $leagueId;
+     $this->leagueId = $leagueId;
 
    }
     public function broadcastOn()
     {
-        // return new PrivateChannel("user.{$this->userId}.league.{$this->leagueId}");
-           \Log::info([' in sockeet before all request data'=>$this->scores]);
+           \Log::info([' in sockeet before all request data'=>$this->data]);
 
-         return new PrivateChannel("user.{$this->userId}.game.{$this->gameId}");
+         $channels = [
+             new PrivateChannel("user.{$this->userId}.game.{$this->gameId}"),
+         ];
+
+         if ($this->leagueId && $this->leagueId > 0) {
+             $channels[] = new PrivateChannel("league.{$this->leagueId}.devices");
+         }
+
+         return $channels;
 
     }
 
     public function broadcastAs()
     {
         return 'score.updated';
+    }
+
+    public function broadcastWith()
+    {
+        $data = $this->data;
+
+        // Convert object to array if needed
+        if (is_object($data)) {
+            $data = (array) $data;
+        }
+
+        // Add team names inside scores structure if not already present
+        if (isset($data['scores']) && isset($data['game_id'])) {
+            // Use team names from request if available
+            if (isset($data['leftTeamName']) && !isset($data['scores']['left']['name'])) {
+                $data['scores']['left']['name'] = $data['leftTeamName'];
+            }
+            if (isset($data['rightTeamName']) && !isset($data['scores']['right']['name'])) {
+                $data['scores']['right']['name'] = $data['rightTeamName'];
+            }
+
+            // Fallback to database query if names still not present
+            if (!isset($data['scores']['left']['name']) || !isset($data['scores']['right']['name'])) {
+                $game = \App\Models\PlayGameMode::find($data['game_id']);
+                if ($game) {
+                    if (!isset($data['scores']['left']['name']) && $game->myTeam) {
+                        $data['scores']['left']['name'] = $game->myTeam->team_name;
+                    }
+                    if (!isset($data['scores']['right']['name']) && $game->opponentTeam) {
+                        $data['scores']['right']['name'] = $game->opponentTeam->team_name;
+                    }
+                }
+            }
+        }
+
+        return $data;
     }
 }

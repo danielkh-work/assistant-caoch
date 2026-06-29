@@ -1,6 +1,9 @@
 <?php
 
 use Illuminate\Support\Facades\Broadcast;
+use App\Models\Device;
+use App\Models\User;
+use App\Support\BroadcastChannelAuth;
 
 /*
 |--------------------------------------------------------------------------
@@ -30,16 +33,119 @@ Broadcast::channel('user.{userId}.practice.{gameId}', function ($user, $userId, 
 });
 
 Broadcast::channel('headcoach.{headCoachId}.qb', function ($user, $headCoachId) {
+    // Handle Device authentication
+    if ($user instanceof Device) {
+        // If authenticating as device, check if device belongs to the head coach
+        if ((int) $user->user_id === (int) $headCoachId) {
+            $owner = User::find($user->user_id);
+            if ($owner) {
+                return [
+                    'id' => $owner->id,
+                    'name' => $owner->name,
+                    'role' => $owner->role,
+                    'head_coach_id' => $owner->head_coach_id,
+                ];
+            }
+        }
+        return false;
+    }
 
-     return true;
-   // return $user->role === 'head_coach' ;
+    // Handle device IDs in channel name (e.g., QB-2224)
+    if (str_starts_with($headCoachId, 'QB-')) {
+        $device = Device::where('device_id', $headCoachId)->first();
+        if ($device && (int) $device->user_id === (int) $user->id) {
+            return [
+                'id' => $user->id,
+                'name' => $user->name,
+                'role' => $user->role,
+                'head_coach_id' => $user->head_coach_id,
+            ];
+        }
+        return false;
+    }
 
+    // Handle numeric user IDs (legacy)
+    if ($user->role === 'head_coach' && (int) $user->id === (int) $headCoachId) {
+        return [
+            'id' => $user->id,
+            'name' => $user->name,
+            'role' => $user->role,
+            'head_coach_id' => $user->head_coach_id,
+        ];
+    }
+    if (in_array($user->role, ['assistant_coach', 'performance_coach'], true)
+        && (int) $user->head_coach_id === (int) $headCoachId) {
+        return [
+            'id' => $user->id,
+            'name' => $user->name,
+            'role' => $user->role,
+            'head_coach_id' => $user->head_coach_id,
+        ];
+    }
+
+    return false;
 });
-Broadcast::channel('headcoach.{headCoachId}.play', function ($user, $headCoachId) {
+Broadcast::channel('headcoach.{headCoachId}.league.{leagueId}.qb', function ($user, $headCoachId, $leagueId) {
+    if (! $user instanceof User) {
+        return false;
+    }
 
-     return true;
-   // return $user->role === 'head_coach' ;
+    return BroadcastChannelAuth::headCoachOwnsLeague($user, (int) $headCoachId, (int) $leagueId);
+});
+Broadcast::channel('headcoach.{headCoachId}.league.{leagueId}.play', function ($user, $headCoachId, $leagueId) {
+    // Handle Device authentication
+    if ($user instanceof Device) {
+        // If authenticating as device, check if device belongs to the head coach and league
+        if ((int) $user->user_id === (int) $headCoachId) {
+            return BroadcastChannelAuth::deviceBelongsToLeague($user, (int) $leagueId);
+        }
+        return false;
+    }
 
+    if (! $user instanceof User) {
+        return false;
+    }
+
+    // Handle device IDs (e.g., QB-2224)
+    if (str_starts_with($headCoachId, 'QB-')) {
+        $device = Device::where('device_id', $headCoachId)->first();
+        if ($device && (int) $device->user_id === (int) $user->id) {
+            // Check if device belongs to the league
+            return BroadcastChannelAuth::deviceBelongsToLeague($device, (int) $leagueId);
+        }
+        return false;
+    }
+
+    // Handle numeric user IDs (legacy)
+    return BroadcastChannelAuth::headCoachOwnsLeague($user, (int) $headCoachId, (int) $leagueId);
+});
+Broadcast::channel('headcoach.{headCoachId}.league.{leagueId}.devices', function ($user, $headCoachId, $leagueId) {
+    if ($user instanceof Device) {
+        return (int) ($user->user_id ?? 0) === (int) $headCoachId
+            && BroadcastChannelAuth::deviceBelongsToLeague($user, (int) $leagueId);
+    }
+
+    if ($user instanceof User) {
+        return BroadcastChannelAuth::headCoachOwnsLeague($user, (int) $headCoachId, (int) $leagueId);
+    }
+
+    return false;
+});
+
+Broadcast::channel('league.{leagueId}.devices', function ($user, $leagueId) {
+    if (! $user instanceof Device) {
+        return false;
+    }
+
+    return BroadcastChannelAuth::deviceBelongsToLeague($user, (int) $leagueId);
+});
+
+Broadcast::channel('device.{deviceId}.game.{gameId}', function ($user, $deviceId, $gameId) {
+    if (! $user instanceof Device) {
+        return false;
+    }
+
+    return BroadcastChannelAuth::deviceCanAccessGame($user, (int) $deviceId, (int) $gameId);
 });
 
 Broadcast::channel('headcoach.{userId}', function ($user, $userId) {
@@ -51,9 +157,8 @@ Broadcast::channel('qb-user', function ($user) {
 Broadcast::channel('mobile.{mobileUserId}', function ($user, $mobileUserId) {
     return (int)$user->id === (int)$mobileUserId;
 });
-Broadcast::channel('coach-group.{headCoachId}', function ($user, $headCoachId) {
+Broadcast::channel('coach-group.{headCoachId}.league.{leagueId}', function ($user, $headCoachId, $leagueId) {
     return true;
-
 });
 
 

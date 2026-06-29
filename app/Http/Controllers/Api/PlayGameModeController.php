@@ -5,47 +5,106 @@ namespace App\Http\Controllers\Api;
 use App\Events\MatchLogCreated;
 use App\Http\Controllers\Controller;
 use App\Http\Responses\BaseResponse;
+use App\Models\League;
 use App\Models\PlayGameLog;
 use App\Models\PlayGameMode;
+use App\Support\ActiveGameModeGuard;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class PlayGameModeController extends Controller
 {
     public function startGameGode(Request $request)
     {
-        $user = auth()->user();
+        $request->validate([
+            'league_id' => 'required|integer',
+            'my_team_id' => 'required|integer',
+            'oponent_team_id' => 'required|integer',
+            'is_practice' => 'sometimes|boolean',
+        ]);
 
+        $user = auth()->user();
+        $headCoachId = ActiveGameModeGuard::resolveHeadCoachId($user);
         $isPractice = filter_var($request->is_practice, FILTER_VALIDATE_BOOLEAN);
+        $leagueId = $request->league_id ? (int) $request->league_id : null;
+
+        try {
+            ActiveGameModeGuard::assertCanStart($headCoachId, $isPractice, $leagueId);
+        } catch (ValidationException $e) {
+            return new BaseResponse(
+                STATUS_CODE_UNPROCESSABLE,
+                STATUS_CODE_UNPROCESSABLE,
+                collect($e->errors())->flatten()->first() ?? 'Cannot start game mode.',
+            );
+        }
+
+        // Check if the league has an active device configured
+        $league = League::whereKey($request->league_id)->first();
+        if (!$league) {
+            return new BaseResponse(
+                STATUS_CODE_UNPROCESSABLE,
+                STATUS_CODE_UNPROCESSABLE,
+                'League not found.'
+            );
+        }
+
+        // Verify league ownership
+        if ((int) $league->user_id !== $headCoachId) {
+            return new BaseResponse(
+                STATUS_CODE_FORBIDDEN,
+                STATUS_CODE_FORBIDDEN,
+                'You do not have access to this league.'
+            );
+        }
+
+        // Get the active device for the league
+        $activeDevice = $league->devices()
+            ->where('status', 'registered')
+            ->first();
+
+        if (!$activeDevice) {
+            return new BaseResponse(
+                STATUS_CODE_UNPROCESSABLE,
+                STATUS_CODE_UNPROCESSABLE,
+                'No device configured for this league. Please configure a device in League Settings.'
+            );
+        }
+
+        // Only clean up orphaned opposite-mode scoreboard rows for THIS league.
         if ($isPractice) {
             DB::table('websocket_scoreboards')
-                ->where('user_id', $user->id)
+                ->where('user_id', $headCoachId)
+                ->where('league_id', $leagueId)
                 ->delete();
         } else {
             DB::table('websocket_practice_scoreboards')
-                ->where('user_id', $user->id)
+                ->where('user_id', $headCoachId)
+                ->where('league_id', $leagueId)
                 ->delete();
         }
 
         DB::beginTransaction();
         try {
             $game = new PlayGameMode();
-            $game->sport_id =$user->sport_id;
+            $game->sport_id = $user->sport_id;
             $game->league_id = $request->league_id;
-            $game->my_team_id =$request->my_team_id;
-            $game->oponent_team_id =$request->oponent_team_id;
-            $game->game_mode = $request->is_practice ? 'practice' :'play';
-            $game->user_id = auth()->id();
+            $game->my_team_id = $request->my_team_id;
+            $game->oponent_team_id = $request->oponent_team_id;
+            $game->game_mode = ActiveGameModeGuard::targetMode($isPractice);
+            $game->user_id = $headCoachId;
+            $game->device_id = $activeDevice->id;
             $game->quater = '';
-            $game->downs ='';
-            $game->status = 2;
+            $game->downs = '';
+            $game->status = ActiveGameModeGuard::STATUS_ACTIVE;
             $game->save();
             DB::commit();
-            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Game Start SuccessFully ", $game);
-        } catch (\Throwable $th) {
-           DB::rollBack();
-            return new BaseResponse(STATUS_CODE_BADREQUEST, STATUS_CODE_BADREQUEST, $th->getMessage());
 
+            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Game Start SuccessFully ', $game->load('device'));
+        } catch (\Throwable $th) {
+            DB::rollBack();
+
+            return new BaseResponse(STATUS_CODE_BADREQUEST, STATUS_CODE_BADREQUEST, $th->getMessage());
         }
     }
 
@@ -91,7 +150,7 @@ class PlayGameModeController extends Controller
         $log = new PlayGameLog();
         $log->game_id = $value['game_id'];
         $log->sport_id = auth()->user()->sport_id;
-        $log->league_id = $value['league_id'];
+        $log->league_id = $value['league_id'] ?? null;
 
         // ✅ new columns
         //$log->players = json_encode($value['players']) ?? null;
@@ -108,18 +167,18 @@ class PlayGameModeController extends Controller
 
         $log->confirmed = $value['is_confirmed'] ?? null;   // true / false / null
 
-        $log->my_team_id = $value['my_team_id'];
-        $log->oponent_team_id = $value['oponent_team_id'];
-        $log->quater = $value['quater'];
-        $log->play_id = $value['play_id'];
-        $log->downs = $value['downs'];
+        $log->my_team_id = $value['my_team_id'] ?? null;
+        $log->oponent_team_id = $value['oponent_team_id'] ?? null;
+        $log->quater = $value['quater'] ?? null;
+        $log->play_id = $value['play_id'] ?? null;
+        $log->downs = $value['downs'] ?? null;
         $log->note = $value['note'] ?? null;
         $log->play_yardage_gain = isset($value['play_yardage_gain']) ? $value['play_yardage_gain'] : null;
-        $log->weather_status = $value['weather_status'];
-        $log->current_position = $value['current_position'];
-        $log->target = $value['target'];
-        $log->my_points = $value['my_points'];
-        $log->oponent_points = $value['oponent_points'];
+        $log->weather_status = $value['weather_status'] ?? null;
+        $log->current_position = $value['current_position'] ?? null;
+        $log->target = $value['target'] ?? null;
+        $log->my_points = $value['my_points'] ?? null;
+        $log->oponent_points = $value['oponent_points'] ?? null;
         $log->time = $value['time'];
         $log->reasons = $value['reasons'] ?? '';
         $log->type_of_log = $value['type_of_log'];
@@ -174,7 +233,11 @@ class PlayGameModeController extends Controller
                     'players_in'       => $log->players_in,
                 ];
 
-                broadcast(new MatchLogCreated($logData, (int) $coachGroupId, (int) $value['game_id']));
+                // Fetch the device associated with this game for device-specific broadcasting
+                $game = PlayGameMode::find($value['game_id']);
+                $deviceId = $game ? $game->device_id : null;
+
+                broadcast(new MatchLogCreated($logData, (int) $coachGroupId, (int) $value['game_id'], $deviceId));
             }
         } catch (\Exception $e) {
             \Log::error('MatchLogCreated broadcast failed: ' . $e->getMessage());

@@ -13,6 +13,7 @@ class PlayGameMode extends Model
         'my_team_score',
         'oponent_team_score',
         'game_mode',
+        'device_id',
     ];
 
     public function logs()
@@ -28,5 +29,10 @@ class PlayGameMode extends Model
     public function opponentTeam()
     {
         return $this->belongsTo(LeagueTeam::class, 'oponent_team_id');
+    }
+
+    public function device()
+    {
+        return $this->belongsTo(Device::class, 'device_id');
     }
 }

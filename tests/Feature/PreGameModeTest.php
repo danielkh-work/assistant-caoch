@@ -13,6 +13,7 @@ use App\Models\ConfiguredPlayingTeamPlayer;
 use App\Models\ConfigurePlay;
 use App\Models\ConfigureDefensivePlay;
 use App\Models\PersionalGrouping;
+use App\Models\Device;
 use Illuminate\Support\Facades\Hash;
 use Laravel\Sanctum\Sanctum;
 use Illuminate\Support\Facades\DB;
@@ -108,6 +109,22 @@ class PreGameModeTest extends TestCase
         $team2 = LeagueTeam::forceCreate(['league_id' => $league->id, 'team_name' => 'Team2']);
 
         return [$league, $team1, $team2];
+    }
+
+    protected function createRegisteredDeviceForLeague(League $league, User $user): Device
+    {
+        $device = Device::forceCreate([
+            'device_name' => 'PreGame Device',
+            'pairing_code' => Device::generateUniquePairingCode(),
+            'qr_token' => Device::generateUniqueQrToken(),
+            'status' => 'registered',
+            'user_id' => $user->id,
+            'paired_at' => now(),
+        ]);
+
+        $league->devices()->attach($device->id);
+
+        return $device;
     }
 
     /** @test */
@@ -333,6 +350,7 @@ class PreGameModeTest extends TestCase
     {
         $user = $this->createHeadCoachUser();
         [$league, $team1, $team2] = $this->createLeagueWithTeams($user);
+        $this->createRegisteredDeviceForLeague($league, $user);
 
         Sanctum::actingAs($user);
         $this->actingAs($user, 'api');
