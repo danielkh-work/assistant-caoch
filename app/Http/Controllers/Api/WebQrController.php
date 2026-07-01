@@ -12,6 +12,7 @@ use App\Events\QbSessionUpdated;
 use App\Support\DeviceMobileSession;
 use App\Support\DeviceSessionBroadcaster;
 use App\Support\DeviceLogoutBroadcaster;
+use App\Support\ScoreboardBroadcastPayload;
 use App\Support\QbLogoutBroadcaster;
 use App\Support\QbMobileSession;
 use Illuminate\Support\Str;
@@ -165,6 +166,7 @@ class WebQrController extends Controller
             'session_id' => $session_id,
             'logged_in' => $device->tokens()->exists(),
             'device' => DeviceSessionBroadcaster::deviceFields($device),
+            'active_match' => ScoreboardBroadcastPayload::resolveForDevice($device),
         ]);
     }
 

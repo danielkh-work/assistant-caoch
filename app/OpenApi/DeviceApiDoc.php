@@ -346,6 +346,55 @@ namespace App\OpenApi;
  *                 @OA\Property(property="session_id", type="string", nullable=true),
  *                 @OA\Property(property="paired_at", type="string", format="date-time", nullable=true),
  *                 @OA\Property(property="is_connected", type="boolean", description="True if device has active Sanctum tokens", example=true)
+ *             ),
+ *             @OA\Property(
+ *                 property="active_match",
+ *                 type="object",
+ *                 nullable=true,
+ *                 description="Live scoreboard state when a game or practice match is running for this device's head coach; null when no match is active. Same shape as Pusher score.updated / practice.score.updated payloads.",
+ *                 @OA\Property(property="game_mode", type="string", enum={"play", "practice"}, example="play"),
+ *                 @OA\Property(
+ *                     property="scores",
+ *                     type="object",
+ *                     @OA\Property(
+ *                         property="left",
+ *                         type="object",
+ *                         @OA\Property(property="total", type="integer", example=0),
+ *                         @OA\Property(property="name", type="string", example="DU VErsant")
+ *                     ),
+ *                     @OA\Property(
+ *                         property="right",
+ *                         type="object",
+ *                         @OA\Property(property="total", type="integer", example=0),
+ *                         @OA\Property(property="name", type="string", example="Hormisdas-Gamelin")
+ *                     )
+ *                 ),
+ *                 @OA\Property(property="team", type="string", example="both"),
+ *                 @OA\Property(property="game_id", type="string", example="25"),
+ *                 @OA\Property(property="user_id", type="integer", example=20),
+ *                 @OA\Property(property="points", type="integer", example=0),
+ *                 @OA\Property(property="action", type="string", example="Start"),
+ *                 @OA\Property(property="sync_time", type="integer", example=900),
+ *                 @OA\Property(property="isStart", type="boolean", example=true),
+ *                 @OA\Property(property="time", type="string", nullable=true),
+ *                 @OA\Property(property="sys_time", type="string", nullable=true),
+ *                 @OA\Property(property="quarter", type="string", nullable=true),
+ *                 @OA\Property(property="down", type="string", nullable=true),
+ *                 @OA\Property(property="strategies", type="string", nullable=true),
+ *                 @OA\Property(property="teamPosition", type="string", nullable=true),
+ *                 @OA\Property(property="expectedyardgain", type="integer", nullable=true),
+ *                 @OA\Property(property="positionNumber", type="string", nullable=true),
+ *                 @OA\Property(property="pkg", type="string", nullable=true),
+ *                 @OA\Property(property="possession", type="string", nullable=true),
+ *                 @OA\Property(property="weather", type="string", nullable=true),
+ *                 @OA\Property(property="coverageCategory", type="string", nullable=true),
+ *                 @OA\Property(property="session_id", type="integer", nullable=true),
+ *                 @OA\Property(property="h_mark_position", type="string", nullable=true),
+ *                 @OA\Property(property="league_id", type="integer", nullable=true),
+ *                 @OA\Property(property="myteamId", type="integer", nullable=true),
+ *                 @OA\Property(property="oppteamId", type="integer", nullable=true),
+ *                 @OA\Property(property="teamLeftScore", type="integer", example=0),
+ *                 @OA\Property(property="teamRightScore", type="integer", example=0)
  *             )
  *         )
  *     ),

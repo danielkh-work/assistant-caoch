@@ -1414,6 +1414,156 @@
                                                 }
                                             },
                                             "type": "object"
+                                        },
+                                        "active_match": {
+                                            "description": "Live scoreboard state when a game or practice match is running for this device's head coach; null when no match is active. Same shape as Pusher score.updated / practice.score.updated payloads.",
+                                            "properties": {
+                                                "game_mode": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "play",
+                                                        "practice"
+                                                    ],
+                                                    "example": "play"
+                                                },
+                                                "scores": {
+                                                    "properties": {
+                                                        "left": {
+                                                            "properties": {
+                                                                "total": {
+                                                                    "type": "integer",
+                                                                    "example": 0
+                                                                },
+                                                                "name": {
+                                                                    "type": "string",
+                                                                    "example": "DU VErsant"
+                                                                }
+                                                            },
+                                                            "type": "object"
+                                                        },
+                                                        "right": {
+                                                            "properties": {
+                                                                "total": {
+                                                                    "type": "integer",
+                                                                    "example": 0
+                                                                },
+                                                                "name": {
+                                                                    "type": "string",
+                                                                    "example": "Hormisdas-Gamelin"
+                                                                }
+                                                            },
+                                                            "type": "object"
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                },
+                                                "team": {
+                                                    "type": "string",
+                                                    "example": "both"
+                                                },
+                                                "game_id": {
+                                                    "type": "string",
+                                                    "example": "25"
+                                                },
+                                                "user_id": {
+                                                    "type": "integer",
+                                                    "example": 20
+                                                },
+                                                "points": {
+                                                    "type": "integer",
+                                                    "example": 0
+                                                },
+                                                "action": {
+                                                    "type": "string",
+                                                    "example": "Start"
+                                                },
+                                                "sync_time": {
+                                                    "type": "integer",
+                                                    "example": 900
+                                                },
+                                                "isStart": {
+                                                    "type": "boolean",
+                                                    "example": true
+                                                },
+                                                "time": {
+                                                    "type": "string",
+                                                    "nullable": true
+                                                },
+                                                "sys_time": {
+                                                    "type": "string",
+                                                    "nullable": true
+                                                },
+                                                "quarter": {
+                                                    "type": "string",
+                                                    "nullable": true
+                                                },
+                                                "down": {
+                                                    "type": "string",
+                                                    "nullable": true
+                                                },
+                                                "strategies": {
+                                                    "type": "string",
+                                                    "nullable": true
+                                                },
+                                                "teamPosition": {
+                                                    "type": "string",
+                                                    "nullable": true
+                                                },
+                                                "expectedyardgain": {
+                                                    "type": "integer",
+                                                    "nullable": true
+                                                },
+                                                "positionNumber": {
+                                                    "type": "string",
+                                                    "nullable": true
+                                                },
+                                                "pkg": {
+                                                    "type": "string",
+                                                    "nullable": true
+                                                },
+                                                "possession": {
+                                                    "type": "string",
+                                                    "nullable": true
+                                                },
+                                                "weather": {
+                                                    "type": "string",
+                                                    "nullable": true
+                                                },
+                                                "coverageCategory": {
+                                                    "type": "string",
+                                                    "nullable": true
+                                                },
+                                                "session_id": {
+                                                    "type": "integer",
+                                                    "nullable": true
+                                                },
+                                                "h_mark_position": {
+                                                    "type": "string",
+                                                    "nullable": true
+                                                },
+                                                "league_id": {
+                                                    "type": "integer",
+                                                    "nullable": true
+                                                },
+                                                "myteamId": {
+                                                    "type": "integer",
+                                                    "nullable": true
+                                                },
+                                                "oppteamId": {
+                                                    "type": "integer",
+                                                    "nullable": true
+                                                },
+                                                "teamLeftScore": {
+                                                    "type": "integer",
+                                                    "example": 0
+                                                },
+                                                "teamRightScore": {
+                                                    "type": "integer",
+                                                    "example": 0
+                                                }
+                                            },
+                                            "type": "object",
+                                            "nullable": true
                                         }
                                     },
                                     "type": "object"
