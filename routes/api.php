@@ -102,6 +102,10 @@ Route::match(['get', 'post'], '/devices/login-with-code', [AuthController::class
 Route::get('/devices/logout/{id}', [WebQrController::class, 'logoutDeviceApplication']);
 Route::get('/devices/session-status/{session_id}', [WebQrController::class, 'deviceSessionStatus']);
 
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/devices/update-status', [DeviceController::class, 'updateStatus']);
+});
+
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);

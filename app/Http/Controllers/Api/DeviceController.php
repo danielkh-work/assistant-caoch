@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Responses\BaseResponse;
 use App\Events\MobileSessionApproved;
+use App\Events\DeviceUpdated;
 use App\Models\Device;
 use App\Models\User;
 use App\Support\DeviceLogoutBroadcaster;
@@ -340,6 +341,74 @@ class DeviceController extends Controller
                 'status' => 400,
                 'message' => $th->getMessage(),
             ], 400);
+        }
+    }
+
+    /**
+     * Update device battery and signal strength (FOR APP).
+     * Mobile app endpoint to report real-time battery and signal status.
+     */
+    public function updateStatus(Request $request): BaseResponse
+    {
+        $validated = $request->validate([
+            'battery' => ['sometimes', 'integer', 'min:0', 'max:100'],
+            'signal_strength' => ['sometimes', 'integer', 'min:0', 'max:100'],
+        ]);
+
+        $device = $request->user();
+
+        if (! $device instanceof Device) {
+            return new BaseResponse(
+                STATUS_CODE_UNPROCESSABLE,
+                STATUS_CODE_UNPROCESSABLE,
+                'This endpoint is only available for devices.'
+            );
+        }
+
+        DB::beginTransaction();
+
+        try {
+            if (isset($validated['battery'])) {
+                $device->battery = $validated['battery'];
+            }
+
+            if (isset($validated['signal_strength'])) {
+                $device->signal_strength = $validated['signal_strength'];
+            }
+
+            $device->save();
+
+            DB::commit();
+
+            $device->loadMissing('leagues', 'user');
+            $headCoachId = (int) ($device->user_id ?? 0);
+
+            if ($headCoachId > 0) {
+                foreach ($device->leagues as $league) {
+                    $deviceFields = DeviceSessionBroadcaster::deviceFields($device);
+
+                    broadcast(new DeviceUpdated(
+                        $headCoachId,
+                        (int) $league->id,
+                        $deviceFields
+                    ))->toOthers();
+                }
+            }
+
+            return new BaseResponse(
+                STATUS_CODE_OK,
+                STATUS_CODE_OK,
+                'Device status updated successfully',
+                DeviceSessionBroadcaster::deviceFields($device->fresh())
+            );
+        } catch (\Throwable $th) {
+            DB::rollBack();
+
+            return new BaseResponse(
+                STATUS_CODE_BADREQUEST,
+                STATUS_CODE_BADREQUEST,
+                $th->getMessage()
+            );
         }
     }
 
