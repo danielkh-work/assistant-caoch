@@ -239,7 +239,6 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/penalities', 'Penalities');
             Route::get('/penalty-list', 'penaltyList');
             Route::get('/delete-game/{id}','delete');
-            Route::get('/end-game-clearplayers/{id}','endMatchClearGroundPlayers');
     });
 
     Route::controller(SubscriptionPlanController::class)->group(function () {

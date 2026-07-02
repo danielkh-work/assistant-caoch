@@ -14,6 +14,7 @@ use App\Events\PlaySuggested;
 use App\Events\HeadCoachSystemSuggestion;
 use App\Models\WebsocketScoreboard;
 use App\Models\WebsocketPracticeScoreboard;
+use App\Models\Game;
 use App\Http\Responses\BaseResponse;
 use App\Support\ActiveGameModeGuard;
 use App\Support\BroadcastLeagueResolver;
@@ -386,8 +387,19 @@ class BroadCastScoreController extends Controller
             ->where('game_id', $request->game_id)
             ->first();
 
+        // Update game status and dates
+        if ($action === 'Start') {
+            Game::where('id', $request->game_id)->update([
+                'status' => 'in_progress',
+                'match_start_date' => now(),
+            ]);
+        }
+
         if ($action === 'EndMatch') {
-            $this->completeSessionOnEndMatch($coachGroupId, $action, $request, 'practice', $existingPractice);
+            Game::where('id', $request->game_id)->update([
+                'status' => 'ended',
+                'match_end_date' => now(),
+            ]);
         }
 
         $sessionFields = $this->mergeScoreboardSessionFields($existingPractice, $request, $action);
@@ -836,8 +848,19 @@ class BroadCastScoreController extends Controller
             ->where('game_id', $request->game_id)
             ->first();
 
+        // Update game status and dates
+        if ($action === 'Start') {
+            Game::where('id', $request->game_id)->update([
+                'status' => 'in_progress',
+                'match_start_date' => now(),
+            ]);
+        }
+
         if ($action === 'EndMatch') {
-            $this->completeSessionOnEndMatch($coachGroupId, $action, $request, 'play', $existingScoreboard);
+            Game::where('id', $request->game_id)->update([
+                'status' => 'ended',
+                'match_end_date' => now(),
+            ]);
         }
 
         $sessionFields = $this->mergeScoreboardSessionFields($existingScoreboard, $request, $action);
