@@ -24,6 +24,10 @@ class Device extends Model implements \Illuminate\Contracts\Auth\Authenticatable
         'signal_strength',
     ];
 
+    protected $appends = [
+        'signal_label',
+    ];
+
     protected $casts = [
         'paired_at' => 'datetime',
     ];
