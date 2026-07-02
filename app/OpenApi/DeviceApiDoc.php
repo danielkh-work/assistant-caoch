@@ -409,7 +409,7 @@ namespace App\OpenApi;
  * )
  * @OA\Post(
  *     path="/api/devices/update-info",
- *     operationId="updateDeviceStatus",
+ *     operationId="updateDeviceInfo",
  *     tags={"Devices"},
  *     summary="Update device battery and signal strength (FOR APP)",
  *     description="Mobile app endpoint to report real-time battery and signal status. Broadcasts `device.updated` to `headcoach.{headCoachId}.league.{leagueId}.device` for each league the device belongs to. FOR APP - Mobile device status update endpoint.",
