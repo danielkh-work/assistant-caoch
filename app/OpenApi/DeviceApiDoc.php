@@ -408,7 +408,7 @@ namespace App\OpenApi;
  *     )
  * )
  * @OA\Post(
- *     path="/api/devices/update-status",
+ *     path="/api/devices/update-info",
  *     operationId="updateDeviceStatus",
  *     tags={"Devices"},
  *     summary="Update device battery and signal strength (FOR APP)",
