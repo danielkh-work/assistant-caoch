@@ -348,7 +348,7 @@ class DeviceController extends Controller
      * Update device battery and signal strength (FOR APP).
      * Mobile app endpoint to report real-time battery and signal status.
      */
-    public function updateStatus(Request $request): BaseResponse
+    public function updateInfo(Request $request): BaseResponse
     {
         $validated = $request->validate([
             'battery' => ['sometimes', 'integer', 'min:0', 'max:100'],

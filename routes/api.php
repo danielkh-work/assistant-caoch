@@ -103,7 +103,7 @@ Route::get('/devices/logout/{id}', [WebQrController::class, 'logoutDeviceApplica
 Route::get('/devices/session-status/{session_id}', [WebQrController::class, 'deviceSessionStatus']);
 
 Route::middleware('auth:sanctum')->group(function () {
-    Route::post('/devices/update-status', [DeviceController::class, 'updateStatus']);
+    Route::post('/devices/update-info', [DeviceController::class, 'updateInfo']);
 });
 
 
