@@ -407,6 +407,49 @@ namespace App\OpenApi;
  *         )
  *     )
  * )
+ * @OA\Post(
+ *     path="/api/devices/update-status",
+ *     operationId="updateDeviceStatus",
+ *     tags={"Devices"},
+ *     summary="Update device battery and signal strength (FOR APP)",
+ *     description="Mobile app endpoint to report real-time battery and signal status. Broadcasts `device.updated` to `headcoach.{headCoachId}.league.{leagueId}.device` for each league the device belongs to. FOR APP - Mobile device status update endpoint.",
+ *     security={{"sanctum":{}}},
+ *     @OA\RequestBody(
+ *         required=false,
+ *         @OA\JsonContent(
+ *             @OA\Property(property="battery", type="integer", minimum=0, maximum=100, example=79, description="Battery percentage (0-100)"),
+ *             @OA\Property(property="signal_strength", type="integer", minimum=0, maximum=100, example=62, description="Signal strength value (0-100)")
+ *         )
+ *     ),
+ *     @OA\Response(
+ *         response=200,
+ *         description="Device status updated successfully",
+ *         @OA\JsonContent(
+ *             @OA\Property(property="status", type="integer", example=200),
+ *             @OA\Property(property="message", type="string", example="Device status updated successfully"),
+ *             @OA\Property(
+ *                 property="data",
+ *                 type="object",
+ *                 @OA\Property(property="id", type="integer", example=5),
+ *                 @OA\Property(property="device_id", type="string", example="QB-4821"),
+ *                 @OA\Property(property="device_name", type="string", example="Device Name"),
+ *                 @OA\Property(property="pairing_code", type="string", example="1234"),
+ *                 @OA\Property(property="status", type="string", example="registered"),
+ *                 @OA\Property(property="team_id", type="integer", nullable=true),
+ *                 @OA\Property(property="user_id", type="integer", nullable=true),
+ *                 @OA\Property(property="session_id", type="string", nullable=true),
+ *                 @OA\Property(property="paired_at", type="string", format="date-time", nullable=true),
+ *                 @OA\Property(property="is_connected", type="boolean", example=true),
+ *                 @OA\Property(property="battery", type="integer", nullable=true, example=79),
+ *                 @OA\Property(property="signal_strength", type="integer", nullable=true, example=62),
+ *                 @OA\Property(property="signal_label", type="string", example="Medium", description="Human-readable signal label: Low, Medium, or High")
+ *             )
+ *         )
+ *     ),
+ *     @OA\Response(response=401, description="Unauthenticated"),
+ *     @OA\Response(response=422, description="Validation error - battery and signal_strength must be between 0 and 100"),
+ *     @OA\Response(response=422, description="This endpoint is only available for devices")
+ * )
  *
  *
  *
