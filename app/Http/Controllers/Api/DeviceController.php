@@ -357,14 +357,6 @@ class DeviceController extends Controller
 
         $device = $request->user();
 
-        if (! $device instanceof Device) {
-            return new BaseResponse(
-                STATUS_CODE_UNPROCESSABLE,
-                STATUS_CODE_UNPROCESSABLE,
-                'This endpoint is only available for devices.'
-            );
-        }
-
         DB::beginTransaction();
 
         try {
