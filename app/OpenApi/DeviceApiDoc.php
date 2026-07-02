@@ -447,8 +447,7 @@ namespace App\OpenApi;
  *         )
  *     ),
  *     @OA\Response(response=401, description="Unauthenticated"),
- *     @OA\Response(response=422, description="Validation error - battery and signal_strength must be between 0 and 100"),
- *     @OA\Response(response=422, description="This endpoint is only available for devices")
+ *     @OA\Response(response=422, description="Validation error or device-only endpoint - battery and signal_strength must be between 0 and 100, or endpoint requires device token")
  * )
  *
  *
