@@ -73,7 +73,7 @@ class SuggestionController extends Controller
             }
         }
 
-        $plays = $query->inRandomOrder()->limit(6)->withCount([
+        $plays = $query->withCount([
             'playResults as win_result' => fn ($q) => $q->where('result', 'win')->where('is_practice', 0),
             'playResults as win_result_rain' => fn ($q) => $q->where('result', 'win')->where('weather', 'rain'),
             'playResults as win_result_snow' => fn ($q) => $q->where('result', 'win')->where('weather', 'snow'),
@@ -98,8 +98,8 @@ class SuggestionController extends Controller
             ->take(3)
             ->values();
 
-        $winningPlays = $plays->where($winField, '>', 0)->shuffle();
-        $nonWinningPlays = $plays->where($winField, '<=', 0)->shuffle();
+        $winningPlays = $plays->where($winField, '>', 0)->sortByDesc($winField);
+        $nonWinningPlays = $plays->where($winField, '<=', 0)->sortByDesc($winField);
         $topByWins = $winningPlays->take(3);
 
         if ($topByWins->count() < 3) {
