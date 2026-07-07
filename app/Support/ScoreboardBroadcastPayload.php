@@ -73,6 +73,7 @@ class ScoreboardBroadcastPayload
             'sys_time' => $row->sys_time ?? null,
             'quarter' => $row->quarter ?? null,
             'down' => $row->down ?? null,
+            'distance' => $row->distance ?? null,
             'strategies' => $row->strategies ?? null,
             'teamPosition' => $row->team_position ?? null,
             'expectedyardgain' => $row->expected_yard_gain ?? null,

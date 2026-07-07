@@ -71,6 +71,7 @@ class MatchPlaysController extends Controller
             'matchId' => 'required|integer',
             'possession' => 'required|string|in:offensive,defensive',
             'down' => 'nullable|integer|in:1,2,3,4',
+            'distance' => 'nullable|integer|min:1|max:100',
             'expectedyard' => 'nullable|string|in:' . implode(',', self::EXPECTED_YARD_VALUES),
             'page' => 'nullable|integer|min:1',
             'per_page' => 'nullable|integer|min:1|max:100',
