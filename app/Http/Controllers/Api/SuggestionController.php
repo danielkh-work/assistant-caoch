@@ -21,106 +21,11 @@ class SuggestionController extends Controller
     ) {
     }
 
-    /**
-     * @OA\Get(
-     *     path="/api/leagues/{league}/get-suggested-plays",
-     *     summary="Get suggested plays for a league",
-     *     tags={"Suggestion"},
-     *     @OA\Parameter(
-     *         name="league",
-     *         in="path",
-     *         required=true,
-     *         description="League ID",
-     *         @OA\Schema(type="integer")
-     *     ),
-     *     @OA\Parameter(
-     *         name="h_mark_position",
-     *         in="query",
-     *         required=true,
-     *         description="H-mark position",
-     *         @OA\Schema(type="string", enum={"hmark_left", "hmark_center", "hmark_right"})
-     *     ),
-     *     @OA\Parameter(
-     *         name="sort",
-     *         in="query",
-     *         required=false,
-     *         description="Sort plays by success rate or score. Format: field:direction. Multiple fields separated by comma. Max 5 clauses.",
-     *         @OA\Schema(
-     *             type="string",
-     *             example="play_success_rate:desc,practice_success_rate:asc"
-     *         )
-     *     ),
-     *     @OA\Parameter(
-     *         name="league_id",
-     *         in="query",
-     *         required=false,
-     *         description="League ID",
-     *         @OA\Schema(type="integer")
-     *     ),
-     *     @OA\Parameter(
-     *         name="match_id",
-     *         in="query",
-     *         required=false,
-     *         description="Match ID",
-     *         @OA\Schema(type="integer")
-     *     ),
-     *     @OA\Parameter(
-     *         name="down",
-     *         in="query",
-     *         required=false,
-     *         description="Down number",
-     *         @OA\Schema(type="integer", enum={1,2,3,4})
-     *     ),
-     *     @OA\Parameter(
-     *         name="strategy",
-     *         in="query",
-     *         required=false,
-     *         description="Strategy",
-     *         @OA\Schema(type="string")
-     *     ),
-     *     @OA\Parameter(
-     *         name="expectedyard",
-     *         in="query",
-     *         required=false,
-     *         description="Expected yardage",
-     *         @OA\Schema(type="string", enum={"short", "medium", "long", "open_down"})
-     *     ),
-     *     @OA\Parameter(
-     *         name="possession",
-     *         in="query",
-     *         required=false,
-     *         description="Possession type",
-     *         @OA\Schema(type="string", enum={"offensive", "defensive"})
-     *     ),
-     *     @OA\Parameter(
-     *         name="is_practice",
-     *         in="query",
-     *         required=false,
-     *         description="Is practice mode",
-     *         @OA\Schema(type="boolean")
-     *     ),
-     *     @OA\Response(
-     *         response=200,
-     *         description="Successful response",
-     *         @OA\JsonContent(
-     *             @OA\Property(
-     *                 property="top_by_score",
-     *                 type="array",
-     *                 @OA\Items(type="object")
-     *             ),
-     *             @OA\Property(
-     *                 property="top_by_success",
-     *                 type="array",
-     *                 @OA\Items(type="object")
-     *             )
-     *         )
-     *     )
-     * )
-     */
     public function getSuggestedPlays($league, Request $request)
     {
         $request->validate([
             'h_mark_position' => $this->hMarkPositionValidationRule(),
+            'distance' => 'nullable|integer|min:1|max:100',
             'sort' => 'nullable|string|max:500',
         ]);
 

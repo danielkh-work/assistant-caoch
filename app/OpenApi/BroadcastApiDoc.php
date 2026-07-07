@@ -24,6 +24,7 @@ namespace App\OpenApi;
  *         @OA\Property(property="positionNumber", type="integer", example=45),
  *         @OA\Property(property="quarter", type="integer", example=1),
  *         @OA\Property(property="down", type="integer", example=2),
+ *         @OA\Property(property="distance", type="integer", minimum=1, maximum=100, example=10),
  *         @OA\Property(property="target", type="string", example="12"),
  *         @OA\Property(property="myteamId", type="integer", example=1),
  *         @OA\Property(property="oppteamId", type="integer", example=2),
@@ -48,7 +49,8 @@ namespace App\OpenApi;
  *     ),
  *     @OA\Property(property="my_team", type="integer", nullable=true, example=1),
  *     @OA\Property(property="opponent_team", type="integer", nullable=true, example=2),
- *     @OA\Property(property="mode", type="string", nullable=true, enum={"practice", "play"}, example="practice")
+ *     @OA\Property(property="mode", type="string", nullable=true, enum={"practice", "play"}, example="practice"),
+ *     @OA\Property(property="distance", type="integer", nullable=true, minimum=1, maximum=100, example=10)
  * )
  *
  * @OA\Schema(
@@ -64,7 +66,8 @@ namespace App\OpenApi;
  *     @OA\Property(property="targetPlayers", type="array", nullable=true, @OA\Items(type="object")),
  *     @OA\Property(property="my_team", type="integer", nullable=true, example=1),
  *     @OA\Property(property="opponent_team", type="integer", nullable=true, example=2),
- *     @OA\Property(property="mode", type="string", nullable=true, example="practice")
+ *     @OA\Property(property="mode", type="string", nullable=true, example="practice"),
+ *     @OA\Property(property="distance", type="integer", nullable=true, minimum=1, maximum=100, example=10)
  * )
  *
  * @OA\Schema(
@@ -114,6 +117,7 @@ namespace App\OpenApi;
  *                             "positionNumber": 45,
  *                             "quarter": 1,
  *                             "down": 2,
+ *                             "distance": 10,
  *                             "target": "12",
  *                             "myteamId": 1,
  *                             "oppteamId": 2,
@@ -132,7 +136,8 @@ namespace App\OpenApi;
  *                         "targetPlayers": {{"value": 101, "text": "RB Player"}},
  *                         "my_team": 1,
  *                         "opponent_team": 2,
- *                         "mode": "practice"
+ *                         "mode": "practice",
+ *                         "distance": 10
  *                     }
  *                 }
  *             }
@@ -153,8 +158,9 @@ namespace App\OpenApi;
  *
  * @OA\Schema(
  *     schema="AssistantSystemSuggestionBroadcastRequest",
- *     required={"down", "weather", "strategies", "expected_yardage_gain", "h_mark_position"},
+ *     required={"down", "distance", "weather", "strategies", "expected_yardage_gain", "h_mark_position"},
  *     @OA\Property(property="down", type="integer", minimum=1, maximum=4, example=2),
+ *     @OA\Property(property="distance", type="integer", minimum=1, maximum=100, example=10),
  *     @OA\Property(property="weather", type="string", enum={"Normal", "Rain", "Snow"}, example="Rain", description="Alias: weather_status"),
  *     @OA\Property(property="strategies", type="string", enum={"regular", "red zone", "hurry up", "aggressive", "chew clock"}, example="regular"),
  *     @OA\Property(property="expected_yardage_gain", type="integer", example=10, description="Aliases: expectedyard, yardage"),
@@ -167,6 +173,7 @@ namespace App\OpenApi;
  * @OA\Schema(
  *     schema="HeadCoachSystemSuggestionPayload",
  *     @OA\Property(property="down", type="integer", example=2),
+ *     @OA\Property(property="distance", type="integer", example=10),
  *     @OA\Property(property="weather", type="string", example="Rain"),
  *     @OA\Property(property="strategies", type="string", example="regular"),
  *     @OA\Property(property="expected_yardage_gain", type="integer", example=10),
@@ -217,6 +224,7 @@ namespace App\OpenApi;
  *                     "event": "head.coach.suggestion",
  *                     "payload": {
  *                         "down": 2,
+ *                         "distance": 10,
  *                         "weather": "Rain",
  *                         "strategies": "regular",
  *                         "expected_yardage_gain": 10,

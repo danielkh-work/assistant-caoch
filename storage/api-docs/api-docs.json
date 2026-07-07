@@ -47,6 +47,7 @@
                                                 "positionNumber": 45,
                                                 "quarter": 1,
                                                 "down": 2,
+                                                "distance": 10,
                                                 "target": "12",
                                                 "myteamId": 1,
                                                 "oppteamId": 2,
@@ -73,7 +74,8 @@
                                             ],
                                             "my_team": 1,
                                             "opponent_team": 2,
-                                            "mode": "practice"
+                                            "mode": "practice",
+                                            "distance": 10
                                         }
                                     }
                                 }
@@ -157,6 +159,7 @@
                                         "event": "head.coach.suggestion",
                                         "payload": {
                                             "down": 2,
+                                            "distance": 10,
                                             "weather": "Rain",
                                             "strategies": "regular",
                                             "expected_yardage_gain": 10,
@@ -1501,6 +1504,12 @@
                                                     "type": "string",
                                                     "nullable": true
                                                 },
+                                                "distance": {
+                                                    "type": "integer",
+                                                    "maximum": 100,
+                                                    "minimum": 1,
+                                                    "nullable": true
+                                                },
                                                 "strategies": {
                                                     "type": "string",
                                                     "nullable": true
@@ -2126,6 +2135,18 @@
                         }
                     },
                     {
+                        "name": "distance",
+                        "in": "query",
+                        "description": "Scoreboard distance value; accepted for context, not used as a play filter",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 100,
+                            "minimum": 1,
+                            "example": 10
+                        }
+                    },
+                    {
                         "name": "expectedyard",
                         "in": "query",
                         "required": false,
@@ -2341,6 +2362,18 @@
                         }
                     },
                     {
+                        "name": "distance",
+                        "in": "query",
+                        "description": "Scoreboard distance value; accepted for context, not used as a play filter",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 100,
+                            "minimum": 1,
+                            "example": 10
+                        }
+                    },
+                    {
                         "name": "strategy",
                         "in": "query",
                         "description": "Scoreboard strategy value; maps to strategies column (FIND_IN_SET)",
@@ -2417,6 +2450,16 @@
                         "schema": {
                             "type": "integer",
                             "example": 3
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "description": "Sort plays by success rate or score. Format: field:direction. Multiple fields separated by comma. Max 5 clauses.",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "play_success_rate:desc,practice_success_rate:asc"
                         }
                     }
                 ],
@@ -2533,6 +2576,12 @@
                                 "type": "integer",
                                 "example": 2
                             },
+                            "distance": {
+                                "type": "integer",
+                                "maximum": 100,
+                                "minimum": 1,
+                                "example": 10
+                            },
                             "target": {
                                 "type": "string",
                                 "example": "12"
@@ -2647,6 +2696,13 @@
                         ],
                         "example": "practice",
                         "nullable": true
+                    },
+                    "distance": {
+                        "type": "integer",
+                        "maximum": 100,
+                        "minimum": 1,
+                        "example": 10,
+                        "nullable": true
                     }
                 },
                 "type": "object"
@@ -2712,6 +2768,13 @@
                         "type": "string",
                         "example": "practice",
                         "nullable": true
+                    },
+                    "distance": {
+                        "type": "integer",
+                        "maximum": 100,
+                        "minimum": 1,
+                        "example": 10,
+                        "nullable": true
                     }
                 },
                 "type": "object"
@@ -2756,6 +2819,7 @@
             "AssistantSystemSuggestionBroadcastRequest": {
                 "required": [
                     "down",
+                    "distance",
                     "weather",
                     "strategies",
                     "expected_yardage_gain",
@@ -2767,6 +2831,12 @@
                         "maximum": 4,
                         "minimum": 1,
                         "example": 2
+                    },
+                    "distance": {
+                        "type": "integer",
+                        "maximum": 100,
+                        "minimum": 1,
+                        "example": 10
                     },
                     "weather": {
                         "description": "Alias: weather_status",
@@ -2830,6 +2900,10 @@
                     "down": {
                         "type": "integer",
                         "example": 2
+                    },
+                    "distance": {
+                        "type": "integer",
+                        "example": 10
                     },
                     "weather": {
                         "type": "string",

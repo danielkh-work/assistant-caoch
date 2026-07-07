@@ -380,6 +380,7 @@ namespace App\OpenApi;
  *                 @OA\Property(property="sys_time", type="string", nullable=true),
  *                 @OA\Property(property="quarter", type="string", nullable=true),
  *                 @OA\Property(property="down", type="string", nullable=true),
+ *                 @OA\Property(property="distance", type="integer", nullable=true, minimum=1, maximum=100),
  *                 @OA\Property(property="strategies", type="string", nullable=true),
  *                 @OA\Property(property="teamPosition", type="string", nullable=true),
  *                 @OA\Property(property="expectedyardgain", type="integer", nullable=true),
