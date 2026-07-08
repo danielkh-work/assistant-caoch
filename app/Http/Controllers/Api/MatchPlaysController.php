@@ -34,7 +34,7 @@ class MatchPlaysController extends Controller
         if ($isOffensive) {
             $hMarkPosition = $this->resolveHMarkPosition($request);
 
-            $query = $this->offensivePlayQuery((int) $validated['league_id']);
+            $query = $this->offensivePlayQuery((int) $validated['league_id'], (int) $validated['matchId']);
 
             $this->applyFilters($query, $validated, 'play_name');
             $this->applySorting($query, $sorts, 'plays');
@@ -71,6 +71,7 @@ class MatchPlaysController extends Controller
             'matchId' => 'required|integer',
             'possession' => 'required|string|in:offensive,defensive',
             'down' => 'nullable|integer|in:1,2,3,4',
+            'distance' => 'nullable|integer|min:1|max:100',
             'expectedyard' => 'nullable|string|in:' . implode(',', self::EXPECTED_YARD_VALUES),
             'page' => 'nullable|integer|min:1',
             'per_page' => 'nullable|integer|min:1|max:100',
@@ -82,22 +83,17 @@ class MatchPlaysController extends Controller
         return $request->validate($rules);
     }
 
-    private function offensivePlayQuery(int $leagueId): Builder
+    private function offensivePlayQuery(int $leagueId, int $matchId): Builder
     {
-        $userRoleIds = auth()->user()->roles->pluck('id');
-        $leagueIds = ['1', $leagueId];
-
         return Play::with([
             'roles',
             'playResults',
             'offensiveTargets.offensivePosition',
             'offensiveTargets.defensivePosition',
         ])
-            ->where(function ($sub) use ($leagueIds, $userRoleIds) {
-                $sub->orWhereIn('league_id', $leagueIds)
-                    ->orWhereHas('roles', function ($q) use ($userRoleIds) {
-                        $q->whereIn('roleables.role_id', $userRoleIds);
-                    });
+            ->whereHas('configuredLeagues', function ($q) use ($leagueId, $matchId) {
+                $q->where('configure_plays.league_id', $leagueId)
+                    ->where('configure_plays.match_id', $matchId);
             })
             ->withCount($this->playResultCountDefinitions())
             ->withAvg('playResults as yardage_difference', 'yardage_difference');

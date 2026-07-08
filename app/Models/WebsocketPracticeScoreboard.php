@@ -15,5 +15,6 @@ class WebsocketPracticeScoreboard extends Model
         'session_id' => 'integer',
         'timer_remaining' => 'integer',
         'quarter' => 'integer',
+        'distance' => 'integer',
     ];
 }

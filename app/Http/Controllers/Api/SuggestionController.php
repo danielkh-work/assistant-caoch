@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\DefensivePlay;
 use App\Models\Play;
 use App\Services\PlayRppScoreCalculator;
+use App\Support\ConfiguredPlaySort;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -16,6 +17,7 @@ class SuggestionController extends Controller
 
     public function __construct(
         private readonly PlayRppScoreCalculator $rppCalculator,
+        private readonly ConfiguredPlaySort $playSort,
     ) {
     }
 
@@ -23,23 +25,27 @@ class SuggestionController extends Controller
     {
         $request->validate([
             'h_mark_position' => $this->hMarkPositionValidationRule(),
+            'distance' => 'nullable|integer|min:1|max:100',
+            'sort' => 'nullable|string|max:500',
         ]);
 
         $possession = $request->input('possession');
         Log::info(['possession' => $possession]);
 
+        $sorts = $this->playSort->parseSort($request->input('sort'));
+
         if ($possession === 'defensive') {
             Log::info(['possession defensive' => $possession]);
 
-            return $this->getDefensivePlays($request);
+            return $this->getDefensivePlays($request, $sorts);
         }
 
         Log::info(['possession offensive' => $possession]);
 
-        return $this->getOffensivePlays($request);
+        return $this->getOffensivePlays($request, $sorts);
     }
 
-    protected function getOffensivePlays(Request $request)
+    protected function getOffensivePlays(Request $request, array $sorts = [])
     {
         $leagueId = $request->league_id;
         $matchId = $request->match_id;
@@ -73,7 +79,7 @@ class SuggestionController extends Controller
             }
         }
 
-        $plays = $query->inRandomOrder()->limit(6)->withCount([
+        $plays = $query->withCount([
             'playResults as win_result' => fn ($q) => $q->where('result', 'win')->where('is_practice', 0),
             'playResults as win_result_rain' => fn ($q) => $q->where('result', 'win')->where('weather', 'rain'),
             'playResults as win_result_snow' => fn ($q) => $q->where('result', 'win')->where('weather', 'snow'),
@@ -90,16 +96,16 @@ class SuggestionController extends Controller
             return $this->rppCalculator->enrichPlayWithRppScore($play, $offenseByPosition, $defenseByPosition);
         });
 
-        $winField = $isPractice ? 'practice_win_result' : 'win_result';
+        $plays = $this->playSort->applyCollectionSorts($plays, $sorts);
 
-        $plays = $plays->sortByDesc('total_score')->values();
+        $winField = $isPractice ? 'practice_win_result' : 'win_result';
 
         $topByScore = $plays->where('total_score', '>', 0)->sortByDesc('total_score')
             ->take(3)
             ->values();
 
-        $winningPlays = $plays->where($winField, '>', 0)->shuffle();
-        $nonWinningPlays = $plays->where($winField, '<=', 0)->shuffle();
+        $winningPlays = $plays->where($winField, '>', 0)->sortByDesc($winField);
+        $nonWinningPlays = $plays->where($winField, '<=', 0)->sortByDesc($winField);
         $topByWins = $winningPlays->take(3);
 
         if ($topByWins->count() < 3) {
@@ -120,7 +126,7 @@ class SuggestionController extends Controller
         ]);
     }
 
-    public function getDefensivePlays(Request $request)
+    public function getDefensivePlays(Request $request, array $sorts = [])
     {
         $leagueId = $request->input('league_id');
 
@@ -208,6 +214,8 @@ class SuggestionController extends Controller
         ])
             ->withAvg('playResults as yardage_difference', 'yardage_difference')
             ->get();
+
+        $defensivePlays = $this->playSort->applyCollectionSorts($defensivePlays, $sorts);
 
         return response()->json($defensivePlays);
     }

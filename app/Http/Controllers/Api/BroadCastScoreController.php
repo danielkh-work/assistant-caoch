@@ -14,6 +14,7 @@ use App\Events\PlaySuggested;
 use App\Events\HeadCoachSystemSuggestion;
 use App\Models\WebsocketScoreboard;
 use App\Models\WebsocketPracticeScoreboard;
+use App\Models\Game;
 use App\Http\Responses\BaseResponse;
 use App\Support\ActiveGameModeGuard;
 use App\Support\BroadcastLeagueResolver;
@@ -270,6 +271,7 @@ class BroadCastScoreController extends Controller
         $fields = [
             'league_id' => ['request' => 'league_id', 'aliases' => []],
             'down' => ['request' => 'down', 'aliases' => []],
+            'distance' => ['request' => 'distance', 'aliases' => []],
             'strategies' => ['request' => 'strategies', 'aliases' => []],
             'position_number' => ['request' => 'positionNumber', 'aliases' => ['position_number']],
             'team_position' => ['request' => 'teamPosition', 'aliases' => ['team_position']],
@@ -354,7 +356,8 @@ class BroadCastScoreController extends Controller
         $validated = $request->validate([
             'team' => 'required|in:left,right,both',
             'points' => 'required|integer',
-            'action' => 'required|string'
+            'action' => 'required|string',
+            'distance' => 'nullable|integer|min:1|max:100',
         ]);
 
         $team = $validated['team'];
@@ -386,8 +389,19 @@ class BroadCastScoreController extends Controller
             ->where('game_id', $request->game_id)
             ->first();
 
+        // Update game status and dates
+        if ($action === 'Start') {
+            Game::where('id', $request->game_id)->update([
+                'status' => 'in_progress',
+                'match_start_date' => now(),
+            ]);
+        }
+
         if ($action === 'EndMatch') {
-            $this->completeSessionOnEndMatch($coachGroupId, $action, $request, 'practice', $existingPractice);
+            Game::where('id', $request->game_id)->update([
+                'status' => 'ended',
+                'match_end_date' => now(),
+            ]);
         }
 
         $sessionFields = $this->mergeScoreboardSessionFields($existingPractice, $request, $action);
@@ -398,7 +412,7 @@ class BroadCastScoreController extends Controller
         // DB row, so without this override a new match inherits the previous match's down,
         // strategies, pkg, etc. — causing AC to see old settings after refresh.
         if ($action === 'Start') {
-            foreach (['down', 'strategies', 'pkg', 'expected_yard_gain', 'position_number', 'team_position', 'possession', 'coverage_category'] as $field) {
+            foreach (['down', 'distance', 'strategies', 'pkg', 'expected_yard_gain', 'position_number', 'team_position', 'possession', 'coverage_category'] as $field) {
                 $persistedFields[$field] = null;
             }
         }
@@ -421,6 +435,7 @@ class BroadCastScoreController extends Controller
             'quarter' => $request->quarter,
             'is_start' => $sessionFields['is_start'],
             'down' => $persistedFields['down'],
+            'distance' => $persistedFields['distance'],
             'team_position' => $persistedFields['team_position'],
             'expected_yard_gain' => $persistedFields['expected_yard_gain'],
             'position_number' => $persistedFields['position_number'],
@@ -470,6 +485,7 @@ class BroadCastScoreController extends Controller
             'sys_time' => now()->toDateTimeString(),
             'quarter' => $request->quarter,
             'down' => $persistedFields['down'],
+            'distance' => $persistedFields['distance'],
             'strategies' => $persistedFields['strategies'],
             'teamPosition' => $persistedFields['team_position'],
             'expectedyardgain' => $persistedFields['expected_yard_gain'],
@@ -532,6 +548,7 @@ class BroadCastScoreController extends Controller
         $gameId = $suggestionData['game_id'] ?? $request->input('game_id');
         $hMarkPosition = $this->resolveHMarkForBroadcast($request, $coachGroupId, $gameId, $suggestionData);
         $suggestionData['h_mark_position'] = $hMarkPosition;
+        $suggestionData['distance'] = $request->input('distance', $suggestionData['distance'] ?? null);
 
         $payload = [
             'playName' => $request->input('PlayName'),
@@ -547,6 +564,7 @@ class BroadCastScoreController extends Controller
             'opponent_team' => $request->input('opponent_team'),
             'mode' => $request->input('mode'),
             'h_mark_position' => $hMarkPosition,
+            'distance' => $suggestionData['distance'],
         ];
 
         $leagueId = $this->resolveBroadcastLeagueId($request, $suggestionData);
@@ -603,6 +621,7 @@ class BroadCastScoreController extends Controller
 
         $validated = $request->validate([
             'down' => 'required|integer|min:1|max:4',
+            'distance' => 'required|integer|min:1|max:100',
             'weather' => 'required|string|in:Normal,Rain,Snow',
             'strategies' => ['required', 'string', Rule::in(['regular', 'red zone', 'hurry up', 'aggressive', 'chew clock'])],
             'expected_yardage_gain' => 'required|integer',
@@ -614,6 +633,7 @@ class BroadCastScoreController extends Controller
 
         $payload = [
             'down' => $validated['down'],
+            'distance' => $validated['distance'],
             'weather' => $validated['weather'],
             'strategies' => $validated['strategies'],
             'expected_yardage_gain' => $validated['expected_yardage_gain'],
@@ -663,7 +683,8 @@ class BroadCastScoreController extends Controller
         $validated = $request->validate([
             'team' => 'required|in:left,right,both',
             'points' => 'required|integer',
-            'action' => 'required|string'
+            'action' => 'required|string',
+            'distance' => 'nullable|integer|min:1|max:100',
         ]);
 
         $team = $validated['team'];
@@ -836,8 +857,19 @@ class BroadCastScoreController extends Controller
             ->where('game_id', $request->game_id)
             ->first();
 
+        // Update game status and dates
+        if ($action === 'Start') {
+            Game::where('id', $request->game_id)->update([
+                'status' => 'in_progress',
+                'match_start_date' => now(),
+            ]);
+        }
+
         if ($action === 'EndMatch') {
-            $this->completeSessionOnEndMatch($coachGroupId, $action, $request, 'play', $existingScoreboard);
+            Game::where('id', $request->game_id)->update([
+                'status' => 'ended',
+                'match_end_date' => now(),
+            ]);
         }
 
         $sessionFields = $this->mergeScoreboardSessionFields($existingScoreboard, $request, $action);
@@ -846,7 +878,7 @@ class BroadCastScoreController extends Controller
         // On Start, never carry over per-play settings from the prior session on this fixture.
         // Same fix as practiceScoreBoardBroadCast — see that method for explanation.
         if ($action === 'Start') {
-            foreach (['down', 'strategies', 'pkg', 'expected_yard_gain', 'position_number', 'team_position', 'possession', 'coverage_category'] as $field) {
+            foreach (['down', 'distance', 'strategies', 'pkg', 'expected_yard_gain', 'position_number', 'team_position', 'possession', 'coverage_category'] as $field) {
                 $persistedFields[$field] = null;
             }
         }
@@ -870,6 +902,7 @@ class BroadCastScoreController extends Controller
             'quarter' => $request->quarter,
             'is_start' => $sessionFields['is_start'],
             'down' => $persistedFields['down'],
+            'distance' => $persistedFields['distance'],
             'team_position' => $persistedFields['team_position'],
             'expected_yard_gain' => $persistedFields['expected_yard_gain'],
             'position_number' => $persistedFields['position_number'],
@@ -921,6 +954,7 @@ class BroadCastScoreController extends Controller
             'sys_time' => now()->toDateTimeString(),
             'quarter' => $request->quarter,
             'down' => $persistedFields['down'],
+            'distance' => $persistedFields['distance'],
             'strategies' => $persistedFields['strategies'],
             'teamPosition' => $persistedFields['team_position'],
             'expectedyardgain' => $persistedFields['expected_yard_gain'],

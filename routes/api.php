@@ -102,6 +102,10 @@ Route::match(['get', 'post'], '/devices/login-with-code', [AuthController::class
 Route::get('/devices/logout/{id}', [WebQrController::class, 'logoutDeviceApplication']);
 Route::get('/devices/session-status/{session_id}', [WebQrController::class, 'deviceSessionStatus']);
 
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/devices/update-info', [DeviceController::class, 'updateInfo']);
+});
+
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
@@ -235,7 +239,6 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/penalities', 'Penalities');
             Route::get('/penalty-list', 'penaltyList');
             Route::get('/delete-game/{id}','delete');
-            Route::get('/end-game-clearplayers/{id}','endMatchClearGroundPlayers');
     });
 
     Route::controller(SubscriptionPlanController::class)->group(function () {

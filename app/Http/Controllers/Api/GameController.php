@@ -27,27 +27,6 @@ class GameController extends Controller
 
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Player Added SuccessFully ", $game);
     }
-    
-
-    public function endMatchClearGroundPlayers($id)
-    {
-        $gamePk = (int) $id;
-
-        BenchPlayer::where('game_id', $gamePk)->delete();
-
-        try {
-            PersionalGrouping::syncInvalidActivePracticeGroupStatusesForMatchEnd($gamePk);
-            PersionalGrouping::pruneMatchConfigurePlayersNotInAnyGroup($gamePk);
-        } catch (\Throwable $e) {
-            \Log::error('endMatchClearGroundPlayers failed', [
-                'game_id' => $gamePk,
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-        }
-
-        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Players cleared successfully', null);
-    }
 
     public function index() {
         $games = Game::with(['myTeam', 'opponentTeam'])->get();
@@ -64,7 +43,7 @@ class GameController extends Controller
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "games", $game);
     }
         public function getByLeague($leagueId)
-    {  
+    {
           \Log::info(['data'=>'checkit working ornot']);
             $gamesQuery = Game::with([
                 'myTeam',
@@ -73,10 +52,10 @@ class GameController extends Controller
                 'configureMyTeams',
                 'configureVisitingTeams'
             ])
-            
+
             ->where('league_id', $leagueId);
 
-           
+
             if (request()->has('type')) {
                 $gameType = request()->type;
                 $gamesQuery->where('type', $gameType);
@@ -143,7 +122,7 @@ class GameController extends Controller
             return $penalty;
         });
        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "'Penalty List", $penalties);
-  
+
     }
 
 
@@ -156,6 +135,6 @@ class GameController extends Controller
     }
 
 
-    
-    
+
+
 }

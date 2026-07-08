@@ -222,6 +222,7 @@ namespace App\OpenApi;
  *     @OA\Parameter(name="matchId", in="query", required=true, @OA\Schema(type="integer", example=36)),
  *     @OA\Parameter(name="possession", in="query", required=true, description="Offensive or defensive plays to return", @OA\Schema(type="string", enum={"offensive", "defensive"}, example="offensive")),
  *     @OA\Parameter(name="down", in="query", required=false, description="Filter by preferred down (1-4)", @OA\Schema(type="integer", enum={1, 2, 3, 4}, example=1)),
+ *     @OA\Parameter(name="distance", in="query", required=false, description="Scoreboard distance value; accepted for context, not used as a play filter", @OA\Schema(type="integer", minimum=1, maximum=100, example=10)),
  *     @OA\Parameter(name="expectedyard", in="query", required=false, @OA\Schema(type="string", enum={"short", "medium", "long", "open_down"}, example="short")),
  *     @OA\Parameter(name="h_mark_position", in="query", required=false, description="Offensive only: H-mark column used for response `image`", @OA\Schema(type="string", enum={"hmark_left", "hmark_center", "hmark_right"}, default="hmark_center", example="hmark_center")),
  *     @OA\Parameter(name="page", in="query", required=false, @OA\Schema(type="integer", example=1)),
@@ -429,6 +430,7 @@ namespace App\OpenApi;
  *     @OA\Parameter(name="is_practice", in="query", required=false, description="true/1 for practice mode; false/0 for play mode", @OA\Schema(type="boolean", example=true)),
  *     @OA\Parameter(name="h_mark_position", in="query", required=false, description="Offensive only: H-mark column mapped to response `image` (same as match-plays)", @OA\Schema(type="string", enum={"hmark_left", "hmark_center", "hmark_right"}, default="hmark_center", example="hmark_center")),
  *     @OA\Parameter(name="down", in="query", required=false, description="Current down (1-4); maps to preferred_down filter", @OA\Schema(type="integer", enum={1, 2, 3, 4}, example=2)),
+ *     @OA\Parameter(name="distance", in="query", required=false, description="Scoreboard distance value; accepted for context, not used as a play filter", @OA\Schema(type="integer", minimum=1, maximum=100, example=10)),
  *     @OA\Parameter(name="strategy", in="query", required=false, description="Scoreboard strategy value; maps to strategies column (FIND_IN_SET)", @OA\Schema(type="string", example="regular")),
  *     @OA\Parameter(name="expectedyard", in="query", required=false, description="Expected yard gain from scoreboard; maps to min_expected_yard", @OA\Schema(type="string", example="45")),
  *     @OA\Parameter(name="pkg", in="query", required=false, description="Opponent team package id (defensive suggestions)", @OA\Schema(type="integer", example=5)),
@@ -442,6 +444,16 @@ namespace App\OpenApi;
  *         @OA\Schema(type="array", @OA\Items(type="object", @OA\Property(property="value", type="integer"), @OA\Property(property="text", type="string")))
  *     ),
  *     @OA\Parameter(name="opponent_personal_group", in="query", required=false, @OA\Schema(type="integer", example=3)),
+ *     @OA\Parameter(
+ *         name="sort",
+ *         in="query",
+ *         required=false,
+ *         description="Sort plays by success rate or score. Format: field:direction. Multiple fields separated by comma. Max 5 clauses.",
+ *         @OA\Schema(
+ *             type="string",
+ *             example="play_success_rate:desc,practice_success_rate:asc"
+ *         )
+ *     ),
  *     @OA\Response(
  *         response=200,
  *         description="Suggested plays. Shape depends on possession.",
