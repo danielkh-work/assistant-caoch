@@ -101,6 +101,7 @@ Route::match(['get', 'post'], '/devices/login-with-code', [AuthController::class
 
 Route::get('/devices/logout/{id}', [WebQrController::class, 'logoutDeviceApplication']);
 Route::get('/devices/session-status/{session_id}', [WebQrController::class, 'deviceSessionStatus']);
+Route::get('/devices/active-match/{session_id}', [WebQrController::class, 'deviceActiveMatch']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/devices/update-info', [DeviceController::class, 'updateInfo']);
@@ -327,5 +328,4 @@ Route::post('/verify-code', [AuthController::class, 'verifyCode']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/forget-password',[AuthController::class,'forgotPassword'])->name('forget.change');
 Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('password.reset');
-
 
