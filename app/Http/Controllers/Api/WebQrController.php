@@ -166,6 +166,26 @@ class WebQrController extends Controller
             'session_id' => $session_id,
             'logged_in' => $device->tokens()->exists(),
             'device' => DeviceSessionBroadcaster::deviceFields($device),
+        ]);
+    }
+
+    /**
+     * Check active match status by device session ID
+     */
+    public function deviceActiveMatch(string $session_id)
+    {
+        $device = Device::where('session_id', $session_id)->first();
+
+        if ($device === null) {
+            return response()->json([
+                'status' => 401,
+                'message' => 'Unauthenticated',
+            ], 401);
+        }
+
+        return response()->json([
+            'status' => 200,
+            'session_id' => $session_id,
             'active_match' => ScoreboardBroadcastPayload::resolveForDevice($device),
         ]);
     }
