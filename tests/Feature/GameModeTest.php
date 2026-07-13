@@ -119,6 +119,37 @@ class GameModeTest extends TestCase
         ]);
     }
 
+    public function test_cannot_start_game_mode_for_ended_game()
+    {
+        $user = $this->authAsCoach();
+        [$league, $team1, $team2] = $this->createLeagueWithTeams($user);
+
+        $game = new Game();
+        $game->league_id = $league->id;
+        $game->creator_id = $user->id;
+        $game->my_team_id = $team1->id;
+        $game->oponent_team_id = $team2->id;
+        $game->status = 'ended';
+        $game->save();
+
+        $response = $this->postJson('/api/start-game-mode', [
+            'league_id' => $league->id,
+            'my_team_id' => $team1->id,
+            'oponent_team_id' => $team2->id,
+            'game_id' => $game->id,
+        ]);
+
+        $response
+            ->assertStatus(STATUS_CODE_UNPROCESSABLE)
+            ->assertJsonPath('message', "Game can't be started because it is already ended.");
+
+        $this->assertDatabaseMissing('play_game_modes', [
+            'league_id' => $league->id,
+            'my_team_id' => $team1->id,
+            'oponent_team_id' => $team2->id,
+        ]);
+    }
+
     public function test_can_add_play_game_log()
     {
         $user = $this->authAsCoach();
