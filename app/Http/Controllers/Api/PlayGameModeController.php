@@ -32,7 +32,7 @@ class PlayGameModeController extends Controller
         $leagueId = $request->league_id ? (int) $request->league_id : null;
 
         $scheduledGame = $this->resolveScheduledGameForStart($request, $isPractice);
-        if ($scheduledGame && strtolower(trim((string) $scheduledGame->status)) === 'ended') {
+        if (! $isPractice && $scheduledGame && strtolower(trim((string) $scheduledGame->status)) === 'ended') {
             return new BaseResponse(
                 STATUS_CODE_UNPROCESSABLE,
                 STATUS_CODE_UNPROCESSABLE,

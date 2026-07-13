@@ -119,7 +119,7 @@ class GameModeTest extends TestCase
         ]);
     }
 
-    public function test_cannot_start_game_mode_for_ended_game()
+    public function test_cannot_start_regular_game_mode_for_ended_game()
     {
         $user = $this->authAsCoach();
         [$league, $team1, $team2] = $this->createLeagueWithTeams($user);
@@ -137,6 +137,7 @@ class GameModeTest extends TestCase
             'my_team_id' => $team1->id,
             'oponent_team_id' => $team2->id,
             'game_id' => $game->id,
+            'is_practice' => false,
         ]);
 
         $response
