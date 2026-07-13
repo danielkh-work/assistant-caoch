@@ -53,7 +53,11 @@ class GameController extends Controller
                 'configureVisitingTeams'
             ])
 
-            ->where('league_id', $leagueId);
+            ->where('league_id', $leagueId)
+            ->where(function ($query) {
+                $query->whereNull('status')
+                    ->orWhere('status', '!=', 'ended');
+            });
 
 
             if (request()->has('type')) {
