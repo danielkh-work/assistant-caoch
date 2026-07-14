@@ -117,6 +117,158 @@ class GameControllerTest extends TestCase
         $response->assertStatus(200);
     }
 
+    public function test_can_duplicate_game_with_match_setup_rows()
+    {
+        if (! Schema::hasTable('configured_playing_team_players') || ! Schema::hasTable('personal_groupings')) {
+            $this->markTestSkipped('Duplicate game setup tables are not available.');
+        }
+
+        $this->auth();
+
+        if (Schema::hasColumn('games', 'status')) {
+            $this->game->status = 'ended';
+        }
+
+        if (Schema::hasColumn('games', 'match_start_date')) {
+            $this->game->match_start_date = now()->subHour();
+        }
+
+        if (Schema::hasColumn('games', 'match_end_date')) {
+            $this->game->match_end_date = now();
+        }
+
+        $this->game->save();
+
+        $configuredPlayer = [
+            'match_id' => $this->game->id,
+            'team_id' => 1,
+            'player_id' => 10,
+            'type' => 'offensive',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        if (Schema::hasColumn('configured_playing_team_players', 'practice_player_id')) {
+            $configuredPlayer['practice_player_id'] = null;
+        }
+
+        if (Schema::hasColumn('configured_playing_team_players', 'team_type')) {
+            $configuredPlayer['team_type'] = 1;
+        }
+
+        if (Schema::hasColumn('configured_playing_team_players', 'game_type')) {
+            $configuredPlayer['game_type'] = 1;
+        }
+
+        DB::table('configured_playing_team_players')->insert($configuredPlayer);
+
+        $group = [
+            'game_id' => $this->game->id,
+            'league_id' => $this->league->id,
+            'team_id' => 1,
+            'group_name' => 'Test Group',
+            'type' => 'Offense',
+            'players' => json_encode([['id' => 10]]),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        if (Schema::hasColumn('personal_groupings', 'practice_players')) {
+            $group['practice_players'] = null;
+        }
+
+        if (Schema::hasColumn('personal_groupings', 'group_level')) {
+            $group['group_level'] = 1;
+        }
+
+        if (Schema::hasColumn('personal_groupings', 'status')) {
+            $group['status'] = 'inactive';
+        }
+
+        DB::table('personal_groupings')->insert($group);
+
+        if (Schema::hasTable('play_game_logs')) {
+            DB::table('play_game_logs')->insert([
+                'game_id' => $this->game->id,
+                'league_id' => $this->league->id,
+                'my_team_id' => 1,
+                'oponent_team_id' => 2,
+                'time' => '12:00',
+                'type_of_log' => 'event',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        if (Schema::hasTable('play_results')) {
+            DB::table('play_results')->insert([
+                'game_id' => $this->game->id,
+                'play_id' => 1,
+                'type' => 'offensive',
+                'result' => 'win',
+                'suggested_count' => 1,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        if (Schema::hasTable('penalities')) {
+            DB::table('penalities')->insert([
+                'league_id' => $this->league->id,
+                'game_id' => $this->game->id,
+                'penalty_type_id' => 1,
+                'yardage_penalty' => 5,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        $response = $this->postJson('/api/games/' . $this->game->id . '/duplicate');
+
+        $response->assertStatus(200)
+            ->assertJsonPath('message', 'Game duplicated successfully.');
+
+        $newGameId = $response->json('data.id');
+        $this->assertNotEquals($this->game->id, $newGameId);
+
+        $expectedGame = [
+            'id' => $newGameId,
+            'league_id' => $this->league->id,
+        ];
+
+        if (Schema::hasColumn('games', 'status')) {
+            $expectedGame['status'] = null;
+        }
+
+        $this->assertDatabaseHas('games', $expectedGame);
+
+        $this->assertDatabaseHas('configured_playing_team_players', [
+            'match_id' => $newGameId,
+            'team_id' => 1,
+            'player_id' => 10,
+            'type' => 'offensive',
+        ]);
+
+        $this->assertDatabaseHas('personal_groupings', [
+            'game_id' => $newGameId,
+            'league_id' => $this->league->id,
+            'team_id' => 1,
+            'group_name' => 'Test Group',
+        ]);
+
+        if (Schema::hasTable('play_game_logs')) {
+            $this->assertSame(0, DB::table('play_game_logs')->where('game_id', $newGameId)->count());
+        }
+
+        if (Schema::hasTable('play_results')) {
+            $this->assertSame(0, DB::table('play_results')->where('game_id', $newGameId)->count());
+        }
+
+        if (Schema::hasTable('penalities')) {
+            $this->assertSame(0, DB::table('penalities')->where('game_id', $newGameId)->count());
+        }
+    }
+
     public function test_can_add_penalty()
     {
         $this->auth();

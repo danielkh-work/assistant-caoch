@@ -8,6 +8,8 @@ use App\Models\PersionalGrouping;
 use Illuminate\Http\Request;
 use App\Http\Responses\BaseResponse;
 use App\Models\Penality;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class GameController extends Controller
 {
@@ -42,6 +44,145 @@ class GameController extends Controller
         $game = Game::with(['configureMyTeams.player.player', 'configureVisitingTeams.player.player'])->findOrFail($id);
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "games", $game);
     }
+
+    public function duplicate($id)
+    {
+        $game = Game::find($id);
+        if (! $game) {
+            return new BaseResponse(STATUS_CODE_NOTFOUND, STATUS_CODE_NOTFOUND, 'Game not found.');
+        }
+
+        DB::beginTransaction();
+        try {
+            $duplicate = $game->replicate();
+
+            if (Schema::hasColumn('games', 'creator_id') && auth()->id()) {
+                $duplicate->creator_id = auth()->id();
+            }
+
+            foreach (['status', 'match_start_date', 'match_end_date'] as $column) {
+                if (Schema::hasColumn('games', $column)) {
+                    $duplicate->{$column} = null;
+                }
+            }
+
+            $duplicate->save();
+
+            $this->copyRowsForGame('configured_playing_team_players', 'match_id', $game->id, $duplicate->id);
+            $this->copyRowsForGame('configure_plays', 'match_id', $game->id, $duplicate->id);
+            $this->copyRowsForGame('configure_defensive_plays', 'game_id', $game->id, $duplicate->id);
+            $this->copyRowsForGame('offense_defense_players', 'game_id', $game->id, $duplicate->id);
+
+            $groupIdMap = $this->copyRowsForGame('personal_groupings', 'game_id', $game->id, $duplicate->id);
+            $this->copyPersonalGroupingPivots($groupIdMap);
+
+            $packageIdMap = $this->copyRowsForGame('opponent_team_packages', 'game_id', $game->id, $duplicate->id);
+            $this->copyOpponentPackagePlayers($packageIdMap);
+
+            DB::commit();
+
+            $duplicate->load([
+                'myTeam',
+                'opponentTeam',
+                'configuredPlays',
+                'configureMyTeams',
+                'configureVisitingTeams',
+            ]);
+
+            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Game duplicated successfully.', $duplicate);
+        } catch (\Throwable $th) {
+            DB::rollBack();
+
+            return new BaseResponse(STATUS_CODE_BADREQUEST, STATUS_CODE_BADREQUEST, $th->getMessage());
+        }
+    }
+
+    private function copyRowsForGame(string $table, string $gameColumn, int $sourceGameId, int $newGameId): array
+    {
+        if (! Schema::hasTable($table) || ! Schema::hasColumn($table, $gameColumn)) {
+            return [];
+        }
+
+        $now = now();
+        $idMap = [];
+
+        DB::table($table)
+            ->where($gameColumn, $sourceGameId)
+            ->orderBy('id')
+            ->get()
+            ->each(function ($row) use ($table, $gameColumn, $newGameId, $now, &$idMap) {
+                $data = (array) $row;
+                $sourceId = $data['id'] ?? null;
+                unset($data['id']);
+
+                $data[$gameColumn] = $newGameId;
+
+                if (Schema::hasColumn($table, 'created_at')) {
+                    $data['created_at'] = $now;
+                }
+
+                if (Schema::hasColumn($table, 'updated_at')) {
+                    $data['updated_at'] = $now;
+                }
+
+                $newId = DB::table($table)->insertGetId($data);
+                if ($sourceId !== null) {
+                    $idMap[(int) $sourceId] = (int) $newId;
+                }
+            });
+
+        return $idMap;
+    }
+
+    private function copyPersonalGroupingPivots(array $groupIdMap): void
+    {
+        if ($groupIdMap === []) {
+            return;
+        }
+
+        $this->copyPivotRows('personal_grouping_play', 'personal_grouping_id', $groupIdMap);
+        $this->copyPivotRows('defensive_play_personal_grouping', 'personal_grouping_id', $groupIdMap);
+    }
+
+    private function copyOpponentPackagePlayers(array $packageIdMap): void
+    {
+        if ($packageIdMap === []) {
+            return;
+        }
+
+        $this->copyPivotRows('opponent_package_player', 'opponent_team_package_id', $packageIdMap);
+    }
+
+    private function copyPivotRows(string $table, string $foreignKey, array $idMap): void
+    {
+        if (! Schema::hasTable($table) || ! Schema::hasColumn($table, $foreignKey)) {
+            return;
+        }
+
+        $now = now();
+
+        DB::table($table)
+            ->whereIn($foreignKey, array_keys($idMap))
+            ->orderBy('id')
+            ->get()
+            ->each(function ($row) use ($table, $foreignKey, $idMap, $now) {
+                $data = (array) $row;
+                unset($data['id']);
+
+                $data[$foreignKey] = $idMap[(int) $row->{$foreignKey}];
+
+                if (Schema::hasColumn($table, 'created_at')) {
+                    $data['created_at'] = $now;
+                }
+
+                if (Schema::hasColumn($table, 'updated_at')) {
+                    $data['updated_at'] = $now;
+                }
+
+                DB::table($table)->insert($data);
+            });
+    }
+
         public function getByLeague($leagueId)
     {
           \Log::info(['data'=>'checkit working ornot']);

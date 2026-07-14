@@ -234,6 +234,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::controller(GameController::class)->group(function () {
             Route::get('/games/id', 'index');
             Route::post('/games', 'store');
+            Route::post('/games/{id}/duplicate', 'duplicate');
             Route::get('/game/{id}', 'show');
             Route::get('/game/{id}/opponents_my', 'getOpponentMyTeamPlayers');
             Route::get('/games/league/{leagueId}', 'getByLeague');
@@ -328,4 +329,3 @@ Route::post('/verify-code', [AuthController::class, 'verifyCode']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/forget-password',[AuthController::class,'forgotPassword'])->name('forget.change');
 Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('password.reset');
-
