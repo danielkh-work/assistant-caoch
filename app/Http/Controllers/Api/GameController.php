@@ -56,14 +56,15 @@ class GameController extends Controller
             ->where('league_id', $leagueId);
 
 
-            if (request()->has('type')) {
-                $gameType = request()->type;
+            $gameType = request()->query('type');
+            if ($gameType !== null) {
                 $gamesQuery->where('type', $gameType);
             }
 
-            if ((int) request()->query('type', 1) !== 2) {
+            if ((int) ($gameType ?? 1) !== 2) {
                 $gamesQuery->where(function ($query) {
-                    $query->whereNull('status')
+                    $query->where('type', 2)
+                        ->orWhereNull('status')
                         ->orWhere('status', '!=', 'ended');
                 });
             }
