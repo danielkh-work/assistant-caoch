@@ -146,15 +146,24 @@ class GameControllerTest extends TestCase
             'updated_at' => now(),
         ];
 
+        $myTeam = [
+            'league_id' => $this->league->id,
+            'team_name' => 'Giants St-Jean-sur-Le-Richelieu',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
         if (Schema::hasColumn('league_teams', 'is_practice')) {
             $normalTeam['is_practice'] = 0;
             $practiceTeam['is_practice'] = 1;
             $otherTeam['is_practice'] = 0;
+            $myTeam['is_practice'] = 0;
         }
 
         $normalTeamId = DB::table('league_teams')->insertGetId($normalTeam);
         DB::table('league_teams')->insert($practiceTeam);
         DB::table('league_teams')->insert($otherTeam);
+        $myTeamId = DB::table('league_teams')->insertGetId($myTeam);
 
         $response = $this->getJson('/api/leagues/' . $this->league->id . '/opponent-teams?search=CNDF');
 
@@ -172,11 +181,14 @@ class GameControllerTest extends TestCase
             ]);
 
         if (Schema::hasColumn('league_teams', 'is_practice')) {
-            $allResponse = $this->getJson('/api/leagues/' . $this->league->id . '/opponent-teams');
+            $allResponse = $this->getJson('/api/leagues/' . $this->league->id . '/opponent-teams?my_team_id=' . $myTeamId);
 
             $allResponse->assertStatus(200)
                 ->assertJsonMissing([
                     'team_name' => 'Practice offence',
+                ])
+                ->assertJsonMissing([
+                    'team_name' => 'Giants St-Jean-sur-Le-Richelieu',
                 ]);
         }
     }

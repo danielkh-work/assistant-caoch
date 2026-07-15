@@ -49,12 +49,17 @@ class GameController extends Controller
     public function opponentTeams(Request $request, $leagueId)
     {
         $search = trim((string) $request->query('search', ''));
+        $excludeTeamId = $request->query('my_team_id', $request->query('exclude_team_id'));
 
         $query = LeagueTeam::query()
             ->where('league_id', $leagueId)
             ->select('id', 'team_name')
             ->orderBy('team_name')
             ->limit(300);
+
+        if ($excludeTeamId !== null && $excludeTeamId !== '') {
+            $query->whereKeyNot((int) $excludeTeamId);
+        }
 
         if (Schema::hasColumn('league_teams', 'is_practice')) {
             $query->where(function ($q) {
