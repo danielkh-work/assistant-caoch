@@ -1652,7 +1652,7 @@
                     "Games"
                 ],
                 "summary": "List opponent teams for a league",
-                "description": "Returns up to the first 300 non-practice league teams as lightweight opponent options. Practice teams (`is_practice = 1`) are excluded. Use `search` to filter by team name. Pass `my_team_id` to exclude the current my team from opponent options.",
+                "description": "Returns up to the first 300 non-practice league teams as lightweight opponent options. Practice teams (`is_practice = 1`) are excluded. Use `search` to filter by team name. The API excludes the league's non-practice `type = 1` team as my team.",
                 "operationId": "listOpponentTeamsForLeague",
                 "parameters": [
                     {
@@ -1663,16 +1663,6 @@
                         "schema": {
                             "type": "integer",
                             "example": 22
-                        }
-                    },
-                    {
-                        "name": "my_team_id",
-                        "in": "query",
-                        "description": "Current my-team id to exclude from opponent options",
-                        "required": false,
-                        "schema": {
-                            "type": "integer",
-                            "example": 217
                         }
                     },
                     {
