@@ -79,7 +79,7 @@ namespace App\OpenApi;
  *     operationId="listOpponentTeamsForLeague",
  *     tags={"Games"},
  *     summary="List opponent teams for a league",
- *     description="Returns up to the first 300 non-practice league teams as lightweight opponent options. Practice teams (`is_practice = 1`) are excluded. Use `search` to filter by team name. Pass `my_team_id` to exclude the current my team from opponent options.",
+ *     description="Returns up to the first 300 non-practice league teams as lightweight opponent options. Practice teams (`is_practice = 1`) are excluded. Use `search` to filter by team name. If `my_team_id` is not provided, the API excludes the league's non-practice `type = 1` team as my team.",
  *     security={{"sanctum":{}}},
  *     @OA\Parameter(
  *         name="leagueId",
@@ -92,7 +92,7 @@ namespace App\OpenApi;
  *         name="my_team_id",
  *         in="query",
  *         required=false,
- *         description="Current my-team id to exclude from opponent options",
+ *         description="Current my-team id to exclude from opponent options. Optional because the API can infer my team from the league's non-practice `type = 1` team.",
  *         @OA\Schema(type="integer", example=217)
  *     ),
  *     @OA\Parameter(

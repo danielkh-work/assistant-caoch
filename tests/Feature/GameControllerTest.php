@@ -160,6 +160,13 @@ class GameControllerTest extends TestCase
             $myTeam['is_practice'] = 0;
         }
 
+        if (Schema::hasColumn('league_teams', 'type')) {
+            $normalTeam['type'] = null;
+            $practiceTeam['type'] = 1;
+            $otherTeam['type'] = null;
+            $myTeam['type'] = 1;
+        }
+
         $normalTeamId = DB::table('league_teams')->insertGetId($normalTeam);
         DB::table('league_teams')->insert($practiceTeam);
         DB::table('league_teams')->insert($otherTeam);
@@ -180,8 +187,8 @@ class GameControllerTest extends TestCase
                 'team_name' => 'Cougars Lennoxville',
             ]);
 
-        if (Schema::hasColumn('league_teams', 'is_practice')) {
-            $allResponse = $this->getJson('/api/leagues/' . $this->league->id . '/opponent-teams?my_team_id=' . $myTeamId);
+        if (Schema::hasColumn('league_teams', 'is_practice') && Schema::hasColumn('league_teams', 'type')) {
+            $allResponse = $this->getJson('/api/leagues/' . $this->league->id . '/opponent-teams');
 
             $allResponse->assertStatus(200)
                 ->assertJsonMissing([

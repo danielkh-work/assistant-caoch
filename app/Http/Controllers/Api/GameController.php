@@ -50,6 +50,9 @@ class GameController extends Controller
     {
         $search = trim((string) $request->query('search', ''));
         $excludeTeamId = $request->query('my_team_id', $request->query('exclude_team_id'));
+        if (($excludeTeamId === null || $excludeTeamId === '') && Schema::hasColumn('league_teams', 'type')) {
+            $excludeTeamId = $this->resolveMyTeamIdForLeague((int) $leagueId);
+        }
 
         $query = LeagueTeam::query()
             ->where('league_id', $leagueId)
@@ -79,6 +82,25 @@ class GameController extends Controller
             'Opponent teams list',
             $query->get()
         );
+    }
+
+    private function resolveMyTeamIdForLeague(int $leagueId): ?int
+    {
+        $query = LeagueTeam::query()
+            ->where('league_id', $leagueId)
+            ->where('type', 1)
+            ->orderBy('id');
+
+        if (Schema::hasColumn('league_teams', 'is_practice')) {
+            $query->where(function ($q) {
+                $q->where('is_practice', 0)
+                    ->orWhereNull('is_practice');
+            });
+        }
+
+        $teamId = $query->value('id');
+
+        return $teamId ? (int) $teamId : null;
     }
 
     public function duplicate(Request $request, $id)
