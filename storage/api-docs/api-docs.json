@@ -1646,6 +1646,116 @@
                 ]
             }
         },
+        "/api/leagues/{leagueId}/opponent-teams": {
+            "get": {
+                "tags": [
+                    "Games"
+                ],
+                "summary": "List opponent teams for a league",
+                "description": "Returns up to the first 300 non-practice league teams as lightweight opponent options. Practice teams (`is_practice = 1`) are excluded. Use `search` to filter by team name. The API excludes the league's non-practice `type = 1` team as my team.",
+                "operationId": "listOpponentTeamsForLeague",
+                "parameters": [
+                    {
+                        "name": "leagueId",
+                        "in": "path",
+                        "description": "League id",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 22
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Optional team name search",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "CNDF"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Opponent team options",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OpponentTeamOptionListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/games/{id}/duplicate": {
+            "post": {
+                "tags": [
+                    "Games"
+                ],
+                "summary": "Duplicate a game and its setup",
+                "description": "Creates a new game from the source game. Optional `date` updates the duplicated game date. If `opponent_team_id` is omitted or unchanged, all existing setup is copied. If `opponent_team_id` is changed, the duplicate uses the new opponent team, preserves my-team setup, and skips original-opponent setup such as opponent configured players, opponent groups, defensive configured plays, and opponent packages. Runtime fields (`status`, `match_start_date`, `match_end_date`) are cleared on the duplicate. Event/runtime history is not copied: play logs, play results, penalties, and websocket scoreboards stay only on the source game.",
+                "operationId": "duplicateGame",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Source game id to duplicate",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 36
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DuplicateGameRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Game duplicated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GameBaseResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Duplicate failed"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "404": {
+                        "description": "Game not found"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/api/leagues/{league}": {
             "put": {
                 "tags": [
@@ -3053,6 +3163,144 @@
                 "type": "object",
                 "nullable": true
             },
+            "OpponentTeamOption": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 216
+                    },
+                    "team_name": {
+                        "type": "string",
+                        "example": "CNDF Notre Dame"
+                    }
+                },
+                "type": "object"
+            },
+            "OpponentTeamOptionListResponse": {
+                "properties": {
+                    "status": {
+                        "type": "integer",
+                        "example": 200
+                    },
+                    "message": {
+                        "type": "string",
+                        "example": "Opponent teams list"
+                    },
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/OpponentTeamOption"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "Game": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 36
+                    },
+                    "type": {
+                        "description": "1 = regular game, 2 = practice game",
+                        "type": "integer",
+                        "example": 2,
+                        "nullable": true
+                    },
+                    "league_id": {
+                        "type": "integer",
+                        "example": 22
+                    },
+                    "creator_id": {
+                        "type": "integer",
+                        "example": 1818
+                    },
+                    "name": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "descrptions": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "my_team_id": {
+                        "type": "integer",
+                        "example": 217
+                    },
+                    "oponent_team_id": {
+                        "type": "integer",
+                        "example": 216
+                    },
+                    "date": {
+                        "type": "string",
+                        "example": "2026-06-26 14:34:00",
+                        "nullable": true
+                    },
+                    "location": {
+                        "type": "string",
+                        "example": "america,usa",
+                        "nullable": true
+                    },
+                    "location_type": {
+                        "type": "string",
+                        "example": "home",
+                        "nullable": true
+                    },
+                    "neutral_location": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "example": null,
+                        "nullable": true
+                    },
+                    "match_start_date": {
+                        "type": "string",
+                        "example": null,
+                        "nullable": true
+                    },
+                    "match_end_date": {
+                        "type": "string",
+                        "example": null,
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "DuplicateGameRequest": {
+                "properties": {
+                    "date": {
+                        "description": "Optional new game date for the duplicated game.",
+                        "type": "string",
+                        "example": "2026-08-20 19:30:00",
+                        "nullable": true
+                    },
+                    "opponent_team_id": {
+                        "description": "Optional replacement opponent team id. Must belong to the same league and cannot be a practice team.",
+                        "type": "integer",
+                        "example": 216,
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "GameBaseResponse": {
+                "properties": {
+                    "status": {
+                        "type": "integer",
+                        "example": 200
+                    },
+                    "message": {
+                        "type": "string",
+                        "example": "Game duplicated successfully."
+                    },
+                    "data": {
+                        "$ref": "#/components/schemas/Game"
+                    }
+                },
+                "type": "object"
+            },
             "Play": {
                 "properties": {
                     "id": {
@@ -3876,6 +4124,10 @@
         {
             "name": "Devices",
             "description": "Device management per league for parallel game execution"
+        },
+        {
+            "name": "Games",
+            "description": "Game create, listing, details, and duplication APIs."
         },
         {
             "name": "Leagues",
