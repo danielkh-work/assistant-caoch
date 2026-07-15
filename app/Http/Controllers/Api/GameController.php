@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Game;
 use App\Models\BenchPlayer;
+use App\Models\LeagueTeam;
 use App\Models\PersionalGrouping;
 use Illuminate\Http\Request;
 use App\Http\Responses\BaseResponse;
@@ -43,6 +44,36 @@ class GameController extends Controller
     {
         $game = Game::with(['configureMyTeams.player.player', 'configureVisitingTeams.player.player'])->findOrFail($id);
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "games", $game);
+    }
+
+    public function opponentTeams(Request $request, $leagueId)
+    {
+        $search = trim((string) $request->query('search', ''));
+
+        $query = LeagueTeam::query()
+            ->where('league_id', $leagueId)
+            ->select('id', 'team_name')
+            ->orderBy('team_name')
+            ->limit(300);
+
+        if (Schema::hasColumn('league_teams', 'is_practice')) {
+            $query->where(function ($q) {
+                $q->where('is_practice', 0)
+                    ->orWhereNull('is_practice');
+            });
+        }
+
+        if ($search !== '') {
+            $needle = '%' . addcslashes($search, '%_\\') . '%';
+            $query->where('team_name', 'like', $needle);
+        }
+
+        return new BaseResponse(
+            STATUS_CODE_OK,
+            STATUS_CODE_OK,
+            'Opponent teams list',
+            $query->get()
+        );
     }
 
     public function duplicate($id)

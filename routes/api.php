@@ -237,6 +237,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/games/{id}/duplicate', 'duplicate');
             Route::get('/game/{id}', 'show');
             Route::get('/game/{id}/opponents_my', 'getOpponentMyTeamPlayers');
+            Route::get('/leagues/{leagueId}/opponent-teams', 'opponentTeams');
             Route::get('/games/league/{leagueId}', 'getByLeague');
             Route::post('/penalities', 'Penalities');
             Route::get('/penalty-list', 'penaltyList');

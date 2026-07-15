@@ -117,6 +117,70 @@ class GameControllerTest extends TestCase
         $response->assertStatus(200);
     }
 
+    public function test_can_get_searchable_non_practice_opponent_teams()
+    {
+        if (! Schema::hasTable('league_teams')) {
+            $this->markTestSkipped('League teams table is not available.');
+        }
+
+        $this->auth();
+
+        $normalTeam = [
+            'league_id' => $this->league->id,
+            'team_name' => 'CNDF Notre Dame',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        $practiceTeam = [
+            'league_id' => $this->league->id,
+            'team_name' => 'Practice offence',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        $otherTeam = [
+            'league_id' => $this->league->id,
+            'team_name' => 'Cougars Lennoxville',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        if (Schema::hasColumn('league_teams', 'is_practice')) {
+            $normalTeam['is_practice'] = 0;
+            $practiceTeam['is_practice'] = 1;
+            $otherTeam['is_practice'] = 0;
+        }
+
+        $normalTeamId = DB::table('league_teams')->insertGetId($normalTeam);
+        DB::table('league_teams')->insert($practiceTeam);
+        DB::table('league_teams')->insert($otherTeam);
+
+        $response = $this->getJson('/api/leagues/' . $this->league->id . '/opponent-teams?search=CNDF');
+
+        $response->assertStatus(200)
+            ->assertJsonPath('message', 'Opponent teams list')
+            ->assertJsonFragment([
+                'id' => $normalTeamId,
+                'team_name' => 'CNDF Notre Dame',
+            ])
+            ->assertJsonMissing([
+                'team_name' => 'Practice offence',
+            ])
+            ->assertJsonMissing([
+                'team_name' => 'Cougars Lennoxville',
+            ]);
+
+        if (Schema::hasColumn('league_teams', 'is_practice')) {
+            $allResponse = $this->getJson('/api/leagues/' . $this->league->id . '/opponent-teams');
+
+            $allResponse->assertStatus(200)
+                ->assertJsonMissing([
+                    'team_name' => 'Practice offence',
+                ]);
+        }
+    }
+
     public function test_can_duplicate_game_with_match_setup_rows()
     {
         if (! Schema::hasTable('configured_playing_team_players') || ! Schema::hasTable('personal_groupings')) {

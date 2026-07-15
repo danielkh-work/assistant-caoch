@@ -9,6 +9,25 @@ namespace App\OpenApi;
  * )
  *
  * @OA\Schema(
+ *     schema="OpponentTeamOption",
+ *     type="object",
+ *     @OA\Property(property="id", type="integer", example=216),
+ *     @OA\Property(property="team_name", type="string", example="CNDF Notre Dame")
+ * )
+ *
+ * @OA\Schema(
+ *     schema="OpponentTeamOptionListResponse",
+ *     type="object",
+ *     @OA\Property(property="status", type="integer", example=200),
+ *     @OA\Property(property="message", type="string", example="Opponent teams list"),
+ *     @OA\Property(
+ *         property="data",
+ *         type="array",
+ *         @OA\Items(ref="#/components/schemas/OpponentTeamOption")
+ *     )
+ * )
+ *
+ * @OA\Schema(
  *     schema="Game",
  *     type="object",
  *     @OA\Property(property="id", type="integer", example=36),
@@ -34,6 +53,35 @@ namespace App\OpenApi;
  *     @OA\Property(property="status", type="integer", example=200),
  *     @OA\Property(property="message", type="string", example="Game duplicated successfully."),
  *     @OA\Property(property="data", ref="#/components/schemas/Game")
+ * )
+ *
+ * @OA\Get(
+ *     path="/api/leagues/{leagueId}/opponent-teams",
+ *     operationId="listOpponentTeamsForLeague",
+ *     tags={"Games"},
+ *     summary="List opponent teams for a league",
+ *     description="Returns up to the first 300 non-practice league teams as lightweight opponent options. Practice teams (`is_practice = 1`) are excluded. Use `search` to filter by team name.",
+ *     security={{"sanctum":{}}},
+ *     @OA\Parameter(
+ *         name="leagueId",
+ *         in="path",
+ *         required=true,
+ *         description="League id",
+ *         @OA\Schema(type="integer", example=22)
+ *     ),
+ *     @OA\Parameter(
+ *         name="search",
+ *         in="query",
+ *         required=false,
+ *         description="Optional team name search",
+ *         @OA\Schema(type="string", example="CNDF")
+ *     ),
+ *     @OA\Response(
+ *         response=200,
+ *         description="Opponent team options",
+ *         @OA\JsonContent(ref="#/components/schemas/OpponentTeamOptionListResponse")
+ *     ),
+ *     @OA\Response(response=401, description="Unauthenticated")
  * )
  *
  * @OA\Post(
