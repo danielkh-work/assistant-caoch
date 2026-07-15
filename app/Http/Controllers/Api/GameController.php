@@ -76,16 +76,55 @@ class GameController extends Controller
         );
     }
 
-    public function duplicate($id)
+    public function duplicate(Request $request, $id)
     {
+        $request->validate([
+            'date' => 'sometimes|nullable|date',
+            'opponent_team_id' => 'sometimes|nullable|integer',
+            'oponent_team_id' => 'sometimes|nullable|integer',
+        ]);
+
         $game = Game::find($id);
         if (! $game) {
             return new BaseResponse(STATUS_CODE_NOTFOUND, STATUS_CODE_NOTFOUND, 'Game not found.');
         }
 
+        $newOpponentTeamId = $request->input('opponent_team_id', $request->input('oponent_team_id', $game->oponent_team_id));
+        $newOpponentTeamId = $newOpponentTeamId !== null && $newOpponentTeamId !== ''
+            ? (int) $newOpponentTeamId
+            : (int) $game->oponent_team_id;
+
+        if ($newOpponentTeamId !== (int) $game->oponent_team_id) {
+            $opponentQuery = LeagueTeam::query()
+                ->whereKey($newOpponentTeamId)
+                ->where('league_id', $game->league_id);
+
+            if (Schema::hasColumn('league_teams', 'is_practice')) {
+                $opponentQuery->where(function ($q) {
+                    $q->where('is_practice', 0)
+                        ->orWhereNull('is_practice');
+                });
+            }
+
+            if (! $opponentQuery->exists()) {
+                return new BaseResponse(
+                    STATUS_CODE_UNPROCESSABLE,
+                    STATUS_CODE_UNPROCESSABLE,
+                    'Selected opponent team is invalid for this league.'
+                );
+            }
+        }
+
+        $opponentChanged = $newOpponentTeamId !== (int) $game->oponent_team_id;
+
         DB::beginTransaction();
         try {
             $duplicate = $game->replicate();
+            $duplicate->oponent_team_id = $newOpponentTeamId;
+
+            if ($request->filled('date') && Schema::hasColumn('games', 'date')) {
+                $duplicate->date = $request->input('date');
+            }
 
             if (Schema::hasColumn('games', 'creator_id') && auth()->id()) {
                 $duplicate->creator_id = auth()->id();
@@ -99,16 +138,43 @@ class GameController extends Controller
 
             $duplicate->save();
 
-            $this->copyRowsForGame('configured_playing_team_players', 'match_id', $game->id, $duplicate->id);
-            $this->copyRowsForGame('configure_plays', 'match_id', $game->id, $duplicate->id);
-            $this->copyRowsForGame('configure_defensive_plays', 'game_id', $game->id, $duplicate->id);
-            $this->copyRowsForGame('offense_defense_players', 'game_id', $game->id, $duplicate->id);
+            $myTeamOnly = fn ($query) => $query->where('team_id', $game->my_team_id);
 
-            $groupIdMap = $this->copyRowsForGame('personal_groupings', 'game_id', $game->id, $duplicate->id);
+            $this->copyRowsForGame(
+                'configured_playing_team_players',
+                'match_id',
+                $game->id,
+                $duplicate->id,
+                $opponentChanged ? $myTeamOnly : null
+            );
+
+            $this->copyRowsForGame('configure_plays', 'match_id', $game->id, $duplicate->id);
+
+            if (! $opponentChanged) {
+                $this->copyRowsForGame('configure_defensive_plays', 'game_id', $game->id, $duplicate->id);
+            }
+
+            $this->copyRowsForGame(
+                'offense_defense_players',
+                'game_id',
+                $game->id,
+                $duplicate->id,
+                $opponentChanged ? $myTeamOnly : null
+            );
+
+            $groupIdMap = $this->copyRowsForGame(
+                'personal_groupings',
+                'game_id',
+                $game->id,
+                $duplicate->id,
+                $opponentChanged ? $myTeamOnly : null
+            );
             $this->copyPersonalGroupingPivots($groupIdMap);
 
-            $packageIdMap = $this->copyRowsForGame('opponent_team_packages', 'game_id', $game->id, $duplicate->id);
-            $this->copyOpponentPackagePlayers($packageIdMap);
+            if (! $opponentChanged) {
+                $packageIdMap = $this->copyRowsForGame('opponent_team_packages', 'game_id', $game->id, $duplicate->id);
+                $this->copyOpponentPackagePlayers($packageIdMap);
+            }
 
             DB::commit();
 
@@ -128,7 +194,13 @@ class GameController extends Controller
         }
     }
 
-    private function copyRowsForGame(string $table, string $gameColumn, int $sourceGameId, int $newGameId): array
+    private function copyRowsForGame(
+        string $table,
+        string $gameColumn,
+        int $sourceGameId,
+        int $newGameId,
+        ?callable $filter = null
+    ): array
     {
         if (! Schema::hasTable($table) || ! Schema::hasColumn($table, $gameColumn)) {
             return [];
@@ -137,9 +209,14 @@ class GameController extends Controller
         $now = now();
         $idMap = [];
 
-        DB::table($table)
-            ->where($gameColumn, $sourceGameId)
-            ->orderBy('id')
+        $query = DB::table($table)
+            ->where($gameColumn, $sourceGameId);
+
+        if ($filter !== null) {
+            $filter($query);
+        }
+
+        $query->orderBy('id')
             ->get()
             ->each(function ($row) use ($table, $gameColumn, $newGameId, $now, &$idMap) {
                 $data = (array) $row;

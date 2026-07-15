@@ -48,6 +48,25 @@ namespace App\OpenApi;
  * )
  *
  * @OA\Schema(
+ *     schema="DuplicateGameRequest",
+ *     type="object",
+ *     @OA\Property(
+ *         property="date",
+ *         type="string",
+ *         nullable=true,
+ *         description="Optional new game date for the duplicated game.",
+ *         example="2026-08-20 19:30:00"
+ *     ),
+ *     @OA\Property(
+ *         property="opponent_team_id",
+ *         type="integer",
+ *         nullable=true,
+ *         description="Optional replacement opponent team id. Must belong to the same league and cannot be a practice team.",
+ *         example=216
+ *     )
+ * )
+ *
+ * @OA\Schema(
  *     schema="GameBaseResponse",
  *     type="object",
  *     @OA\Property(property="status", type="integer", example=200),
@@ -89,7 +108,7 @@ namespace App\OpenApi;
  *     operationId="duplicateGame",
  *     tags={"Games"},
  *     summary="Duplicate a game and its setup",
- *     description="Creates a new game from the source game and copies match setup rows: configured players, configured offensive plays, configured defensive plays, assigned offense/defense players, personal groups with play pivots, and opponent packages with package players. Runtime fields (`status`, `match_start_date`, `match_end_date`) are cleared on the duplicate. Event/runtime history is not copied: play logs, play results, penalties, and websocket scoreboards stay only on the source game.",
+ *     description="Creates a new game from the source game. Optional `date` updates the duplicated game date. If `opponent_team_id` is omitted or unchanged, all existing setup is copied. If `opponent_team_id` is changed, the duplicate uses the new opponent team, preserves my-team setup, and skips original-opponent setup such as opponent configured players, opponent groups, defensive configured plays, and opponent packages. Runtime fields (`status`, `match_start_date`, `match_end_date`) are cleared on the duplicate. Event/runtime history is not copied: play logs, play results, penalties, and websocket scoreboards stay only on the source game.",
  *     security={{"sanctum":{}}},
  *     @OA\Parameter(
  *         name="id",
@@ -97,6 +116,10 @@ namespace App\OpenApi;
  *         required=true,
  *         description="Source game id to duplicate",
  *         @OA\Schema(type="integer", example=36)
+ *     ),
+ *     @OA\RequestBody(
+ *         required=false,
+ *         @OA\JsonContent(ref="#/components/schemas/DuplicateGameRequest")
  *     ),
  *     @OA\Response(
  *         response=200,

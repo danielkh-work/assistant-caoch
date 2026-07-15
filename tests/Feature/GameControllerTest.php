@@ -333,6 +333,157 @@ class GameControllerTest extends TestCase
         }
     }
 
+    public function test_duplicate_game_with_new_opponent_keeps_my_team_setup_only()
+    {
+        if (
+            ! Schema::hasTable('league_teams') ||
+            ! Schema::hasTable('configured_playing_team_players') ||
+            ! Schema::hasTable('personal_groupings')
+        ) {
+            $this->markTestSkipped('Duplicate game setup tables are not available.');
+        }
+
+        $this->auth();
+
+        $teamRow = fn (string $name) => [
+            'league_id' => $this->league->id,
+            'team_name' => $name,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        $myTeam = $teamRow('My Team');
+        $oldOpponent = $teamRow('Old Opponent');
+        $newOpponent = $teamRow('New Opponent');
+
+        if (Schema::hasColumn('league_teams', 'is_practice')) {
+            $myTeam['is_practice'] = 0;
+            $oldOpponent['is_practice'] = 0;
+            $newOpponent['is_practice'] = 0;
+        }
+
+        $myTeamId = DB::table('league_teams')->insertGetId($myTeam);
+        $oldOpponentId = DB::table('league_teams')->insertGetId($oldOpponent);
+        $newOpponentId = DB::table('league_teams')->insertGetId($newOpponent);
+
+        $this->game->my_team_id = $myTeamId;
+        $this->game->oponent_team_id = $oldOpponentId;
+        $this->game->save();
+
+        $this->insertConfiguredPlayerForDuplicateTest($this->game->id, $myTeamId, 101, 1, 'offensive');
+        $this->insertConfiguredPlayerForDuplicateTest($this->game->id, $oldOpponentId, 202, 2, 'defensive');
+
+        DB::table('personal_groupings')->insert($this->personalGroupForDuplicateTest(
+            $this->game->id,
+            $myTeamId,
+            'My Team Group',
+            101
+        ));
+
+        DB::table('personal_groupings')->insert($this->personalGroupForDuplicateTest(
+            $this->game->id,
+            $oldOpponentId,
+            'Old Opponent Group',
+            202
+        ));
+
+        $response = $this->postJson('/api/games/' . $this->game->id . '/duplicate', [
+            'date' => '2026-08-20 19:30:00',
+            'opponent_team_id' => $newOpponentId,
+        ]);
+
+        $response->assertStatus(200);
+
+        $newGameId = $response->json('data.id');
+        $duplicatedGame = Game::find($newGameId);
+
+        $this->assertSame($newOpponentId, (int) $duplicatedGame->oponent_team_id);
+        $this->assertStringStartsWith('2026-08-20', (string) $duplicatedGame->date);
+
+        $this->assertDatabaseHas('configured_playing_team_players', [
+            'match_id' => $newGameId,
+            'team_id' => $myTeamId,
+            'player_id' => 101,
+        ]);
+
+        $this->assertDatabaseMissing('configured_playing_team_players', [
+            'match_id' => $newGameId,
+            'team_id' => $oldOpponentId,
+            'player_id' => 202,
+        ]);
+
+        $this->assertDatabaseHas('personal_groupings', [
+            'game_id' => $newGameId,
+            'team_id' => $myTeamId,
+            'group_name' => 'My Team Group',
+        ]);
+
+        $this->assertDatabaseMissing('personal_groupings', [
+            'game_id' => $newGameId,
+            'team_id' => $oldOpponentId,
+            'group_name' => 'Old Opponent Group',
+        ]);
+    }
+
+    private function insertConfiguredPlayerForDuplicateTest(
+        int $gameId,
+        int $teamId,
+        int $playerId,
+        int $teamType,
+        string $type
+    ): void {
+        $row = [
+            'match_id' => $gameId,
+            'team_id' => $teamId,
+            'player_id' => $playerId,
+            'type' => $type,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        if (Schema::hasColumn('configured_playing_team_players', 'practice_player_id')) {
+            $row['practice_player_id'] = null;
+        }
+
+        if (Schema::hasColumn('configured_playing_team_players', 'team_type')) {
+            $row['team_type'] = $teamType;
+        }
+
+        if (Schema::hasColumn('configured_playing_team_players', 'game_type')) {
+            $row['game_type'] = 1;
+        }
+
+        DB::table('configured_playing_team_players')->insert($row);
+    }
+
+    private function personalGroupForDuplicateTest(int $gameId, int $teamId, string $groupName, int $playerId): array
+    {
+        $row = [
+            'game_id' => $gameId,
+            'league_id' => $this->league->id,
+            'team_id' => $teamId,
+            'group_name' => $groupName,
+            'type' => 'Offense',
+            'players' => json_encode([['id' => $playerId]]),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        if (Schema::hasColumn('personal_groupings', 'practice_players')) {
+            $row['practice_players'] = null;
+        }
+
+        if (Schema::hasColumn('personal_groupings', 'group_level')) {
+            $row['group_level'] = 1;
+        }
+
+        if (Schema::hasColumn('personal_groupings', 'status')) {
+            $row['status'] = 'inactive';
+        }
+
+        return $row;
+    }
+
     public function test_can_add_penalty()
     {
         $this->auth();

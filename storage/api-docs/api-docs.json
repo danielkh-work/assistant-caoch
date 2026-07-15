@@ -1704,7 +1704,7 @@
                     "Games"
                 ],
                 "summary": "Duplicate a game and its setup",
-                "description": "Creates a new game from the source game and copies match setup rows: configured players, configured offensive plays, configured defensive plays, assigned offense/defense players, personal groups with play pivots, and opponent packages with package players. Runtime fields (`status`, `match_start_date`, `match_end_date`) are cleared on the duplicate. Event/runtime history is not copied: play logs, play results, penalties, and websocket scoreboards stay only on the source game.",
+                "description": "Creates a new game from the source game. Optional `date` updates the duplicated game date. If `opponent_team_id` is omitted or unchanged, all existing setup is copied. If `opponent_team_id` is changed, the duplicate uses the new opponent team, preserves my-team setup, and skips original-opponent setup such as opponent configured players, opponent groups, defensive configured plays, and opponent packages. Runtime fields (`status`, `match_start_date`, `match_end_date`) are cleared on the duplicate. Event/runtime history is not copied: play logs, play results, penalties, and websocket scoreboards stay only on the source game.",
                 "operationId": "duplicateGame",
                 "parameters": [
                     {
@@ -1718,6 +1718,16 @@
                         }
                     }
                 ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DuplicateGameRequest"
+                            }
+                        }
+                    }
+                },
                 "responses": {
                     "200": {
                         "description": "Game duplicated",
@@ -3253,6 +3263,23 @@
                     "match_end_date": {
                         "type": "string",
                         "example": null,
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "DuplicateGameRequest": {
+                "properties": {
+                    "date": {
+                        "description": "Optional new game date for the duplicated game.",
+                        "type": "string",
+                        "example": "2026-08-20 19:30:00",
+                        "nullable": true
+                    },
+                    "opponent_team_id": {
+                        "description": "Optional replacement opponent team id. Must belong to the same league and cannot be a practice team.",
+                        "type": "integer",
+                        "example": 216,
                         "nullable": true
                     }
                 },
