@@ -117,6 +117,48 @@ class GameControllerTest extends TestCase
         $response->assertStatus(200);
     }
 
+    public function test_get_games_by_league_returns_all_statuses_without_status_filter()
+    {
+        if (! Schema::hasColumn('games', 'status')) {
+            $this->markTestSkipped('Games status column is not available.');
+        }
+
+        $this->auth();
+
+        $endedGame = $this->createGameForLeague(['status' => 'ended']);
+        $startedGame = $this->createGameForLeague(['status' => 'started']);
+
+        $response = $this->getJson('/api/games/league/' . $this->league->id);
+
+        $response->assertStatus(200);
+
+        $gameIds = collect($response->json('data'))->pluck('id')->all();
+        $this->assertContains($endedGame->id, $gameIds);
+        $this->assertContains($startedGame->id, $gameIds);
+    }
+
+    public function test_get_games_by_league_can_filter_not_ended_games()
+    {
+        if (! Schema::hasColumn('games', 'status')) {
+            $this->markTestSkipped('Games status column is not available.');
+        }
+
+        $this->auth();
+
+        $endedGame = $this->createGameForLeague(['status' => 'ended']);
+        $startedGame = $this->createGameForLeague(['status' => 'started']);
+        $scheduledGame = $this->createGameForLeague(['status' => null]);
+
+        $response = $this->getJson('/api/games/league/' . $this->league->id . '?status=not-ended');
+
+        $response->assertStatus(200);
+
+        $gameIds = collect($response->json('data'))->pluck('id')->all();
+        $this->assertNotContains($endedGame->id, $gameIds);
+        $this->assertContains($startedGame->id, $gameIds);
+        $this->assertContains($scheduledGame->id, $gameIds);
+    }
+
     public function test_can_get_searchable_non_practice_opponent_teams()
     {
         if (! Schema::hasTable('league_teams')) {
@@ -501,6 +543,29 @@ class GameControllerTest extends TestCase
         }
 
         return $row;
+    }
+
+    private function createGameForLeague(array $attributes = []): Game
+    {
+        $game = new Game();
+        $game->league_id = $this->league->id;
+        $game->creator_id = $this->user->id;
+        $game->my_team_id = $attributes['my_team_id'] ?? 1;
+        $game->oponent_team_id = $attributes['oponent_team_id'] ?? 2;
+        $game->date = $attributes['date'] ?? now()->toDateString();
+        $game->location_type = $attributes['location_type'] ?? 'home';
+
+        if (array_key_exists('status', $attributes) && Schema::hasColumn('games', 'status')) {
+            $game->status = $attributes['status'];
+        }
+
+        if (array_key_exists('type', $attributes) && Schema::hasColumn('games', 'type')) {
+            $game->type = $attributes['type'];
+        }
+
+        $game->save();
+
+        return $game;
     }
 
     public function test_can_add_penalty()

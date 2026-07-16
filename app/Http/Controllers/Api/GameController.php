@@ -337,10 +337,10 @@ class GameController extends Controller
                 $gamesQuery->where('type', $gameType);
             }
 
-            if ((int) ($gameType ?? 1) !== 2) {
+            $statusFilter = strtolower(trim((string) request()->query('status', '')));
+            if ($statusFilter === 'not-ended') {
                 $gamesQuery->where(function ($query) {
-                    $query->where('type', 2)
-                        ->orWhereNull('status')
+                    $query->whereNull('status')
                         ->orWhere('status', '!=', 'ended');
                 });
             }
