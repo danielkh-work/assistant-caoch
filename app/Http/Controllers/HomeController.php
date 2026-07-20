@@ -7,6 +7,7 @@ use App\Models\Play;
 use App\Models\Player;
 use App\Models\LeagueTeam;
 use App\Models\User;
+use App\Models\Game;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -58,6 +59,38 @@ class HomeController extends Controller
         
      
         return view('layouts.dashboard',$data);
+    }
+
+    public function restoreGames()
+    {
+        $endedGames = Game::with(['myTeam', 'opponentTeam'])
+            ->where('status', 'ended')
+            ->orderByDesc('match_end_date')
+            ->orderByDesc('updated_at')
+            ->limit(25)
+            ->get();
+
+        return view('games.restore', [
+            'endedGames' => $endedGames,
+        ]);
+    }
+
+    public function restorePlayable(Game $game)
+    {
+        if ($game->status !== 'ended') {
+            return redirect()
+                ->route('games.restore')
+                ->with('status', 'This game is already playable.');
+        }
+
+        $game->update([
+            'status' => null,
+            'match_end_date' => null,
+        ]);
+
+        return redirect()
+            ->route('games.restore')
+            ->with('status', 'Game was made playable again.');
     }
 
   

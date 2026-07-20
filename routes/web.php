@@ -4,6 +4,7 @@ use App\Http\Controllers\LeagueController;
 use App\Http\Controllers\PlayController;
 use App\Http\Controllers\PlayerController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\HomeController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Http\Request;
@@ -49,6 +50,9 @@ Route::get('/send-message', function () {
 });
 Route::middleware(['auth'])->group(function () {
     Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
+    Route::get('/restore-games', [HomeController::class, 'restoreGames'])->name('games.restore');
+    Route::post('/games/{game}/restore-playable', [HomeController::class, 'restorePlayable'])
+        ->name('games.restore-playable');
 
     Route::controller(PlayerController::class)->group(function () {
         Route::get('players', 'index')->name('players.index');
