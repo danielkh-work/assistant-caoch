@@ -39,6 +39,11 @@ class Game extends Model
         return $this->belongsTo(LeagueTeam::class, 'oponent_team_id');
     }
 
+    public function league()
+    {
+        return $this->belongsTo(League::class, 'league_id');
+    }
+
 
 
     public function configureMyTeams()

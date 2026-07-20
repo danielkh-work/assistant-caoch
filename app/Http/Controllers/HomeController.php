@@ -63,7 +63,7 @@ class HomeController extends Controller
 
     public function restoreGames()
     {
-        $endedGames = Game::with(['myTeam', 'opponentTeam'])
+        $endedGames = Game::with(['league', 'myTeam', 'opponentTeam'])
             ->where('status', 'ended')
             ->orderByDesc('match_end_date')
             ->orderByDesc('updated_at')

@@ -52,7 +52,7 @@
                                                 vs
                                                 {{ optional($game->opponentTeam)->team_name ?? 'Team '.$game->oponent_team_id }}
                                             </td>
-                                            <td>{{ optional($game->myTeam)->league_id ?? $game->league_id }}</td>
+                                            <td>{{ optional($game->league)->title ?? 'League '.$game->league_id }}</td>
                                             <td>
                                                 {{ $game->match_end_date ? $game->match_end_date->format('M d, Y h:i A') : 'Not captured' }}
                                             </td>
