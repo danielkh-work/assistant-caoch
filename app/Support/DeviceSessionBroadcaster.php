@@ -26,6 +26,7 @@ class DeviceSessionBroadcaster
             'battery' => $device->battery,
             'signal_strength' => $device->signal_strength,
             'signal_label' => $device->signal_label,
+            'battery_signal_synced_at' => $device->battery_signal_synced_at?->toIso8601String(),
         ];
     }
 
@@ -54,6 +55,7 @@ class DeviceSessionBroadcaster
             'battery' => $device->battery,
             'signal_strength' => $device->signal_strength,
             'signal_label' => $device->signal_label,
+            'battery_signal_synced_at' => $device->battery_signal_synced_at?->toIso8601String(),
         ];
     }
 
