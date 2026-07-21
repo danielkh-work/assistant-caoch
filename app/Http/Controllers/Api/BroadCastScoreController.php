@@ -326,6 +326,32 @@ class BroadCastScoreController extends Controller
             : null;
     }
 
+    /**
+     * @param  WebsocketScoreboard|WebsocketPracticeScoreboard|null  $existing
+     * @return array{left: int, right: int}
+     */
+    private function resolveScoreTotals($existing, Request $request, string $action): array
+    {
+        $existingLeft = (int) ($existing?->left_score ?? 0);
+        $existingRight = (int) ($existing?->right_score ?? 0);
+
+        if ($existing && $action === 'Start' && $existing->action === 'EndMatch') {
+            return ['left' => $existingLeft, 'right' => $existingRight];
+        }
+
+        $isScoreChangingAction = (int) $request->input('points', 0) !== 0
+            || $request->input('team') !== 'both';
+
+        if ($existing && ! $isScoreChangingAction && $action !== 'EndMatch' && $action !== 'Start') {
+            return ['left' => $existingLeft, 'right' => $existingRight];
+        }
+
+        return [
+            'left' => (int) ($request->teamLeftScore ?? $existingLeft),
+            'right' => (int) ($request->teamRightScore ?? $existingRight),
+        ];
+    }
+
     private function completeSessionOnEndMatch(int $coachGroupId, string $action, Request $request, string $gameMode, $existingRow = null): void
     {
         if ($action !== 'EndMatch') {
@@ -424,9 +450,9 @@ class BroadCastScoreController extends Controller
 
         $hMarkPosition = $this->resolveHMarkForBroadcast($request, $coachGroupId, $request->game_id);
 
-        // Populate scores from request (frontend sends already-computed totals as teamLeftScore/teamRightScore)
-        self::$scores['left']['total'] = (int) ($request->teamLeftScore ?? $existingPractice?->left_score ?? 0);
-        self::$scores['right']['total'] = (int) ($request->teamRightScore ?? $existingPractice?->right_score ?? 0);
+        $scoreTotals = $this->resolveScoreTotals($existingPractice, $request, $action);
+        self::$scores['left']['total'] = $scoreTotals['left'];
+        self::$scores['right']['total'] = $scoreTotals['right'];
 
         $practiceValues = [
             'left_score' => self::$scores['left']['total'],
@@ -890,9 +916,9 @@ class BroadCastScoreController extends Controller
 
         $hMarkPosition = $this->resolveHMarkForBroadcast($request, $coachGroupId, $request->game_id);
 
-        // Populate scores from request (frontend sends already-computed totals as teamLeftScore/teamRightScore)
-        self::$scores['left']['total'] = (int) ($request->teamLeftScore ?? $existingScoreboard?->left_score ?? 0);
-        self::$scores['right']['total'] = (int) ($request->teamRightScore ?? $existingScoreboard?->right_score ?? 0);
+        $scoreTotals = $this->resolveScoreTotals($existingScoreboard, $request, $action);
+        self::$scores['left']['total'] = $scoreTotals['left'];
+        self::$scores['right']['total'] = $scoreTotals['right'];
 
         $scoreboardValues = [
             'left_score' => self::$scores['left']['total'],
