@@ -287,7 +287,7 @@ class ScoreboardFieldPreservationTest extends TestCase
         Sanctum::actingAs($user);
         $this->actingAs($user, 'api');
 
-        [$league] = $this->createLeagueWithTeams($user);
+        [$league, $team1] = $this->createLeagueWithTeams($user);
         $gameId = 38;
 
         WebsocketScoreboard::create([
@@ -299,6 +299,17 @@ class ScoreboardFieldPreservationTest extends TestCase
             'is_start' => false,
             'action' => 'EndMatch',
             'quarter' => 4,
+            'down' => 3,
+            'distance' => 8,
+            'strategies' => 'red zone',
+            'expected_yard_gain' => 'long',
+            'position_number' => 42,
+            'team_position' => 2,
+            'possession' => (string) $team1->id,
+            'weather' => 'Rain',
+            'coverage_category' => 'man',
+            'h_mark_position' => 'hmark_left',
+            'timer_remaining' => 321,
         ]);
 
         $this->postJson('/api/scoreboard/broadcast', [
@@ -319,6 +330,18 @@ class ScoreboardFieldPreservationTest extends TestCase
             'left_score' => 17,
             'right_score' => 24,
             'action' => 'Start',
+            'quarter' => 4,
+            'down' => 3,
+            'distance' => 8,
+            'strategies' => 'red zone',
+            'expected_yard_gain' => 'long',
+            'position_number' => 42,
+            'team_position' => 2,
+            'possession' => (string) $team1->id,
+            'weather' => 'Rain',
+            'coverage_category' => 'man',
+            'h_mark_position' => 'hmark_left',
+            'timer_remaining' => 321,
         ]);
 
         $this->postJson('/api/scoreboard/broadcast', [
@@ -348,7 +371,7 @@ class ScoreboardFieldPreservationTest extends TestCase
         Sanctum::actingAs($user);
         $this->actingAs($user, 'api');
 
-        [$league] = $this->createLeagueWithTeams($user);
+        [$league, $team1, $team2] = $this->createLeagueWithTeams($user);
         $gameId = 39;
 
         WebsocketPracticeScoreboard::create([
@@ -360,6 +383,17 @@ class ScoreboardFieldPreservationTest extends TestCase
             'is_start' => false,
             'action' => 'EndMatch',
             'quarter' => 4,
+            'down' => 2,
+            'distance' => 6,
+            'strategies' => 'aggressive',
+            'expected_yard_gain' => 'medium',
+            'position_number' => 62,
+            'team_position' => 1,
+            'possession' => (string) $team2->id,
+            'weather' => 'Snow',
+            'coverage_category' => 'zone',
+            'h_mark_position' => 'hmark_right',
+            'timer_remaining' => 222,
         ]);
 
         $this->postJson('/api/practice/scoreboard/broadcast', [
@@ -380,6 +414,18 @@ class ScoreboardFieldPreservationTest extends TestCase
             'left_score' => 10,
             'right_score' => 14,
             'action' => 'Start',
+            'quarter' => 4,
+            'down' => 2,
+            'distance' => 6,
+            'strategies' => 'aggressive',
+            'expected_yard_gain' => 'medium',
+            'position_number' => 62,
+            'team_position' => 1,
+            'possession' => (string) $team2->id,
+            'weather' => 'Snow',
+            'coverage_category' => 'zone',
+            'h_mark_position' => 'hmark_right',
+            'timer_remaining' => 222,
         ]);
     }
 }

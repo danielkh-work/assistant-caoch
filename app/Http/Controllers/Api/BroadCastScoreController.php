@@ -335,7 +335,7 @@ class BroadCastScoreController extends Controller
         $existingLeft = (int) ($existing?->left_score ?? 0);
         $existingRight = (int) ($existing?->right_score ?? 0);
 
-        if ($existing && $action === 'Start' && $existing->action === 'EndMatch') {
+        if ($this->isRestoredScoreboardStart($existing, $action)) {
             return ['left' => $existingLeft, 'right' => $existingRight];
         }
 
@@ -350,6 +350,35 @@ class BroadCastScoreController extends Controller
             'left' => (int) ($request->teamLeftScore ?? $existingLeft),
             'right' => (int) ($request->teamRightScore ?? $existingRight),
         ];
+    }
+
+    private function isRestoredScoreboardStart($existing, string $action): bool
+    {
+        return $existing && $action === 'Start' && $existing->action === 'EndMatch';
+    }
+
+    private function preserveRestoredStartFields(array $persistedFields, $existing): array
+    {
+        foreach ([
+            'league_id',
+            'down',
+            'distance',
+            'strategies',
+            'position_number',
+            'team_position',
+            'expected_yard_gain',
+            'pkg',
+            'possession',
+            'weather',
+            'coverage_category',
+            'sync_time',
+        ] as $field) {
+            if ($existing?->{$field} !== null) {
+                $persistedFields[$field] = $existing->{$field};
+            }
+        }
+
+        return $persistedFields;
     }
 
     private function completeSessionOnEndMatch(int $coachGroupId, string $action, Request $request, string $gameMode, $existingRow = null): void
@@ -432,23 +461,32 @@ class BroadCastScoreController extends Controller
 
         $sessionFields = $this->mergeScoreboardSessionFields($existingPractice, $request, $action);
         $persistedFields = $this->mergeScoreboardPersistedFields($existingPractice, $request);
+        $isRestoredStart = $this->isRestoredScoreboardStart($existingPractice, $action);
+
+        if ($isRestoredStart) {
+            $persistedFields = $this->preserveRestoredStartFields($persistedFields, $existingPractice);
+        }
 
         // On Start, never carry over per-play settings from the prior session on this fixture.
         // mergeScoreboardPersistedFields treats null/'' as "not provided" and falls back to the
         // DB row, so without this override a new match inherits the previous match's down,
         // strategies, pkg, etc. — causing AC to see old settings after refresh.
-        if ($action === 'Start') {
+        if ($action === 'Start' && ! $isRestoredStart) {
             foreach (['down', 'distance', 'strategies', 'pkg', 'expected_yard_gain', 'position_number', 'team_position', 'possession', 'coverage_category'] as $field) {
                 $persistedFields[$field] = null;
             }
         }
 
-        $timerRemaining = $this->resolvePersistedTimerRemaining($existingPractice, $request, $persistedFields);
+        $timerRemaining = $isRestoredStart && $existingPractice?->timer_remaining !== null
+            ? (int) $existingPractice->timer_remaining
+            : $this->resolvePersistedTimerRemaining($existingPractice, $request, $persistedFields);
 
         $shouldRefreshTime = !$existingPractice
             || ((int) $existingPractice->quarter != (int) $request->quarter);
 
-        $hMarkPosition = $this->resolveHMarkForBroadcast($request, $coachGroupId, $request->game_id);
+        $hMarkPosition = $isRestoredStart && $existingPractice?->h_mark_position
+            ? $existingPractice->h_mark_position
+            : $this->resolveHMarkForBroadcast($request, $coachGroupId, $request->game_id);
 
         $scoreTotals = $this->resolveScoreTotals($existingPractice, $request, $action);
         self::$scores['left']['total'] = $scoreTotals['left'];
@@ -458,7 +496,9 @@ class BroadCastScoreController extends Controller
             'left_score' => self::$scores['left']['total'],
             'right_score' => self::$scores['right']['total'],
             'action' => $action,
-            'quarter' => $request->quarter,
+            'quarter' => $isRestoredStart && $existingPractice?->quarter !== null
+                ? $existingPractice->quarter
+                : $request->quarter,
             'is_start' => $sessionFields['is_start'],
             'down' => $persistedFields['down'],
             'distance' => $persistedFields['distance'],
@@ -478,7 +518,7 @@ class BroadCastScoreController extends Controller
             'sys_time' => now()->toDateTimeString(),
         ];
 
-        if ($shouldRefreshTime) {
+        if ($shouldRefreshTime && ! $isRestoredStart) {
             $practiceValues['time'] = now()->toDateTimeString();
         }
 
@@ -506,10 +546,10 @@ class BroadCastScoreController extends Controller
             'points' => $points,
             'action' => $action,
             'isStart' => $sessionFields['is_start'],
-            'time'=>$request->time,
+            'time' => $isRestoredStart && $timerRemaining !== null ? $timerRemaining : $request->time,
             'sync_time' => $persistedFields['sync_time'],
             'sys_time' => now()->toDateTimeString(),
-            'quarter' => $request->quarter,
+            'quarter' => $practiceValues['quarter'],
             'down' => $persistedFields['down'],
             'distance' => $persistedFields['distance'],
             'strategies' => $persistedFields['strategies'],
@@ -525,8 +565,8 @@ class BroadCastScoreController extends Controller
             'league_id' => $persistedFields['league_id'],
             'myteamId' => $request->myteamId,
             'oppteamId' => $request->oppteamId,
-            'teamRightScore' => $request->teamRightScore ?? self::$scores['right']['total'],
-            'teamLeftScore' => $request->teamLeftScore ?? self::$scores['left']['total'],
+            'teamRightScore' => $isRestoredStart ? self::$scores['right']['total'] : ($request->teamRightScore ?? self::$scores['right']['total']),
+            'teamLeftScore' => $isRestoredStart ? self::$scores['left']['total'] : ($request->teamLeftScore ?? self::$scores['left']['total']),
         ];
 
         try {
@@ -900,21 +940,30 @@ class BroadCastScoreController extends Controller
 
         $sessionFields = $this->mergeScoreboardSessionFields($existingScoreboard, $request, $action);
         $persistedFields = $this->mergeScoreboardPersistedFields($existingScoreboard, $request);
+        $isRestoredStart = $this->isRestoredScoreboardStart($existingScoreboard, $action);
+
+        if ($isRestoredStart) {
+            $persistedFields = $this->preserveRestoredStartFields($persistedFields, $existingScoreboard);
+        }
 
         // On Start, never carry over per-play settings from the prior session on this fixture.
         // Same fix as practiceScoreBoardBroadCast — see that method for explanation.
-        if ($action === 'Start') {
+        if ($action === 'Start' && ! $isRestoredStart) {
             foreach (['down', 'distance', 'strategies', 'pkg', 'expected_yard_gain', 'position_number', 'team_position', 'possession', 'coverage_category'] as $field) {
                 $persistedFields[$field] = null;
             }
         }
 
-        $timerRemaining = $this->resolvePersistedTimerRemaining($existingScoreboard, $request, $persistedFields);
+        $timerRemaining = $isRestoredStart && $existingScoreboard?->timer_remaining !== null
+            ? (int) $existingScoreboard->timer_remaining
+            : $this->resolvePersistedTimerRemaining($existingScoreboard, $request, $persistedFields);
 
         $shouldRefreshTime = !$existingScoreboard
             || ((int) $existingScoreboard->quarter != (int) $request->quarter);
 
-        $hMarkPosition = $this->resolveHMarkForBroadcast($request, $coachGroupId, $request->game_id);
+        $hMarkPosition = $isRestoredStart && $existingScoreboard?->h_mark_position
+            ? $existingScoreboard->h_mark_position
+            : $this->resolveHMarkForBroadcast($request, $coachGroupId, $request->game_id);
 
         $scoreTotals = $this->resolveScoreTotals($existingScoreboard, $request, $action);
         self::$scores['left']['total'] = $scoreTotals['left'];
@@ -925,7 +974,9 @@ class BroadCastScoreController extends Controller
             'right_score' => self::$scores['right']['total'],
             'action' => $action,
             'sync_time' => $persistedFields['sync_time'],
-            'quarter' => $request->quarter,
+            'quarter' => $isRestoredStart && $existingScoreboard?->quarter !== null
+                ? $existingScoreboard->quarter
+                : $request->quarter,
             'is_start' => $sessionFields['is_start'],
             'down' => $persistedFields['down'],
             'distance' => $persistedFields['distance'],
@@ -944,7 +995,7 @@ class BroadCastScoreController extends Controller
             'sys_time' => now()->toDateTimeString(),
         ];
 
-        if ($shouldRefreshTime) {
+        if ($shouldRefreshTime && ! $isRestoredStart) {
             $scoreboardValues['time'] = \Carbon\Carbon::now('America/New_York')->toDateTimeString();
         }
 
@@ -976,9 +1027,9 @@ class BroadCastScoreController extends Controller
             'action' => $action,
             'sync_time' => $persistedFields['sync_time'],
             'isStart' => $sessionFields['is_start'],
-            'time'=>$request->time,
+            'time' => $isRestoredStart && $timerRemaining !== null ? $timerRemaining : $request->time,
             'sys_time' => now()->toDateTimeString(),
-            'quarter' => $request->quarter,
+            'quarter' => $scoreboardValues['quarter'],
             'down' => $persistedFields['down'],
             'distance' => $persistedFields['distance'],
             'strategies' => $persistedFields['strategies'],
@@ -994,8 +1045,8 @@ class BroadCastScoreController extends Controller
             'league_id' => $persistedFields['league_id'],
             'myteamId' => $request->myteamId,
             'oppteamId' => $request->oppteamId,
-            'teamRightScore' => $request->teamRightScore ?? self::$scores['right']['total'],
-            'teamLeftScore' => $request->teamLeftScore ?? self::$scores['left']['total'],
+            'teamRightScore' => $isRestoredStart ? self::$scores['right']['total'] : ($request->teamRightScore ?? self::$scores['right']['total']),
+            'teamLeftScore' => $isRestoredStart ? self::$scores['left']['total'] : ($request->teamLeftScore ?? self::$scores['left']['total']),
         ];
 
         \Log::info(['play_mode'=>$request->is_play_mode]);
