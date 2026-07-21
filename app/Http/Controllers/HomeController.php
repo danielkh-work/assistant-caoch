@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\GameRestored;
 use App\Models\League;
 use App\Models\Play;
 use App\Models\Player;
@@ -87,6 +88,8 @@ class HomeController extends Controller
             'status' => null,
             'match_end_date' => null,
         ]);
+
+        broadcast(new GameRestored($game->fresh()));
 
         return redirect()
             ->route('games.restore')
