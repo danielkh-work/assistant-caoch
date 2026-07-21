@@ -39,6 +39,7 @@
                                         <th>ID</th>
                                         <th>Match</th>
                                         <th>League</th>
+                                        <th>Started At</th>
                                         <th>Ended At</th>
                                         <th class="text-right">Action</th>
                                     </tr>
@@ -53,6 +54,9 @@
                                                 {{ optional($game->opponentTeam)->team_name ?? 'Team '.$game->oponent_team_id }}
                                             </td>
                                             <td>{{ optional($game->league)->title ?? 'League '.$game->league_id }}</td>
+                                            <td>
+                                                {{ $game->match_start_date ? $game->match_start_date->format('M d, Y h:i A') : 'Not captured' }}
+                                            </td>
                                             <td>
                                                 {{ $game->match_end_date ? $game->match_end_date->format('M d, Y h:i A') : 'Not captured' }}
                                             </td>
@@ -74,7 +78,7 @@
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="5" class="text-center text-muted">No ended games found.</td>
+                                            <td colspan="6" class="text-center text-muted">No ended games found.</td>
                                         </tr>
                                     @endforelse
                                 </tbody>
