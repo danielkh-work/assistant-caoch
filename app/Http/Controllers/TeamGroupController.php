@@ -8,8 +8,10 @@ use Illuminate\Http\Request;
 
 class TeamGroupController extends Controller
 {
-    public function index(int $teamId)
+    public function index($teamId)
     {
+        $teamId = (int) $teamId;
+
         $groups = TeamGroup::where('team_id', $teamId)
             ->orderBy('created_at', 'desc')
             ->get();
@@ -17,8 +19,10 @@ class TeamGroupController extends Controller
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Team groups fetched', $groups);
     }
 
-    public function store(Request $request, int $teamId)
+    public function store(Request $request, $teamId)
     {
+        $teamId = (int) $teamId;
+
         $request->validate([
             'group_name'      => 'required|string|max:255',
             'description'     => 'nullable|string',
@@ -58,8 +62,10 @@ class TeamGroupController extends Controller
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Team group created', $group);
     }
 
-    public function update(Request $request, int $id)
+    public function update(Request $request, $id)
     {
+        $id = (int) $id;
+
         $group = TeamGroup::findOrFail($id);
 
         $request->validate([
@@ -99,16 +105,20 @@ class TeamGroupController extends Controller
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Team group updated', $group->fresh());
     }
 
-    public function destroy(int $id)
+    public function destroy($id)
     {
+        $id = (int) $id;
+
         $group = TeamGroup::findOrFail($id);
         $group->delete();
 
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Team group deleted');
     }
 
-    public function players(Request $request, int $teamId)
+    public function players(Request $request, $teamId)
     {
+        $teamId = (int) $teamId;
+
         $team = \App\Models\LeagueTeam::findOrFail($teamId);
         $page = max(1, (int) $request->input('page', 1));
         $perPage = max(1, min(500, (int) $request->input('per_page', 10)));
@@ -247,8 +257,10 @@ class TeamGroupController extends Controller
         );
     }
 
-    public function importToGame(Request $request, int $gameId)
+    public function importToGame(Request $request, $gameId)
     {
+        $gameId = (int) $gameId;
+
         $request->validate([
             'group_ids'    => 'required|array',
             'group_ids.*'  => 'integer',
