@@ -70,6 +70,40 @@ class MatchControllerTest extends TestCase
         $response->assertStatus(200);
     }
 
+    public function test_can_get_matches_index_with_pagination()
+    {
+        $this->auth();
+
+        for ($i = 0; $i < 2; $i++) {
+            $match = new PlayGameMode();
+            $match->league_id = $this->league->id;
+            $match->sport_id = $this->league->sport_id;
+            $match->my_team_id = 1;
+            $match->oponent_team_id = 2;
+            if (Schema::hasColumn('play_game_modes', 'user_id')) {
+                $match->user_id = $this->user->id;
+            }
+            $match->my_team_score = $i;
+            $match->oponent_team_score = $i + 1;
+            $match->save();
+        }
+
+        $response = $this->getJson('/api/leagues/' . $this->league->id . '/matches?page=1&per_page=2');
+
+        $response->assertStatus(200)
+            ->assertJsonStructure([
+                'status',
+                'message',
+                'data',
+                'pagination' => ['total', 'current_page', 'per_page', 'last_page'],
+            ])
+            ->assertJsonPath('pagination.current_page', 1)
+            ->assertJsonPath('pagination.per_page', 2);
+
+        $this->assertCount(2, $response->json('data'));
+        $this->assertSame(3, $response->json('pagination.total'));
+    }
+
     public function test_can_update_match_score()
     {
         $this->auth();
