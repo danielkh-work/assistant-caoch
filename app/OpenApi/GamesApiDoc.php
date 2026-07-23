@@ -111,26 +111,46 @@ namespace App\OpenApi;
  * )
  *
  * @OA\Get(
- *     path="/api/leagues/{leagueId}/upcoming-matches",
- *     operationId="upcomingMatchesByLeague",
+ *     path="/api/leagues-upcoming-matches",
+ *     operationId="leaguesUpcomingMatches",
  *     tags={"Games"},
- *     summary="List upcoming real matches for a league",
- *     description="Returns the league id/name and all upcoming non-practice matches for dashboard widgets. Practice matches (`games.type = 2`), ended matches, past dates, and matches from other leagues are excluded.",
+ *     summary="Get all user leagues with their closest upcoming match",
+ *     description="Returns all leagues visible to the authenticated user with their closest upcoming match. For each league, returns only one upcoming match (the closest one). Leagues are sorted by their upcoming match date. Practice matches (`games.type = 2`), ended matches, and past dates are excluded.",
  *     security={{"sanctum":{}}},
- *     @OA\Parameter(
- *         name="leagueId",
- *         in="path",
- *         required=true,
- *         description="League id",
- *         @OA\Schema(type="integer", example=22)
- *     ),
  *     @OA\Response(
  *         response=200,
- *         description="Upcoming real matches",
- *         @OA\JsonContent(ref="#/components/schemas/UpcomingLeagueMatchesResponse")
+ *         description="User leagues with upcoming matches",
+ *         @OA\JsonContent(
+ *             @OA\Property(property="status", type="integer", example=200),
+ *             @OA\Property(property="message", type="string", example="User leagues with upcoming matches"),
+ *             @OA\Property(
+ *                 property="data",
+ *                 type="array",
+ *                 @OA\Items(
+ *                     @OA\Property(property="league_id", type="integer", example=22),
+ *                     @OA\Property(property="league_name", type="string", example="QFA League"),
+ *                     @OA\Property(
+ *                         property="upcoming_match",
+ *                         type="object",
+ *                         nullable=true,
+ *                         @OA\Property(property="id", type="integer", example=36),
+ *                         @OA\Property(property="date", type="string", nullable=true, example="2026-08-20 19:30:00"),
+ *                         @OA\Property(property="status", type="string", nullable=true, example="scheduled"),
+ *                         @OA\Property(property="match_start_date", type="string", nullable=true, example=null),
+ *                         @OA\Property(property="match_end_date", type="string", nullable=true, example=null),
+ *                         @OA\Property(property="my_team_id", type="integer", example=217),
+ *                         @OA\Property(property="my_team_name", type="string", nullable=true, example="Giants St-Jean-sur-Le-Richelieu"),
+ *                         @OA\Property(property="opponent_team_id", type="integer", example=216),
+ *                         @OA\Property(property="opponent_team_name", type="string", nullable=true, example="CNDF Notre Dame"),
+ *                         @OA\Property(property="location", type="string", nullable=true, example="Home Stadium"),
+ *                         @OA\Property(property="location_type", type="string", nullable=true, example="home"),
+ *                         @OA\Property(property="neutral_location", type="string", nullable=true, example=null)
+ *                     )
+ *                 )
+ *             )
+ *         )
  *     ),
- *     @OA\Response(response=401, description="Unauthenticated"),
- *     @OA\Response(response=404, description="League not found")
+ *     @OA\Response(response=401, description="Unauthenticated")
  * )
  *
  * @OA\Get(
