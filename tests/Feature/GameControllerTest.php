@@ -159,6 +159,95 @@ class GameControllerTest extends TestCase
         $this->assertContains($scheduledGame->id, $gameIds);
     }
 
+    public function test_can_get_upcoming_real_matches_by_league_for_dashboard()
+    {
+        if (! Schema::hasTable('league_teams') || ! Schema::hasColumn('games', 'type')) {
+            $this->markTestSkipped('Required game/team schema is not available.');
+        }
+
+        $this->auth();
+
+        $myTeamId = DB::table('league_teams')->insertGetId([
+            'league_id' => $this->league->id,
+            'team_name' => 'Servicore Home',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $opponentTeamId = DB::table('league_teams')->insertGetId([
+            'league_id' => $this->league->id,
+            'team_name' => 'North Opponent',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $upcomingRealMatch = $this->createGameForLeague([
+            'my_team_id' => $myTeamId,
+            'oponent_team_id' => $opponentTeamId,
+            'date' => now()->addDay()->format('Y-m-d H:i:s'),
+            'type' => 1,
+            'status' => null,
+        ]);
+
+        $practiceMatch = $this->createGameForLeague([
+            'my_team_id' => $myTeamId,
+            'oponent_team_id' => $opponentTeamId,
+            'date' => now()->addDays(2)->format('Y-m-d H:i:s'),
+            'type' => 2,
+            'status' => null,
+        ]);
+
+        $endedMatch = $this->createGameForLeague([
+            'my_team_id' => $myTeamId,
+            'oponent_team_id' => $opponentTeamId,
+            'date' => now()->addDays(3)->format('Y-m-d H:i:s'),
+            'type' => 1,
+            'status' => 'ended',
+        ]);
+
+        $pastMatch = $this->createGameForLeague([
+            'my_team_id' => $myTeamId,
+            'oponent_team_id' => $opponentTeamId,
+            'date' => now()->subDay()->format('Y-m-d H:i:s'),
+            'type' => 1,
+            'status' => null,
+        ]);
+
+        $otherLeague = new League();
+        $otherLeague->user_id = $this->user->id;
+        $otherLeague->sport_id = $this->league->sport_id;
+        $otherLeague->league_rule_id = $this->league->league_rule_id;
+        $otherLeague->title = 'Other League';
+        $otherLeague->number_of_team = 2;
+        $otherLeague->save();
+
+        $otherLeagueMatch = $this->createGameForLeague([
+            'league_id' => $otherLeague->id,
+            'my_team_id' => $myTeamId,
+            'oponent_team_id' => $opponentTeamId,
+            'date' => now()->addDays(4)->format('Y-m-d H:i:s'),
+            'type' => 1,
+            'status' => null,
+        ]);
+
+        $response = $this->getJson('/api/leagues/' . $this->league->id . '/upcoming-matches');
+
+        $response->assertStatus(200)
+            ->assertJsonPath('message', 'Upcoming real matches list')
+            ->assertJsonPath('data.league_id', $this->league->id)
+            ->assertJsonPath('data.league_name', 'Test League')
+            ->assertJsonPath('data.matches_count', 1)
+            ->assertJsonPath('data.matches.0.id', $upcomingRealMatch->id)
+            ->assertJsonPath('data.matches.0.my_team_name', 'Servicore Home')
+            ->assertJsonPath('data.matches.0.opponent_team_name', 'North Opponent');
+
+        $matchIds = collect($response->json('data.matches'))->pluck('id')->all();
+        $this->assertNotContains($practiceMatch->id, $matchIds);
+        $this->assertNotContains($endedMatch->id, $matchIds);
+        $this->assertNotContains($pastMatch->id, $matchIds);
+        $this->assertNotContains($otherLeagueMatch->id, $matchIds);
+    }
+
     public function test_can_get_searchable_non_practice_opponent_teams()
     {
         if (! Schema::hasTable('league_teams')) {
@@ -548,7 +637,7 @@ class GameControllerTest extends TestCase
     private function createGameForLeague(array $attributes = []): Game
     {
         $game = new Game();
-        $game->league_id = $this->league->id;
+        $game->league_id = $attributes['league_id'] ?? $this->league->id;
         $game->creator_id = $this->user->id;
         $game->my_team_id = $attributes['my_team_id'] ?? 1;
         $game->oponent_team_id = $attributes['oponent_team_id'] ?? 2;

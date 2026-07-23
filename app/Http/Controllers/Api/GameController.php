@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Game;
 use App\Models\BenchPlayer;
+use App\Models\League;
 use App\Models\LeagueTeam;
 use App\Models\PersionalGrouping;
 use Illuminate\Http\Request;
@@ -318,7 +319,7 @@ class GameController extends Controller
             });
     }
 
-        public function getByLeague($leagueId)
+    public function getByLeague($leagueId)
     {
           \Log::info(['data'=>'checkit working ornot']);
             $gamesQuery = Game::with([
@@ -347,6 +348,58 @@ class GameController extends Controller
 
             $games = $gamesQuery->get();
                     return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "games list", $games);
+    }
+
+    public function upcomingMatchesByLeague($leagueId)
+    {
+        $league = League::select('id', 'title')->find($leagueId);
+
+        if (! $league) {
+            return new BaseResponse(STATUS_CODE_NOTFOUND, STATUS_CODE_NOTFOUND, 'League not found.');
+        }
+
+        $matches = Game::with([
+                'myTeam:id,team_name',
+                'opponentTeam:id,team_name',
+            ])
+            ->where('league_id', $leagueId)
+            ->where('type', 1)
+            ->whereDate('date', '>=', now()->toDateString())
+            ->where(function ($query) {
+                $query->whereNull('status')
+                    ->orWhere('status', '!=', 'ended');
+            })
+            ->orderBy('date')
+            ->orderBy('id')
+            ->get()
+            ->map(function (Game $game) {
+                return [
+                    'id' => $game->id,
+                    'date' => $game->date,
+                    'status' => $game->status,
+                    'match_start_date' => $game->match_start_date,
+                    'match_end_date' => $game->match_end_date,
+                    'my_team_id' => $game->my_team_id,
+                    'my_team_name' => optional($game->myTeam)->team_name,
+                    'opponent_team_id' => $game->oponent_team_id,
+                    'opponent_team_name' => optional($game->opponentTeam)->team_name,
+                    'location' => $game->location,
+                    'location_type' => $game->location_type,
+                    'neutral_location' => $game->neutral_location,
+                ];
+            });
+
+        return new BaseResponse(
+            STATUS_CODE_OK,
+            STATUS_CODE_OK,
+            'Upcoming real matches list',
+            [
+                'league_id' => $league->id,
+                'league_name' => $league->title,
+                'matches_count' => $matches->count(),
+                'matches' => $matches,
+            ]
+        );
     }
 
     public function Penalities(Request $request)
