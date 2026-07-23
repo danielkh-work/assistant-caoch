@@ -402,6 +402,107 @@ class GameController extends Controller
         );
     }
 
+    /**
+     * @OA\Get(
+     *     path="/api/leagues-upcoming-matches",
+     *     summary="Get all user leagues with their closest upcoming match",
+     *     tags={"Games"},
+     *     security={{"sanctum":{}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Success",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="status_code", type="integer", example=200),
+     *             @OA\Property(property="message", type="string", example="User leagues with upcoming matches"),
+     *             @OA\Property(property="data", type="array",
+     *                 @OA\Items(
+     *                     @OA\Property(property="league_id", type="integer"),
+     *                     @OA\Property(property="league_name", type="string"),
+     *                     @OA\Property(property="upcoming_match", type="object", nullable=true,
+     *                         @OA\Property(property="id", type="integer"),
+     *                         @OA\Property(property="date", type="string"),
+     *                         @OA\Property(property="status", type="string"),
+     *                         @OA\Property(property="match_start_date", type="string", format="date-time"),
+     *                         @OA\Property(property="match_end_date", type="string", format="date-time"),
+     *                         @OA\Property(property="my_team_id", type="integer"),
+     *                         @OA\Property(property="my_team_name", type="string"),
+     *                         @OA\Property(property="opponent_team_id", type="integer"),
+     *                         @OA\Property(property="opponent_team_name", type="string"),
+     *                         @OA\Property(property="location", type="string"),
+     *                         @OA\Property(property="location_type", type="string"),
+     *                         @OA\Property(property="neutral_location", type="string")
+     *                     )
+     *                 )
+     *             )
+     *         )
+     *     )
+     * )
+     */
+    public function leaguesUpcomingMatches()
+    {
+        $user = auth()->user();
+
+        $leagues = League::visibleToUser($user)
+            ->select('id', 'title')
+            ->get();
+
+        $leaguesWithMatches = $leagues->map(function ($league) {
+            $closestMatch = Game::with([
+                    'myTeam:id,team_name',
+                    'opponentTeam:id,team_name',
+                ])
+                ->where('league_id', $league->id)
+                ->where('type', 1)
+                ->whereDate('date', '>=', now()->toDateString())
+                ->where(function ($query) {
+                    $query->whereNull('status')
+                        ->orWhere('status', '!=', 'ended');
+                })
+                ->orderBy('date')
+                ->orderBy('id')
+                ->first();
+
+            $matchData = null;
+            if ($closestMatch) {
+                $matchData = [
+                    'id' => $closestMatch->id,
+                    'date' => $closestMatch->date,
+                    'status' => $closestMatch->status,
+                    'match_start_date' => $closestMatch->match_start_date,
+                    'match_end_date' => $closestMatch->match_end_date,
+                    'my_team_id' => $closestMatch->my_team_id,
+                    'my_team_name' => optional($closestMatch->myTeam)->team_name,
+                    'opponent_team_id' => $closestMatch->oponent_team_id,
+                    'opponent_team_name' => optional($closestMatch->opponentTeam)->team_name,
+                    'location' => $closestMatch->location,
+                    'location_type' => $closestMatch->location_type,
+                    'neutral_location' => $closestMatch->neutral_location,
+                ];
+            }
+
+            return [
+                'league_id' => $league->id,
+                'league_name' => $league->title,
+                'upcoming_match' => $matchData,
+            ];
+        });
+
+        // Sort leagues by upcoming match date (leagues with no matches go last)
+        $leaguesWithMatches = $leaguesWithMatches->sortBy(function ($item) {
+            if ($item['upcoming_match'] === null) {
+                return PHP_INT_MAX;
+            }
+            return $item['upcoming_match']['date'] ?? PHP_INT_MAX;
+        })->values();
+
+        return new BaseResponse(
+            STATUS_CODE_OK,
+            STATUS_CODE_OK,
+            'User leagues with upcoming matches',
+            $leaguesWithMatches
+        );
+    }
+
     public function Penalities(Request $request)
     {
           $validated = $request->validate([
