@@ -22,6 +22,10 @@ class Game extends Model
         'status',
         'match_start_date',
         'match_end_date',
+        'date',
+        'location',
+        'neutral_location',
+        'location_type',
     ];
 
     protected $casts = [
