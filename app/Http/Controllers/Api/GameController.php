@@ -21,7 +21,7 @@ class GameController extends Controller
             'league_id' => 'required|integer',
             'my_team_id' => 'required|integer',
             'oponent_team_id' => 'required|integer',
-            'date' => 'required',
+            'date' => 'required|date|after_or_equal:today',
             'location' => 'nullable',
             'neutral_location'  => 'nullable',
             'location_type'   => 'required|string|in:home,visiting,neutral',
@@ -107,7 +107,7 @@ class GameController extends Controller
     public function duplicate(Request $request, $id)
     {
         $request->validate([
-            'date' => 'sometimes|nullable|date',
+            'date' => 'sometimes|nullable|date|after_or_equal:today',
             'opponent_team_id' => 'sometimes|nullable|integer',
             'oponent_team_id' => 'sometimes|nullable|integer',
         ]);
