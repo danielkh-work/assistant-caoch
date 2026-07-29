@@ -7,6 +7,8 @@ use App\Models\LeagueTeam;
 use App\Models\PlayGameMode;
 use App\Models\Sport;
 use App\Models\User;
+use App\Models\Device;
+use App\Models\WebsocketPracticeScoreboard;
 use App\Models\WebsocketScoreboard;
 use App\Support\ActiveGameModeGuard;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -82,6 +84,22 @@ class ScoreboardSessionPreserveTest extends TestCase
         $this->actingAs($user, 'api');
 
         return $user;
+    }
+
+    protected function createRegisteredDeviceForLeague(League $league, User $user): Device
+    {
+        $device = new Device();
+        $device->device_name = 'Scoreboard Device';
+        $device->pairing_code = Device::generateUniquePairingCode();
+        $device->qr_token = Device::generateUniqueQrToken();
+        $device->status = 'registered';
+        $device->user_id = $user->id;
+        $device->paired_at = now();
+        $device->save();
+
+        $league->devices()->attach($device->id);
+
+        return $device;
     }
 
     protected function createActiveSession(User $user, League $league, LeagueTeam $team1, LeagueTeam $team2, string $gameMode = 'play'): PlayGameMode
@@ -329,6 +347,120 @@ class ScoreboardSessionPreserveTest extends TestCase
             ->assertNoContent();
 
         $this->assertDatabaseHas('websocket_scoreboards', [
+            'id' => $row->id,
+            'is_start' => false,
+            'action' => 'INFO',
+        ]);
+    }
+
+    public function test_stale_play_session_does_not_block_new_session_start(): void
+    {
+        config(['game_modes.live_session_timeout_minutes' => 60]);
+
+        $user = $this->authAsCoach();
+        [$league, $team1, $team2] = $this->createLeagueWithTeams($user);
+        $this->createRegisteredDeviceForLeague($league, $user);
+        $staleSession = $this->createActiveSession($user, $league, $team1, $team2);
+
+        $row = WebsocketScoreboard::create([
+            'user_id' => $user->id,
+            'game_id' => 999,
+            'session_id' => $staleSession->id,
+            'league_id' => $league->id,
+            'left_score' => 0,
+            'right_score' => 0,
+            'is_start' => true,
+            'action' => 'Start',
+            'updated_at' => now()->subMinutes(31),
+        ]);
+
+        $this->postJson('/api/start-game-mode', [
+            'league_id' => $league->id,
+            'my_team_id' => $team1->id,
+            'oponent_team_id' => $team2->id,
+            'is_practice' => false,
+        ])->assertStatus(200);
+
+        $this->assertDatabaseHas('play_game_modes', [
+            'id' => $staleSession->id,
+            'status' => ActiveGameModeGuard::STATUS_COMPLETED,
+        ]);
+
+        $this->assertDatabaseHas('websocket_scoreboards', [
+            'id' => $row->id,
+            'is_start' => false,
+            'action' => 'INFO',
+        ]);
+
+        $this->assertSame(1, PlayGameMode::where('user_id', $user->id)
+            ->where('game_mode', 'play')
+            ->where('status', ActiveGameModeGuard::STATUS_ACTIVE)
+            ->count());
+    }
+
+    public function test_fresh_play_session_still_blocks_new_session_start(): void
+    {
+        config(['game_modes.live_session_timeout_minutes' => 60]);
+
+        $user = $this->authAsCoach();
+        [$league, $team1, $team2] = $this->createLeagueWithTeams($user);
+        $this->createRegisteredDeviceForLeague($league, $user);
+        $session = $this->createActiveSession($user, $league, $team1, $team2);
+
+        WebsocketScoreboard::create([
+            'user_id' => $user->id,
+            'game_id' => 999,
+            'session_id' => $session->id,
+            'league_id' => $league->id,
+            'left_score' => 0,
+            'right_score' => 0,
+            'is_start' => true,
+            'action' => 'Start',
+            'updated_at' => now()->subMinutes(29),
+        ]);
+
+        $this->postJson('/api/start-game-mode', [
+            'league_id' => $league->id,
+            'my_team_id' => $team1->id,
+            'oponent_team_id' => $team2->id,
+            'is_practice' => false,
+        ])->assertStatus(STATUS_CODE_UNPROCESSABLE);
+
+        $this->assertDatabaseHas('play_game_modes', [
+            'id' => $session->id,
+            'status' => ActiveGameModeGuard::STATUS_ACTIVE,
+        ]);
+    }
+
+    public function test_stale_practice_session_is_expired_by_reconcile(): void
+    {
+        config(['game_modes.live_session_timeout_minutes' => 60]);
+
+        $user = $this->authAsCoach();
+        [$league, $team1, $team2] = $this->createLeagueWithTeams($user);
+        $session = $this->createActiveSession($user, $league, $team1, $team2, 'practice');
+
+        $row = WebsocketPracticeScoreboard::create([
+            'user_id' => $user->id,
+            'game_id' => 1000,
+            'session_id' => $session->id,
+            'league_id' => $league->id,
+            'left_score' => 0,
+            'right_score' => 0,
+            'is_start' => true,
+            'action' => 'Start',
+            'updated_at' => now()->subMinutes(31),
+        ]);
+
+        $this->getJson('/api/practice-scoreboard?game_id=1000')
+            ->assertNoContent();
+
+        $this->assertDatabaseHas('play_game_modes', [
+            'id' => $session->id,
+            'status' => ActiveGameModeGuard::STATUS_COMPLETED,
+        ]);
+
+        $this->assertDatabaseHas('websocket_practice_scoreboards', [
             'id' => $row->id,
             'is_start' => false,
             'action' => 'INFO',
