@@ -530,6 +530,8 @@ class BroadCastScoreController extends Controller
             $practiceValues
         );
 
+        $this->completeSessionOnEndMatch($coachGroupId, $action, $request, 'practice', $existingPractice);
+
         // Add team names to scores from request
         if ($request->leftTeamName) {
             self::$scores['left']['name'] = $request->leftTeamName;
@@ -1007,6 +1009,8 @@ class BroadCastScoreController extends Controller
             $scoreboardValues
         );
 
+        $this->completeSessionOnEndMatch($coachGroupId, $action, $request, 'play', $existingScoreboard);
+
         // Add team names to scores from request
         if ($request->leftTeamName) {
             self::$scores['left']['name'] = $request->leftTeamName;
@@ -1111,6 +1115,8 @@ class BroadCastScoreController extends Controller
             return response()->noContent();
         }
 
+        ActiveGameModeGuard::touchLiveScoreboardRow($reconciled, 'websocket_scoreboards');
+
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "scoreboardList", $reconciled);
     }
 
@@ -1152,6 +1158,8 @@ class BroadCastScoreController extends Controller
         if (! $reconciled) {
             return response()->noContent();
         }
+
+        ActiveGameModeGuard::touchLiveScoreboardRow($reconciled, 'websocket_practice_scoreboards');
 
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "scoreboardList", $reconciled);
     }
