@@ -355,7 +355,7 @@ class ScoreboardSessionPreserveTest extends TestCase
 
     public function test_stale_play_session_does_not_block_new_session_start(): void
     {
-        config(['game_modes.live_session_timeout_minutes' => 30]);
+        config(['game_modes.live_session_timeout_minutes' => 60]);
 
         $user = $this->authAsCoach();
         [$league, $team1, $team2] = $this->createLeagueWithTeams($user);
@@ -400,7 +400,7 @@ class ScoreboardSessionPreserveTest extends TestCase
 
     public function test_fresh_play_session_still_blocks_new_session_start(): void
     {
-        config(['game_modes.live_session_timeout_minutes' => 30]);
+        config(['game_modes.live_session_timeout_minutes' => 60]);
 
         $user = $this->authAsCoach();
         [$league, $team1, $team2] = $this->createLeagueWithTeams($user);
@@ -434,7 +434,7 @@ class ScoreboardSessionPreserveTest extends TestCase
 
     public function test_stale_practice_session_is_expired_by_reconcile(): void
     {
-        config(['game_modes.live_session_timeout_minutes' => 30]);
+        config(['game_modes.live_session_timeout_minutes' => 60]);
 
         $user = $this->authAsCoach();
         [$league, $team1, $team2] = $this->createLeagueWithTeams($user);
