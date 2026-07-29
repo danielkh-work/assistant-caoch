@@ -17,7 +17,7 @@ class ActiveGameModeGuard
 
     public static function liveSessionTimeoutMinutes(): int
     {
-        return max(1, (int) config('game_modes.live_session_timeout_minutes', 1));
+        return max(1, (int) config('game_modes.live_session_timeout_minutes', 30));
     }
 
     public static function resolveHeadCoachId(User $user): int
