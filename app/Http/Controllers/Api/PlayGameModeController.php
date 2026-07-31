@@ -37,7 +37,7 @@ class PlayGameModeController extends Controller
             return new BaseResponse(
                 STATUS_CODE_UNPROCESSABLE,
                 STATUS_CODE_UNPROCESSABLE,
-                "Game can't be started because it is already ended."
+                "Game can't be started because it is already ended. (game_id: {$scheduledGame->id})"
             );
         }
 
@@ -147,13 +147,27 @@ class PlayGameModeController extends Controller
             }
         }
 
-        return Game::query()
+        // Without an explicit game_id, prefer the latest non-ended fixture for this pair.
+        // Otherwise an older ended rematch of the same teams blocks starting a new one.
+        $query = Game::query()
             ->where('league_id', $request->league_id)
             ->where('my_team_id', $request->my_team_id)
             ->where('oponent_team_id', $request->oponent_team_id)
-            ->where('type', $isPractice ? 2 : 1)
+            ->where('type', $isPractice ? 2 : 1);
+
+        $nonEnded = (clone $query)
+            ->where(function ($q) {
+                $q->whereNull('status')
+                    ->orWhereRaw('LOWER(TRIM(status)) != ?', ['ended']);
+            })
             ->latest('id')
             ->first();
+
+        if ($nonEnded) {
+            return $nonEnded;
+        }
+
+        return $query->latest('id')->first();
     }
 
 
