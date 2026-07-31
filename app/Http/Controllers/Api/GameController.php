@@ -402,42 +402,6 @@ class GameController extends Controller
         );
     }
 
-    /**
-     * @OA\Get(
-     *     path="/api/leagues-upcoming-matches",
-     *     summary="Get all user leagues with their closest upcoming match",
-     *     tags={"Games"},
-     *     security={{"sanctum":{}}},
-     *     @OA\Response(
-     *         response=200,
-     *         description="Success",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="status_code", type="integer", example=200),
-     *             @OA\Property(property="message", type="string", example="User leagues with upcoming matches"),
-     *             @OA\Property(property="data", type="array",
-     *                 @OA\Items(
-     *                     @OA\Property(property="league_id", type="integer"),
-     *                     @OA\Property(property="league_name", type="string"),
-     *                     @OA\Property(property="upcoming_match", type="object", nullable=true,
-     *                         @OA\Property(property="id", type="integer"),
-     *                         @OA\Property(property="date", type="string"),
-     *                         @OA\Property(property="status", type="string"),
-     *                         @OA\Property(property="match_start_date", type="string", format="date-time"),
-     *                         @OA\Property(property="match_end_date", type="string", format="date-time"),
-     *                         @OA\Property(property="my_team_id", type="integer"),
-     *                         @OA\Property(property="my_team_name", type="string"),
-     *                         @OA\Property(property="opponent_team_id", type="integer"),
-     *                         @OA\Property(property="opponent_team_name", type="string"),
-     *                         @OA\Property(property="location", type="string"),
-     *                         @OA\Property(property="location_type", type="string"),
-     *                         @OA\Property(property="neutral_location", type="string")
-     *                     )
-     *                 )
-     *             )
-     *         )
-     *     )
-     * )
-     */
     public function leaguesUpcomingMatches()
     {
         $user = auth()->user();

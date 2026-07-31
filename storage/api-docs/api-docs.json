@@ -526,6 +526,116 @@
                 ]
             }
         },
+        "/api/configure-player": {
+            "post": {
+                "tags": [
+                    "Configure Players"
+                ],
+                "summary": "Replace our-team match roster (configure players)",
+                "description": "Full roster replace for our team (team_type=1). Omit a previously configured player_id to remove them.\n\n**Live match behaviour:**\n- Backend detects live via websocket scoreboard for this `match_id` (`is_start=true`, action != EndMatch, active PlayGameMode).\n- If the match is live AND any players are removed AND `removal_reason` is missing/empty → **422** (roster not saved).\n- If the match is live AND players are removed AND `removal_reason` is provided → roster is saved and a `play_game_logs` event is created with `type_of_log=player_removed`, `reasons=removal_reason`, `players_out=[...]`, then broadcast on MatchLogCreated.\n- If the match is NOT live → `removal_reason` is optional/ignored; normal save (no event log).",
+                "operationId": "configurePlayerStore",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "team_id",
+                                    "match_id",
+                                    "game_type"
+                                ],
+                                "properties": {
+                                    "team_id": {
+                                        "type": "integer",
+                                        "example": 121
+                                    },
+                                    "match_id": {
+                                        "description": "Scheduled games.id",
+                                        "type": "integer",
+                                        "example": 81
+                                    },
+                                    "game_type": {
+                                        "description": "1=regular game, 2=practice",
+                                        "type": "integer",
+                                        "enum": [
+                                            1,
+                                            2
+                                        ],
+                                        "example": 1
+                                    },
+                                    "number_of_players": {
+                                        "type": "integer",
+                                        "example": 11,
+                                        "nullable": true
+                                    },
+                                    "player_id": {
+                                        "description": "Remaining roster player IDs (TeamPlayer ids for game_type=1, PracticeTeamPlayer ids for game_type=2). Omitted previous IDs are removals.",
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer"
+                                        }
+                                    },
+                                    "type": {
+                                        "description": "Parallel array to player_id: offensive|defensive|special",
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string",
+                                            "enum": [
+                                                "offensive",
+                                                "defensive",
+                                                "special"
+                                            ]
+                                        }
+                                    },
+                                    "removal_reason": {
+                                        "description": "Required when match is live and at least one player is removed. Ignored when match is not live.",
+                                        "type": "string",
+                                        "example": "Injured — left field in Q2",
+                                        "nullable": true
+                                    },
+                                    "image": {
+                                        "type": "string",
+                                        "format": "binary",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Roster saved",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConfigurePlayerSuccessResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation / live removal without reason",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConfigurePlayerLiveRemovalErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/api/leagues/{league}/devices": {
             "get": {
                 "tags": [
@@ -1646,42 +1756,116 @@
                 ]
             }
         },
-        "/api/leagues/{leagueId}/upcoming-matches": {
+        "/api/leagues-upcoming-matches": {
             "get": {
                 "tags": [
                     "Games"
                 ],
-                "summary": "List upcoming real matches for a league",
-                "description": "Returns the league id/name and all upcoming non-practice matches for dashboard widgets. Practice matches (`games.type = 2`), ended matches, past dates, and matches from other leagues are excluded.",
-                "operationId": "upcomingMatchesByLeague",
-                "parameters": [
-                    {
-                        "name": "leagueId",
-                        "in": "path",
-                        "description": "League id",
-                        "required": true,
-                        "schema": {
-                            "type": "integer",
-                            "example": 22
-                        }
-                    }
-                ],
+                "summary": "Get all user leagues with their closest upcoming match",
+                "description": "Returns all leagues visible to the authenticated user with their closest upcoming match. For each league, returns only one upcoming match (the closest one). Leagues are sorted by their upcoming match date. Practice matches (`games.type = 2`), ended matches, and past dates are excluded.",
+                "operationId": "leaguesUpcomingMatches",
                 "responses": {
                     "200": {
-                        "description": "Upcoming real matches",
+                        "description": "User leagues with upcoming matches",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/UpcomingLeagueMatchesResponse"
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "User leagues with upcoming matches"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "league_id": {
+                                                        "type": "integer",
+                                                        "example": 22
+                                                    },
+                                                    "league_name": {
+                                                        "type": "string",
+                                                        "example": "QFA League"
+                                                    },
+                                                    "upcoming_match": {
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "integer",
+                                                                "example": 36
+                                                            },
+                                                            "date": {
+                                                                "type": "string",
+                                                                "example": "2026-08-20 19:30:00",
+                                                                "nullable": true
+                                                            },
+                                                            "status": {
+                                                                "type": "string",
+                                                                "example": "scheduled",
+                                                                "nullable": true
+                                                            },
+                                                            "match_start_date": {
+                                                                "type": "string",
+                                                                "example": null,
+                                                                "nullable": true
+                                                            },
+                                                            "match_end_date": {
+                                                                "type": "string",
+                                                                "example": null,
+                                                                "nullable": true
+                                                            },
+                                                            "my_team_id": {
+                                                                "type": "integer",
+                                                                "example": 217
+                                                            },
+                                                            "my_team_name": {
+                                                                "type": "string",
+                                                                "example": "Giants St-Jean-sur-Le-Richelieu",
+                                                                "nullable": true
+                                                            },
+                                                            "opponent_team_id": {
+                                                                "type": "integer",
+                                                                "example": 216
+                                                            },
+                                                            "opponent_team_name": {
+                                                                "type": "string",
+                                                                "example": "CNDF Notre Dame",
+                                                                "nullable": true
+                                                            },
+                                                            "location": {
+                                                                "type": "string",
+                                                                "example": "Home Stadium",
+                                                                "nullable": true
+                                                            },
+                                                            "location_type": {
+                                                                "type": "string",
+                                                                "example": "home",
+                                                                "nullable": true
+                                                            },
+                                                            "neutral_location": {
+                                                                "type": "string",
+                                                                "example": null,
+                                                                "nullable": true
+                                                            }
+                                                        },
+                                                        "type": "object",
+                                                        "nullable": true
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
                                 }
                             }
                         }
                     },
                     "401": {
                         "description": "Unauthenticated"
-                    },
-                    "404": {
-                        "description": "League not found"
                     }
                 },
                 "security": [
@@ -3117,6 +3301,59 @@
                 },
                 "type": "object"
             },
+            "ConfigurePlayerSuccessData": {
+                "properties": {
+                    "removed_player_ids": {
+                        "description": "Player IDs that were on the previous roster but omitted from this save.",
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        },
+                        "example": [
+                            42,
+                            55
+                        ]
+                    },
+                    "removal_logged": {
+                        "description": "True when the match was live and a play_game_logs row (type_of_log=player_removed) was created.",
+                        "type": "boolean",
+                        "example": true
+                    }
+                },
+                "type": "object"
+            },
+            "ConfigurePlayerSuccessResponse": {
+                "properties": {
+                    "status": {
+                        "type": "integer",
+                        "example": 200
+                    },
+                    "message": {
+                        "type": "string",
+                        "example": "configure Player successFully"
+                    },
+                    "data": {
+                        "$ref": "#/components/schemas/ConfigurePlayerSuccessData"
+                    }
+                },
+                "type": "object"
+            },
+            "ConfigurePlayerLiveRemovalErrorResponse": {
+                "properties": {
+                    "status": {
+                        "type": "integer",
+                        "example": 422
+                    },
+                    "message": {
+                        "type": "string",
+                        "example": "A reason is required to remove players while the match is in progress."
+                    }
+                },
+                "type": "object"
+            },
+            "LiveScoreboardCheckHint": {
+                "description": "Not a separate documented path merge — FE checks live match via existing GET /api/scoreboard?game_id={match_id} (or GET /api/practice-scoreboard for practice). Live when HTTP 200 and data.is_start===true and data.action!=='EndMatch'. 204/empty = not live."
+            },
             "DeviceActiveMatch": {
                 "description": "Live scoreboard state when a game or practice match is running for this device's head coach; null when no match is active. Same shape as Pusher score.updated / practice.score.updated payloads.",
                 "properties": {
@@ -4428,6 +4665,10 @@
         {
             "name": "Configuration",
             "description": "Application configuration key-value store"
+        },
+        {
+            "name": "Configure Players",
+            "description": "Pre-game / in-match roster configuration for our team (team_type=1)."
         },
         {
             "name": "Devices",

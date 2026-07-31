@@ -273,6 +273,7 @@ class PlayGameModeController extends Controller
                     'targetdata'       => $targetData,
                     'play'             => $log->target_team,
                     'type_of_log'      => $log->type_of_log,
+                    'reasons'          => $log->reasons,
                     'confirmed'        => $log->confirmed,
                     'actor_id'         => $log->actor_id,
                     'actor_role'       => $log->actor_role,
