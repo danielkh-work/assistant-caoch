@@ -2,11 +2,14 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Configuration;
 use App\Support\ActiveGameModeGuard;
 use Illuminate\Console\Command;
 
 class ExpireStaleGameModeSessions extends Command
 {
+    private const CONFIG_KEY = 'ENABLE_AUTO_ENDED_INACTIVE_MATCHES';
+
     protected $signature = 'game-modes:expire-stale
                             {--coach= : Optional head coach user id}
                             {--league= : Optional league id}
@@ -16,6 +19,16 @@ class ExpireStaleGameModeSessions extends Command
 
     public function handle(): int
     {
+        $enabled = Configuration::query()
+            ->where('key', self::CONFIG_KEY)
+            ->value('value');
+
+        if ($enabled !== 'true') {
+            $this->info('Skipped: ENABLE_AUTO_ENDED_INACTIVE_MATCHES is off.');
+
+            return self::SUCCESS;
+        }
+
         $mode = $this->option('mode');
 
         if ($mode !== null && ! in_array($mode, ['play', 'practice'], true)) {

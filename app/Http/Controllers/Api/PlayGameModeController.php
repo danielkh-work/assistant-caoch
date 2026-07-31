@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Events\MatchLogCreated;
 use App\Http\Controllers\Controller;
 use App\Http\Responses\BaseResponse;
+use App\Models\ConfiguredPlayingTeamPlayer;
 use App\Models\Game;
 use App\Models\League;
 use App\Models\PlayGameLog;
@@ -80,6 +81,24 @@ class PlayGameModeController extends Controller
                 STATUS_CODE_UNPROCESSABLE,
                 'No device configured for this league. Please configure a device in League Settings.'
             );
+        }
+
+        if ($scheduledGame) {
+            $gameType = $isPractice ? 2 : 1;
+            $hasPlayers = ConfiguredPlayingTeamPlayer::query()
+                ->where('match_id', $scheduledGame->id)
+                ->where('team_id', $request->my_team_id)
+                ->where('team_type', 1)
+                ->where('game_type', $gameType)
+                ->exists();
+
+            if (! $hasPlayers) {
+                return new BaseResponse(
+                    STATUS_CODE_UNPROCESSABLE,
+                    STATUS_CODE_UNPROCESSABLE,
+                    'Cannot start match: your team has no players configured.'
+                );
+            }
         }
 
         // Only clean up orphaned opposite-mode scoreboard rows for THIS league.
