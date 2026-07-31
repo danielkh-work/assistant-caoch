@@ -364,7 +364,7 @@ class GameController extends Controller
             ])
             ->where('league_id', $leagueId)
             ->where('type', 1)
-            ->whereDate('date', '>=', now()->toDateString())
+            ->where('date', '>=', now())
             ->where(function ($query) {
                 $query->whereNull('status')
                     ->orWhere('status', '!=', 'ended');
@@ -417,7 +417,7 @@ class GameController extends Controller
                 ])
                 ->where('league_id', $league->id)
                 ->where('type', 1)
-                ->whereDate('date', '>=', now()->toDateString())
+                ->where('date', '>=', now())
                 ->where(function ($query) {
                     $query->whereNull('status')
                         ->orWhere('status', '!=', 'ended');

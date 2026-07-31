@@ -115,7 +115,7 @@ namespace App\OpenApi;
  *     operationId="leaguesUpcomingMatches",
  *     tags={"Games"},
  *     summary="Get all user leagues with their closest upcoming match",
- *     description="Returns all leagues visible to the authenticated user with their closest upcoming match. For each league, returns only one upcoming match (the closest one). Leagues are sorted by their upcoming match date. Practice matches (`games.type = 2`), ended matches, and past dates are excluded.",
+ *     description="Returns all leagues visible to the authenticated user with their closest upcoming match. For each league, returns only one upcoming match (the closest one). Leagues are sorted by their upcoming match date. Practice matches (`games.type = 2`), ended matches, and matches whose `date` datetime is already in the past are excluded.",
  *     security={{"sanctum":{}}},
  *     @OA\Response(
  *         response=200,
