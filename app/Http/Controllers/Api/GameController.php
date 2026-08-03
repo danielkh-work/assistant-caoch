@@ -10,6 +10,7 @@ use App\Models\PersionalGrouping;
 use Illuminate\Http\Request;
 use App\Http\Responses\BaseResponse;
 use App\Models\Penality;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -26,6 +27,17 @@ class GameController extends Controller
             'neutral_location'  => 'nullable',
             'location_type'   => 'required|string|in:home,visiting,neutral',
         ]);
+
+        $validated['date'] = Carbon::parse($validated['date'])->format('Y-m-d H:i:00');
+
+        $conflict = $this->leagueDateTimeConflictResponse(
+            (int) $validated['league_id'],
+            $validated['date']
+        );
+        if ($conflict) {
+            return $conflict;
+        }
+
         $validated['creator_id']= auth()->user()->id;
         $game = Game::create($validated);
 
@@ -104,6 +116,39 @@ class GameController extends Controller
         return $teamId ? (int) $teamId : null;
     }
 
+    /**
+     * League-scoped uniqueness at minute precision (soft-deleted games ignored).
+     */
+    private function leagueDateTimeConflictResponse(
+        int $leagueId,
+        string $date,
+        ?int $ignoreGameId = null
+    ): ?BaseResponse {
+        $minuteStart = Carbon::parse($date)->second(0)->microsecond(0);
+        $minuteEnd = $minuteStart->copy()->second(59);
+
+        $query = Game::query()
+            ->where('league_id', $leagueId)
+            ->whereBetween('date', [
+                $minuteStart->format('Y-m-d H:i:s'),
+                $minuteEnd->format('Y-m-d H:i:s'),
+            ]);
+
+        if ($ignoreGameId !== null) {
+            $query->whereKeyNot($ignoreGameId);
+        }
+
+        if ($query->exists()) {
+            return new BaseResponse(
+                STATUS_CODE_UNPROCESSABLE,
+                STATUS_CODE_UNPROCESSABLE,
+                'A game is already scheduled at this date and time.'
+            );
+        }
+
+        return null;
+    }
+
     public function duplicate(Request $request, $id)
     {
         $request->validate([
@@ -145,13 +190,27 @@ class GameController extends Controller
 
         $opponentChanged = $newOpponentTeamId !== (int) $game->oponent_team_id;
 
+        $resolvedDate = $request->filled('date')
+            ? Carbon::parse($request->input('date'))->format('Y-m-d H:i:00')
+            : (string) $game->date;
+
+        if ($resolvedDate !== '') {
+            $conflict = $this->leagueDateTimeConflictResponse(
+                (int) $game->league_id,
+                $resolvedDate
+            );
+            if ($conflict) {
+                return $conflict;
+            }
+        }
+
         DB::beginTransaction();
         try {
             $duplicate = $game->replicate();
             $duplicate->oponent_team_id = $newOpponentTeamId;
 
             if ($request->filled('date') && Schema::hasColumn('games', 'date')) {
-                $duplicate->date = $request->input('date');
+                $duplicate->date = $resolvedDate;
             }
 
             if (Schema::hasColumn('games', 'creator_id') && auth()->id()) {

@@ -67,7 +67,7 @@ class GameControllerTest extends TestCase
             'league_id' => $this->league->id,
             'my_team_id' => 1,
             'oponent_team_id' => 2,
-            'date' => now()->toDateString(),
+            'date' => now()->addDay()->format('Y-m-d') . ' 15:30:00',
             'location' => 'Home Stadium',
             'location_type' => 'home'
         ]);
@@ -78,6 +78,60 @@ class GameControllerTest extends TestCase
             'location_type' => 'home',
             'location' => 'Home Stadium'
         ]);
+    }
+
+    public function test_create_game_rejects_duplicate_league_datetime()
+    {
+        $this->auth();
+
+        $slot = now()->addDays(3)->format('Y-m-d') . ' 19:00:00';
+        $this->createGameForLeague(['date' => $slot]);
+
+        $response = $this->postJson('/api/games', [
+            'league_id' => $this->league->id,
+            'my_team_id' => 1,
+            'oponent_team_id' => 2,
+            'date' => now()->addDays(3)->format('Y-m-d') . 'T19:00',
+            'location' => 'Another Stadium',
+            'location_type' => 'home',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('message', 'A game is already scheduled at this date and time.');
+    }
+
+    public function test_create_game_allows_same_day_different_time()
+    {
+        $this->auth();
+
+        $day = now()->addDays(4)->format('Y-m-d');
+        $this->createGameForLeague(['date' => $day . ' 10:00:00']);
+
+        $response = $this->postJson('/api/games', [
+            'league_id' => $this->league->id,
+            'my_team_id' => 1,
+            'oponent_team_id' => 2,
+            'date' => $day . ' 18:30:00',
+            'location' => 'Evening Field',
+            'location_type' => 'home',
+        ]);
+
+        $response->assertStatus(200);
+    }
+
+    public function test_duplicate_game_rejects_duplicate_league_datetime()
+    {
+        $this->auth();
+
+        $slot = now()->addDays(5)->format('Y-m-d') . ' 14:00:00';
+        $this->createGameForLeague(['date' => $slot]);
+
+        $response = $this->postJson('/api/games/' . $this->game->id . '/duplicate', [
+            'date' => $slot,
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('message', 'A game is already scheduled at this date and time.');
     }
 
     public function test_can_get_game_index()
@@ -535,7 +589,9 @@ class GameControllerTest extends TestCase
             ]);
         }
 
-        $response = $this->postJson('/api/games/' . $this->game->id . '/duplicate');
+        $response = $this->postJson('/api/games/' . $this->game->id . '/duplicate', [
+            'date' => now()->addDays(10)->format('Y-m-d') . ' 16:45:00',
+        ]);
 
         $response->assertStatus(200)
             ->assertJsonPath('message', 'Game duplicated successfully.');
