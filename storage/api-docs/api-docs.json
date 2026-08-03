@@ -1756,13 +1756,109 @@
                 ]
             }
         },
+        "/api/games/league/{leagueId}": {
+            "get": {
+                "tags": [
+                    "Games"
+                ],
+                "summary": "List games for a league with sort, pagination, and filters",
+                "description": "Returns games for the given league. Non-ended (upcoming/live) games are sorted before ended games; within each group results are ordered by `date` ascending then `id` ascending. Supports optional `type`, `status`, and `date` filters. Always paginated via `page` and `per_page`.",
+                "operationId": "getGamesByLeague",
+                "parameters": [
+                    {
+                        "name": "leagueId",
+                        "in": "path",
+                        "description": "League id",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 22
+                        }
+                    },
+                    {
+                        "name": "type",
+                        "in": "query",
+                        "description": "Optional game type filter. `1` = regular game, `2` = practice game.",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "Optional status filter. Use `not-ended` to exclude games with status `ended`.",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "not-ended"
+                        }
+                    },
+                    {
+                        "name": "date",
+                        "in": "query",
+                        "description": "Optional calendar-day filter on `games.date` (`YYYY-MM-DD`).",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date",
+                            "example": "2026-09-05"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "Page number. Defaults to 1.",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Games per page. Defaults to 18 (6 rows of 3), maximum 100.",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 100,
+                            "minimum": 1,
+                            "example": 18
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated games list",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GamesByLeagueListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/api/leagues-upcoming-matches": {
             "get": {
                 "tags": [
                     "Games"
                 ],
-                "summary": "Get all user leagues with their closest upcoming match",
-                "description": "Returns all leagues visible to the authenticated user with their closest upcoming match. For each league, returns only one upcoming match (the closest one). Leagues are sorted by their upcoming match date. Practice matches (`games.type = 2`), ended matches, and past dates are excluded.",
+                "summary": "Get all user leagues with their upcoming matches",
+                "description": "Returns all leagues visible to the authenticated user with their upcoming matches. For each league, currently returns the closest upcoming match in an array (`upcoming_matches`) so multiple matches can be returned later. Leagues are sorted by their soonest upcoming match date. Practice matches (`games.type = 2`), started/ended matches, and matches whose `date` datetime is already in the past are excluded. Only never-played games (`status`, `match_start_date`, and `match_end_date` all null) are included.",
                 "operationId": "leaguesUpcomingMatches",
                 "responses": {
                     "200": {
@@ -1791,68 +1887,70 @@
                                                         "type": "string",
                                                         "example": "QFA League"
                                                     },
-                                                    "upcoming_match": {
-                                                        "properties": {
-                                                            "id": {
-                                                                "type": "integer",
-                                                                "example": 36
+                                                    "upcoming_matches": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "properties": {
+                                                                "id": {
+                                                                    "type": "integer",
+                                                                    "example": 36
+                                                                },
+                                                                "date": {
+                                                                    "type": "string",
+                                                                    "example": "2026-08-20 19:30:00",
+                                                                    "nullable": true
+                                                                },
+                                                                "status": {
+                                                                    "type": "string",
+                                                                    "example": null,
+                                                                    "nullable": true
+                                                                },
+                                                                "match_start_date": {
+                                                                    "type": "string",
+                                                                    "example": null,
+                                                                    "nullable": true
+                                                                },
+                                                                "match_end_date": {
+                                                                    "type": "string",
+                                                                    "example": null,
+                                                                    "nullable": true
+                                                                },
+                                                                "my_team_id": {
+                                                                    "type": "integer",
+                                                                    "example": 217
+                                                                },
+                                                                "my_team_name": {
+                                                                    "type": "string",
+                                                                    "example": "Giants St-Jean-sur-Le-Richelieu",
+                                                                    "nullable": true
+                                                                },
+                                                                "opponent_team_id": {
+                                                                    "type": "integer",
+                                                                    "example": 216
+                                                                },
+                                                                "opponent_team_name": {
+                                                                    "type": "string",
+                                                                    "example": "CNDF Notre Dame",
+                                                                    "nullable": true
+                                                                },
+                                                                "location": {
+                                                                    "type": "string",
+                                                                    "example": "Home Stadium",
+                                                                    "nullable": true
+                                                                },
+                                                                "location_type": {
+                                                                    "type": "string",
+                                                                    "example": "home",
+                                                                    "nullable": true
+                                                                },
+                                                                "neutral_location": {
+                                                                    "type": "string",
+                                                                    "example": null,
+                                                                    "nullable": true
+                                                                }
                                                             },
-                                                            "date": {
-                                                                "type": "string",
-                                                                "example": "2026-08-20 19:30:00",
-                                                                "nullable": true
-                                                            },
-                                                            "status": {
-                                                                "type": "string",
-                                                                "example": "scheduled",
-                                                                "nullable": true
-                                                            },
-                                                            "match_start_date": {
-                                                                "type": "string",
-                                                                "example": null,
-                                                                "nullable": true
-                                                            },
-                                                            "match_end_date": {
-                                                                "type": "string",
-                                                                "example": null,
-                                                                "nullable": true
-                                                            },
-                                                            "my_team_id": {
-                                                                "type": "integer",
-                                                                "example": 217
-                                                            },
-                                                            "my_team_name": {
-                                                                "type": "string",
-                                                                "example": "Giants St-Jean-sur-Le-Richelieu",
-                                                                "nullable": true
-                                                            },
-                                                            "opponent_team_id": {
-                                                                "type": "integer",
-                                                                "example": 216
-                                                            },
-                                                            "opponent_team_name": {
-                                                                "type": "string",
-                                                                "example": "CNDF Notre Dame",
-                                                                "nullable": true
-                                                            },
-                                                            "location": {
-                                                                "type": "string",
-                                                                "example": "Home Stadium",
-                                                                "nullable": true
-                                                            },
-                                                            "location_type": {
-                                                                "type": "string",
-                                                                "example": "home",
-                                                                "nullable": true
-                                                            },
-                                                            "neutral_location": {
-                                                                "type": "string",
-                                                                "example": null,
-                                                                "nullable": true
-                                                            }
-                                                        },
-                                                        "type": "object",
-                                                        "nullable": true
+                                                            "type": "object"
+                                                        }
                                                     }
                                                 },
                                                 "type": "object"
@@ -3742,6 +3840,49 @@
                     },
                     "data": {
                         "$ref": "#/components/schemas/Game"
+                    }
+                },
+                "type": "object"
+            },
+            "GamesByLeaguePagination": {
+                "properties": {
+                    "total": {
+                        "type": "integer",
+                        "example": 25
+                    },
+                    "current_page": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "per_page": {
+                        "type": "integer",
+                        "example": 18
+                    },
+                    "last_page": {
+                        "type": "integer",
+                        "example": 3
+                    }
+                },
+                "type": "object"
+            },
+            "GamesByLeagueListResponse": {
+                "properties": {
+                    "status": {
+                        "type": "integer",
+                        "example": 200
+                    },
+                    "message": {
+                        "type": "string",
+                        "example": "games list"
+                    },
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Game"
+                        }
+                    },
+                    "pagination": {
+                        "$ref": "#/components/schemas/GamesByLeaguePagination"
                     }
                 },
                 "type": "object"

@@ -321,33 +321,57 @@ class GameController extends Controller
 
     public function getByLeague($leagueId)
     {
-          \Log::info(['data'=>'checkit working ornot']);
-            $gamesQuery = Game::with([
-                'myTeam',
-                'opponentTeam',
-                'configuredPlays',
-                'configureMyTeams',
-                'configureVisitingTeams'
-            ])
+        $gamesQuery = Game::with([
+            'myTeam',
+            'opponentTeam',
+            'configuredPlays',
+            'configureMyTeams',
+            'configureVisitingTeams',
+        ])->where('league_id', $leagueId);
 
-            ->where('league_id', $leagueId);
+        $gameType = request()->query('type');
+        if ($gameType !== null) {
+            $gamesQuery->where('type', $gameType);
+        }
 
+        $statusFilter = strtolower(trim((string) request()->query('status', '')));
+        if ($statusFilter === 'not-ended') {
+            $gamesQuery->where(function ($query) {
+                $query->whereNull('status')
+                    ->orWhere('status', '!=', 'ended');
+            });
+        }
 
-            $gameType = request()->query('type');
-            if ($gameType !== null) {
-                $gamesQuery->where('type', $gameType);
-            }
+        $dateFilter = trim((string) request()->query('date', ''));
+        if ($dateFilter !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateFilter)) {
+            $gamesQuery->whereDate('date', $dateFilter);
+        }
 
-            $statusFilter = strtolower(trim((string) request()->query('status', '')));
-            if ($statusFilter === 'not-ended') {
-                $gamesQuery->where(function ($query) {
-                    $query->whereNull('status')
-                        ->orWhere('status', '!=', 'ended');
-                });
-            }
+        $gamesQuery
+            ->orderByRaw("CASE WHEN LOWER(COALESCE(status, '')) = 'ended' THEN 1 ELSE 0 END")
+            ->orderBy('date')
+            ->orderBy('id');
 
-            $games = $gamesQuery->get();
-                    return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "games list", $games);
+        $page = max(1, (int) request()->input('page', 1));
+        $perPage = max(1, min(100, (int) request()->input('per_page', 18)));
+        $paginator = $gamesQuery->paginate($perPage, ['*'], 'page', $page);
+
+        $pagination = [
+            'total' => $paginator->total(),
+            'current_page' => $paginator->currentPage(),
+            'per_page' => $paginator->perPage(),
+            'last_page' => $paginator->lastPage(),
+        ];
+
+        return new BaseResponse(
+            STATUS_CODE_OK,
+            STATUS_CODE_OK,
+            'games list',
+            $paginator->items(),
+            null,
+            null,
+            $pagination
+        );
     }
 
     public function upcomingMatchesByLeague($leagueId)
@@ -365,10 +389,9 @@ class GameController extends Controller
             ->where('league_id', $leagueId)
             ->where('type', 1)
             ->where('date', '>=', now())
-            ->where(function ($query) {
-                $query->whereNull('status')
-                    ->orWhere('status', '!=', 'ended');
-            })
+            ->whereNull('status')
+            ->whereNull('match_start_date')
+            ->whereNull('match_end_date')
             ->orderBy('date')
             ->orderBy('id')
             ->get()
@@ -411,52 +434,52 @@ class GameController extends Controller
             ->get();
 
         $leaguesWithMatches = $leagues->map(function ($league) {
-            $closestMatch = Game::with([
+            $matches = Game::with([
                     'myTeam:id,team_name',
                     'opponentTeam:id,team_name',
                 ])
                 ->where('league_id', $league->id)
                 ->where('type', 1)
                 ->where('date', '>=', now())
-                ->where(function ($query) {
-                    $query->whereNull('status')
-                        ->orWhere('status', '!=', 'ended');
-                })
+                ->whereNull('status')
+                ->whereNull('match_start_date')
+                ->whereNull('match_end_date')
                 ->orderBy('date')
                 ->orderBy('id')
-                ->first();
-
-            $matchData = null;
-            if ($closestMatch) {
-                $matchData = [
-                    'id' => $closestMatch->id,
-                    'date' => $closestMatch->date,
-                    'status' => $closestMatch->status,
-                    'match_start_date' => $closestMatch->match_start_date,
-                    'match_end_date' => $closestMatch->match_end_date,
-                    'my_team_id' => $closestMatch->my_team_id,
-                    'my_team_name' => optional($closestMatch->myTeam)->team_name,
-                    'opponent_team_id' => $closestMatch->oponent_team_id,
-                    'opponent_team_name' => optional($closestMatch->opponentTeam)->team_name,
-                    'location' => $closestMatch->location,
-                    'location_type' => $closestMatch->location_type,
-                    'neutral_location' => $closestMatch->neutral_location,
-                ];
-            }
+                ->limit(1)
+                ->get()
+                ->map(function (Game $game) {
+                    return [
+                        'id' => $game->id,
+                        'date' => $game->date,
+                        'status' => $game->status,
+                        'match_start_date' => $game->match_start_date,
+                        'match_end_date' => $game->match_end_date,
+                        'my_team_id' => $game->my_team_id,
+                        'my_team_name' => optional($game->myTeam)->team_name,
+                        'opponent_team_id' => $game->oponent_team_id,
+                        'opponent_team_name' => optional($game->opponentTeam)->team_name,
+                        'location' => $game->location,
+                        'location_type' => $game->location_type,
+                        'neutral_location' => $game->neutral_location,
+                    ];
+                })
+                ->values()
+                ->all();
 
             return [
                 'league_id' => $league->id,
                 'league_name' => $league->title,
-                'upcoming_match' => $matchData,
+                'upcoming_matches' => $matches,
             ];
         });
 
-        // Sort leagues by upcoming match date (leagues with no matches go last)
+        // Sort leagues by soonest upcoming match date (leagues with no matches go last)
         $leaguesWithMatches = $leaguesWithMatches->sortBy(function ($item) {
-            if ($item['upcoming_match'] === null) {
+            if (empty($item['upcoming_matches'])) {
                 return PHP_INT_MAX;
             }
-            return $item['upcoming_match']['date'] ?? PHP_INT_MAX;
+            return $item['upcoming_matches'][0]['date'] ?? PHP_INT_MAX;
         })->values();
 
         return new BaseResponse(

@@ -110,12 +110,91 @@ namespace App\OpenApi;
  *     @OA\Property(property="data", ref="#/components/schemas/Game")
  * )
  *
+ * @OA\Schema(
+ *     schema="GamesByLeaguePagination",
+ *     type="object",
+ *     @OA\Property(property="total", type="integer", example=25),
+ *     @OA\Property(property="current_page", type="integer", example=1),
+ *     @OA\Property(property="per_page", type="integer", example=18),
+ *     @OA\Property(property="last_page", type="integer", example=3)
+ * )
+ *
+ * @OA\Schema(
+ *     schema="GamesByLeagueListResponse",
+ *     type="object",
+ *     @OA\Property(property="status", type="integer", example=200),
+ *     @OA\Property(property="message", type="string", example="games list"),
+ *     @OA\Property(
+ *         property="data",
+ *         type="array",
+ *         @OA\Items(ref="#/components/schemas/Game")
+ *     ),
+ *     @OA\Property(property="pagination", ref="#/components/schemas/GamesByLeaguePagination")
+ * )
+ *
+ * @OA\Get(
+ *     path="/api/games/league/{leagueId}",
+ *     operationId="getGamesByLeague",
+ *     tags={"Games"},
+ *     summary="List games for a league with sort, pagination, and filters",
+ *     description="Returns games for the given league. Non-ended (upcoming/live) games are sorted before ended games; within each group results are ordered by `date` ascending then `id` ascending. Supports optional `type`, `status`, and `date` filters. Always paginated via `page` and `per_page`.",
+ *     security={{"sanctum":{}}},
+ *     @OA\Parameter(
+ *         name="leagueId",
+ *         in="path",
+ *         required=true,
+ *         description="League id",
+ *         @OA\Schema(type="integer", example=22)
+ *     ),
+ *     @OA\Parameter(
+ *         name="type",
+ *         in="query",
+ *         required=false,
+ *         description="Optional game type filter. `1` = regular game, `2` = practice game.",
+ *         @OA\Schema(type="integer", example=1)
+ *     ),
+ *     @OA\Parameter(
+ *         name="status",
+ *         in="query",
+ *         required=false,
+ *         description="Optional status filter. Use `not-ended` to exclude games with status `ended`.",
+ *         @OA\Schema(type="string", example="not-ended")
+ *     ),
+ *     @OA\Parameter(
+ *         name="date",
+ *         in="query",
+ *         required=false,
+ *         description="Optional calendar-day filter on `games.date` (`YYYY-MM-DD`).",
+ *         @OA\Schema(type="string", format="date", example="2026-09-05")
+ *     ),
+ *     @OA\Parameter(
+ *         name="page",
+ *         in="query",
+ *         required=false,
+ *         description="Page number. Defaults to 1.",
+ *         @OA\Schema(type="integer", minimum=1, example=1)
+ *     ),
+ *     @OA\Parameter(
+ *         name="per_page",
+ *         in="query",
+ *         required=false,
+ *         description="Games per page. Defaults to 18 (6 rows of 3), maximum 100.",
+ *         @OA\Schema(type="integer", minimum=1, maximum=100, example=18)
+ *     ),
+ *     @OA\Response(
+ *         response=200,
+ *         description="Paginated games list",
+ *         @OA\JsonContent(ref="#/components/schemas/GamesByLeagueListResponse")
+ *     ),
+ *     @OA\Response(response=401, description="Unauthenticated")
+ * )
+ *
  * @OA\Get(
  *     path="/api/leagues-upcoming-matches",
  *     operationId="leaguesUpcomingMatches",
  *     tags={"Games"},
- *     summary="Get all user leagues with their closest upcoming match",
- *     description="Returns all leagues visible to the authenticated user with their closest upcoming match. For each league, returns only one upcoming match (the closest one). Leagues are sorted by their upcoming match date. Practice matches (`games.type = 2`), ended matches, and matches whose `date` datetime is already in the past are excluded.",
+ *     summary="Get all user leagues with their upcoming matches",
+ *     description="Returns all leagues visible to the authenticated user with their upcoming matches. For each league, currently returns the closest upcoming match in an array (`upcoming_matches`) so multiple matches can be returned later. Leagues are sorted by their soonest upcoming match date. Practice matches (`games.type = 2`), started/ended matches, and matches whose `date` datetime is already in the past are excluded. Only never-played games (`status`, `match_start_date`, and `match_end_date` all null) are included.",
  *     security={{"sanctum":{}}},
  *     @OA\Response(
  *         response=200,
@@ -130,21 +209,23 @@ namespace App\OpenApi;
  *                     @OA\Property(property="league_id", type="integer", example=22),
  *                     @OA\Property(property="league_name", type="string", example="QFA League"),
  *                     @OA\Property(
- *                         property="upcoming_match",
- *                         type="object",
- *                         nullable=true,
- *                         @OA\Property(property="id", type="integer", example=36),
- *                         @OA\Property(property="date", type="string", nullable=true, example="2026-08-20 19:30:00"),
- *                         @OA\Property(property="status", type="string", nullable=true, example="scheduled"),
- *                         @OA\Property(property="match_start_date", type="string", nullable=true, example=null),
- *                         @OA\Property(property="match_end_date", type="string", nullable=true, example=null),
- *                         @OA\Property(property="my_team_id", type="integer", example=217),
- *                         @OA\Property(property="my_team_name", type="string", nullable=true, example="Giants St-Jean-sur-Le-Richelieu"),
- *                         @OA\Property(property="opponent_team_id", type="integer", example=216),
- *                         @OA\Property(property="opponent_team_name", type="string", nullable=true, example="CNDF Notre Dame"),
- *                         @OA\Property(property="location", type="string", nullable=true, example="Home Stadium"),
- *                         @OA\Property(property="location_type", type="string", nullable=true, example="home"),
- *                         @OA\Property(property="neutral_location", type="string", nullable=true, example=null)
+ *                         property="upcoming_matches",
+ *                         type="array",
+ *                         @OA\Items(
+ *                             type="object",
+ *                             @OA\Property(property="id", type="integer", example=36),
+ *                             @OA\Property(property="date", type="string", nullable=true, example="2026-08-20 19:30:00"),
+ *                             @OA\Property(property="status", type="string", nullable=true, example=null),
+ *                             @OA\Property(property="match_start_date", type="string", nullable=true, example=null),
+ *                             @OA\Property(property="match_end_date", type="string", nullable=true, example=null),
+ *                             @OA\Property(property="my_team_id", type="integer", example=217),
+ *                             @OA\Property(property="my_team_name", type="string", nullable=true, example="Giants St-Jean-sur-Le-Richelieu"),
+ *                             @OA\Property(property="opponent_team_id", type="integer", example=216),
+ *                             @OA\Property(property="opponent_team_name", type="string", nullable=true, example="CNDF Notre Dame"),
+ *                             @OA\Property(property="location", type="string", nullable=true, example="Home Stadium"),
+ *                             @OA\Property(property="location_type", type="string", nullable=true, example="home"),
+ *                             @OA\Property(property="neutral_location", type="string", nullable=true, example=null)
+ *                         )
  *                     )
  *                 )
  *             )

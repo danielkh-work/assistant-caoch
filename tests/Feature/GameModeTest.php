@@ -142,13 +142,179 @@ class GameModeTest extends TestCase
 
         $response
             ->assertStatus(STATUS_CODE_UNPROCESSABLE)
-            ->assertJsonPath('message', "Game can't be started because it is already ended.");
+            ->assertJsonPath('message', "Game can't be started because it is already ended. (game_id: {$game->id})");
 
         $this->assertDatabaseMissing('play_game_modes', [
             'league_id' => $league->id,
             'my_team_id' => $team1->id,
             'oponent_team_id' => $team2->id,
         ]);
+    }
+
+    public function test_can_start_game_when_only_my_team_has_configured_players()
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasTable('configured_playing_team_players')) {
+            $this->markTestSkipped('configured_playing_team_players table is not available.');
+        }
+
+        $user = $this->authAsCoach();
+        [$league, $team1, $team2] = $this->createLeagueWithTeams($user);
+        $this->createRegisteredDeviceForLeague($league, $user);
+
+        $game = new Game();
+        $game->league_id = $league->id;
+        $game->creator_id = $user->id;
+        $game->my_team_id = $team1->id;
+        $game->oponent_team_id = $team2->id;
+        $game->type = 1;
+        $game->status = null;
+        $game->save();
+
+        $teamPlayerId = $this->createTeamPlayerForTeam($team1->id, $user->id, 'Starter One');
+
+        $row = [
+            'team_id' => $team1->id,
+            'match_id' => $game->id,
+            'player_id' => $teamPlayerId,
+            'type' => 'offensive',
+        ];
+        if (\Illuminate\Support\Facades\Schema::hasColumn('configured_playing_team_players', 'team_type')) {
+            $row['team_type'] = 1;
+        }
+        if (\Illuminate\Support\Facades\Schema::hasColumn('configured_playing_team_players', 'game_type')) {
+            $row['game_type'] = 1;
+        }
+        DB::table('configured_playing_team_players')->insert($row);
+
+        $response = $this->postJson('/api/start-game-mode', [
+            'league_id' => $league->id,
+            'my_team_id' => $team1->id,
+            'oponent_team_id' => $team2->id,
+            'game_id' => $game->id,
+            'is_practice' => false,
+        ]);
+
+        $response->assertStatus(200);
+    }
+
+    public function test_can_start_game_when_my_team_only_has_bench_players()
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasTable('offense_defense_players')) {
+            $this->markTestSkipped('offense_defense_players (bench) table is not available.');
+        }
+
+        $user = $this->authAsCoach();
+        [$league, $team1, $team2] = $this->createLeagueWithTeams($user);
+        $this->createRegisteredDeviceForLeague($league, $user);
+
+        $game = new Game();
+        $game->league_id = $league->id;
+        $game->creator_id = $user->id;
+        $game->my_team_id = $team1->id;
+        $game->oponent_team_id = $team2->id;
+        $game->type = 1;
+        $game->status = null;
+        $game->save();
+
+        $teamPlayerId = $this->createTeamPlayerForTeam($team1->id, $user->id, 'Bench Starter');
+
+        DB::table('offense_defense_players')->insert([
+            'game_id' => $game->id,
+            'team_id' => $team1->id,
+            'league_id' => $league->id,
+            'player_id' => $teamPlayerId,
+            'type' => 'myteam',
+            'player_type' => 'offence',
+            'position' => 'QB',
+            'rpp' => 50,
+        ]);
+
+        $response = $this->postJson('/api/start-game-mode', [
+            'league_id' => $league->id,
+            'my_team_id' => $team1->id,
+            'oponent_team_id' => $team2->id,
+            'game_id' => $game->id,
+            'is_practice' => false,
+        ]);
+
+        $response->assertStatus(200);
+    }
+
+    public function test_cannot_start_game_when_only_opponent_has_players()
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasTable('configured_playing_team_players')) {
+            $this->markTestSkipped('configured_playing_team_players table is not available.');
+        }
+
+        $user = $this->authAsCoach();
+        [$league, $team1, $team2] = $this->createLeagueWithTeams($user);
+        $this->createRegisteredDeviceForLeague($league, $user);
+
+        $game = new Game();
+        $game->league_id = $league->id;
+        $game->creator_id = $user->id;
+        $game->my_team_id = $team1->id;
+        $game->oponent_team_id = $team2->id;
+        $game->type = 1;
+        $game->status = null;
+        $game->save();
+
+        $teamPlayerId = $this->createTeamPlayerForTeam($team2->id, $user->id, 'Opponent Only');
+
+        $row = [
+            'team_id' => $team2->id,
+            'match_id' => $game->id,
+            'player_id' => $teamPlayerId,
+            'type' => 'offensive',
+        ];
+        if (\Illuminate\Support\Facades\Schema::hasColumn('configured_playing_team_players', 'team_type')) {
+            $row['team_type'] = 2;
+        }
+        if (\Illuminate\Support\Facades\Schema::hasColumn('configured_playing_team_players', 'game_type')) {
+            $row['game_type'] = 1;
+        }
+        DB::table('configured_playing_team_players')->insert($row);
+
+        $response = $this->postJson('/api/start-game-mode', [
+            'league_id' => $league->id,
+            'my_team_id' => $team1->id,
+            'oponent_team_id' => $team2->id,
+            'game_id' => $game->id,
+            'is_practice' => false,
+        ]);
+
+        $response
+            ->assertStatus(STATUS_CODE_UNPROCESSABLE)
+            ->assertJsonPath('message', 'Cannot start match: your team has no players configured.');
+    }
+
+    protected function createTeamPlayerForTeam(int $teamId, int $userId, string $name): int
+    {
+        $basePlayer = new \App\Models\Player();
+        $basePlayer->name = $name;
+        $basePlayer->user_id = $userId;
+        $basePlayer->number = 10;
+        $basePlayer->position = 'QB';
+        $basePlayer->size = 70;
+        $basePlayer->speed = 80;
+        $basePlayer->strength = 80;
+        $basePlayer->weight = 200;
+        $basePlayer->height = 180;
+        $basePlayer->save();
+
+        $teamPlayer = new \App\Models\TeamPlayer();
+        $teamPlayer->player_id = $basePlayer->id;
+        $teamPlayer->team_id = $teamId;
+        $teamPlayer->number = 10;
+        $teamPlayer->position = 'QB';
+        $teamPlayer->size = 70;
+        $teamPlayer->speed = 80;
+        $teamPlayer->strength = 80;
+        $teamPlayer->weight = 200;
+        $teamPlayer->height = 180;
+        $teamPlayer->save();
+
+        return (int) $teamPlayer->id;
     }
 
     public function test_can_add_play_game_log()

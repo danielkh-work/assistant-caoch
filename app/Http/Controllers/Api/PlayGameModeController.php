@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Events\MatchLogCreated;
 use App\Http\Controllers\Controller;
 use App\Http\Responses\BaseResponse;
+use App\Models\BenchPlayer;
 use App\Models\ConfiguredPlayingTeamPlayer;
 use App\Models\Game;
 use App\Models\League;
@@ -85,14 +86,27 @@ class PlayGameModeController extends Controller
 
         if ($scheduledGame) {
             $gameType = $isPractice ? 2 : 1;
-            $hasPlayers = ConfiguredPlayingTeamPlayer::query()
+            // Always validate against the fixture's my team only — never require
+            // opponent/visiting roster. Position UI can show field players from
+            // either configured_playing_team_players or my-team bench rows.
+            $myTeamId = (int) ($scheduledGame->my_team_id ?: $request->my_team_id);
+
+            $hasConfiguredPlayers = ConfiguredPlayingTeamPlayer::query()
                 ->where('match_id', $scheduledGame->id)
-                ->where('team_id', $request->my_team_id)
-                ->where('team_type', 1)
-                ->where('game_type', $gameType)
+                ->where('team_id', $myTeamId)
+                ->where(function ($query) use ($gameType) {
+                    $query->where('game_type', $gameType)
+                        ->orWhereNull('game_type');
+                })
                 ->exists();
 
-            if (! $hasPlayers) {
+            $hasBenchPlayers = BenchPlayer::query()
+                ->where('game_id', $scheduledGame->id)
+                ->where('team_id', $myTeamId)
+                ->where('type', 'myteam')
+                ->exists();
+
+            if (! $hasConfiguredPlayers && ! $hasBenchPlayers) {
                 return new BaseResponse(
                     STATUS_CODE_UNPROCESSABLE,
                     STATUS_CODE_UNPROCESSABLE,

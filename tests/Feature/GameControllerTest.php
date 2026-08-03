@@ -114,7 +114,13 @@ class GameControllerTest extends TestCase
 
         $response = $this->getJson('/api/games/league/' . $this->league->id);
 
-        $response->assertStatus(200);
+        $response->assertStatus(200)
+            ->assertJsonStructure([
+                'status',
+                'message',
+                'data',
+                'pagination' => ['total', 'current_page', 'per_page', 'last_page'],
+            ]);
     }
 
     public function test_get_games_by_league_returns_all_statuses_without_status_filter()
@@ -128,7 +134,7 @@ class GameControllerTest extends TestCase
         $endedGame = $this->createGameForLeague(['status' => 'ended']);
         $startedGame = $this->createGameForLeague(['status' => 'started']);
 
-        $response = $this->getJson('/api/games/league/' . $this->league->id);
+        $response = $this->getJson('/api/games/league/' . $this->league->id . '?per_page=100');
 
         $response->assertStatus(200);
 
@@ -149,7 +155,7 @@ class GameControllerTest extends TestCase
         $startedGame = $this->createGameForLeague(['status' => 'started']);
         $scheduledGame = $this->createGameForLeague(['status' => null]);
 
-        $response = $this->getJson('/api/games/league/' . $this->league->id . '?status=not-ended');
+        $response = $this->getJson('/api/games/league/' . $this->league->id . '?status=not-ended&per_page=100');
 
         $response->assertStatus(200);
 
@@ -157,6 +163,84 @@ class GameControllerTest extends TestCase
         $this->assertNotContains($endedGame->id, $gameIds);
         $this->assertContains($startedGame->id, $gameIds);
         $this->assertContains($scheduledGame->id, $gameIds);
+    }
+
+    public function test_get_games_by_league_sorts_upcoming_before_ended()
+    {
+        if (! Schema::hasColumn('games', 'status')) {
+            $this->markTestSkipped('Games status column is not available.');
+        }
+
+        $this->auth();
+
+        $endedGame = $this->createGameForLeague([
+            'status' => 'ended',
+            'date' => now()->subDays(2)->format('Y-m-d H:i:s'),
+        ]);
+        $startedGame = $this->createGameForLeague([
+            'status' => 'started',
+            'date' => now()->addDay()->format('Y-m-d H:i:s'),
+        ]);
+        $scheduledGame = $this->createGameForLeague([
+            'status' => null,
+            'date' => now()->addDays(2)->format('Y-m-d H:i:s'),
+        ]);
+
+        $response = $this->getJson('/api/games/league/' . $this->league->id . '?per_page=100');
+
+        $response->assertStatus(200);
+
+        $statuses = collect($response->json('data'))
+            ->filter(fn ($game) => in_array($game['id'], [$endedGame->id, $startedGame->id, $scheduledGame->id], true))
+            ->pluck('status')
+            ->values()
+            ->all();
+
+        $endedIndex = array_search('ended', $statuses, true);
+        $this->assertNotFalse($endedIndex);
+        $this->assertSame('ended', $statuses[$endedIndex]);
+        $this->assertTrue($endedIndex > 0, 'Ended games should appear after non-ended games');
+        $this->assertNotContains('ended', array_slice($statuses, 0, $endedIndex));
+    }
+
+    public function test_get_games_by_league_can_filter_by_date()
+    {
+        $this->auth();
+
+        $targetDate = now()->addDays(5)->format('Y-m-d');
+        $matchingGame = $this->createGameForLeague([
+            'date' => $targetDate . ' 19:00:00',
+        ]);
+        $otherGame = $this->createGameForLeague([
+            'date' => now()->addDays(6)->format('Y-m-d H:i:s'),
+        ]);
+
+        $response = $this->getJson('/api/games/league/' . $this->league->id . '?date=' . $targetDate . '&per_page=100');
+
+        $response->assertStatus(200);
+
+        $gameIds = collect($response->json('data'))->pluck('id')->all();
+        $this->assertContains($matchingGame->id, $gameIds);
+        $this->assertNotContains($otherGame->id, $gameIds);
+        $this->assertNotContains($this->game->id, $gameIds);
+    }
+
+    public function test_get_games_by_league_paginates_results()
+    {
+        $this->auth();
+
+        $this->createGameForLeague(['date' => now()->addDays(1)->format('Y-m-d H:i:s')]);
+        $this->createGameForLeague(['date' => now()->addDays(2)->format('Y-m-d H:i:s')]);
+
+        $response = $this->getJson('/api/games/league/' . $this->league->id . '?page=1&per_page=1');
+
+        $response->assertStatus(200)
+            ->assertJsonPath('pagination.current_page', 1)
+            ->assertJsonPath('pagination.per_page', 1)
+            ->assertJsonPath('pagination.total', 3)
+            ->assertJsonPath('pagination.last_page', 3);
+
+        $this->assertCount(1, $response->json('data'));
     }
 
     public function test_can_get_upcoming_real_matches_by_league_for_dashboard()
