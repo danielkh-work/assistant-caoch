@@ -24,8 +24,6 @@ class ExpireStaleGameModeSessions extends Command
             ->value('value');
 
         if ($enabled !== 'true') {
-            $this->info('Skipped: ENABLE_AUTO_ENDED_INACTIVE_MATCHES is off.');
-
             return self::SUCCESS;
         }
 
@@ -37,13 +35,11 @@ class ExpireStaleGameModeSessions extends Command
             return self::FAILURE;
         }
 
-        $expired = ActiveGameModeGuard::expireStaleSessions(
+        ActiveGameModeGuard::expireStaleSessions(
             $this->option('coach') ? (int) $this->option('coach') : null,
             $mode,
             $this->option('league') ? (int) $this->option('league') : null,
         );
-
-        $this->info("Expired stale live sessions: {$expired}");
 
         return self::SUCCESS;
     }
