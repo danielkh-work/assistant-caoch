@@ -137,7 +137,7 @@ namespace App\OpenApi;
  *     operationId="getGamesByLeague",
  *     tags={"Games"},
  *     summary="List games for a league with sort, pagination, and filters",
- *     description="Returns games for the given league. Non-ended (upcoming/live) games are sorted before ended games; within each group results are ordered by `date` ascending then `id` ascending. Supports optional `type`, `status`, and `date` filters. Always paginated via `page` and `per_page`.",
+ *     description="Returns games for the given league. Non-ended (upcoming/live) games are sorted before ended games; within each group results are ordered by `date` ascending then `id` ascending. Supports optional `type`, `status`, and inclusive date-range (`start_date` / `end_date`) filters. Always paginated via `page` and `per_page`.",
  *     security={{"sanctum":{}}},
  *     @OA\Parameter(
  *         name="leagueId",
@@ -161,11 +161,18 @@ namespace App\OpenApi;
  *         @OA\Schema(type="string", example="not-ended")
  *     ),
  *     @OA\Parameter(
- *         name="date",
+ *         name="start_date",
  *         in="query",
  *         required=false,
- *         description="Optional calendar-day filter on `games.date` (`YYYY-MM-DD`).",
- *         @OA\Schema(type="string", format="date", example="2026-09-05")
+ *         description="Optional inclusive range start on `games.date` (`YYYY-MM-DD`). Can be used alone or with `end_date`.",
+ *         @OA\Schema(type="string", format="date", example="2026-09-01")
+ *     ),
+ *     @OA\Parameter(
+ *         name="end_date",
+ *         in="query",
+ *         required=false,
+ *         description="Optional inclusive range end on `games.date` (`YYYY-MM-DD`). Can be used alone or with `start_date`.",
+ *         @OA\Schema(type="string", format="date", example="2026-09-30")
  *     ),
  *     @OA\Parameter(
  *         name="page",

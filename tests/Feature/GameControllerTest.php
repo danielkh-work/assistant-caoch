@@ -203,25 +203,39 @@ class GameControllerTest extends TestCase
         $this->assertNotContains('ended', array_slice($statuses, 0, $endedIndex));
     }
 
-    public function test_get_games_by_league_can_filter_by_date()
+    public function test_get_games_by_league_can_filter_by_date_range()
     {
         $this->auth();
 
-        $targetDate = now()->addDays(5)->format('Y-m-d');
-        $matchingGame = $this->createGameForLeague([
-            'date' => $targetDate . ' 19:00:00',
+        $startDate = now()->addDays(5)->format('Y-m-d');
+        $endDate = now()->addDays(7)->format('Y-m-d');
+        $inRangeGame = $this->createGameForLeague([
+            'date' => now()->addDays(6)->format('Y-m-d') . ' 19:00:00',
         ]);
-        $otherGame = $this->createGameForLeague([
-            'date' => now()->addDays(6)->format('Y-m-d H:i:s'),
+        $onStartBoundaryGame = $this->createGameForLeague([
+            'date' => $startDate . ' 10:00:00',
+        ]);
+        $beforeRangeGame = $this->createGameForLeague([
+            'date' => now()->addDays(4)->format('Y-m-d H:i:s'),
+        ]);
+        $afterRangeGame = $this->createGameForLeague([
+            'date' => now()->addDays(8)->format('Y-m-d H:i:s'),
         ]);
 
-        $response = $this->getJson('/api/games/league/' . $this->league->id . '?date=' . $targetDate . '&per_page=100');
+        $response = $this->getJson(
+            '/api/games/league/' . $this->league->id
+            . '?start_date=' . $startDate
+            . '&end_date=' . $endDate
+            . '&per_page=100'
+        );
 
         $response->assertStatus(200);
 
         $gameIds = collect($response->json('data'))->pluck('id')->all();
-        $this->assertContains($matchingGame->id, $gameIds);
-        $this->assertNotContains($otherGame->id, $gameIds);
+        $this->assertContains($inRangeGame->id, $gameIds);
+        $this->assertContains($onStartBoundaryGame->id, $gameIds);
+        $this->assertNotContains($beforeRangeGame->id, $gameIds);
+        $this->assertNotContains($afterRangeGame->id, $gameIds);
         $this->assertNotContains($this->game->id, $gameIds);
     }
 

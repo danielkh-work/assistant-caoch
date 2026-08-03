@@ -342,9 +342,16 @@ class GameController extends Controller
             });
         }
 
-        $dateFilter = trim((string) request()->query('date', ''));
-        if ($dateFilter !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateFilter)) {
-            $gamesQuery->whereDate('date', $dateFilter);
+        $startDate = trim((string) request()->query('start_date', ''));
+        $endDate = trim((string) request()->query('end_date', ''));
+        $datePattern = '/^\d{4}-\d{2}-\d{2}$/';
+
+        if ($startDate !== '' && preg_match($datePattern, $startDate)) {
+            $gamesQuery->whereDate('date', '>=', $startDate);
+        }
+
+        if ($endDate !== '' && preg_match($datePattern, $endDate)) {
+            $gamesQuery->whereDate('date', '<=', $endDate);
         }
 
         $gamesQuery
