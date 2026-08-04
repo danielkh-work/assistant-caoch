@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use App\Http\Responses\BaseResponse;
 use App\Models\Penality;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -117,22 +118,16 @@ class GameController extends Controller
     }
 
     /**
-     * League-scoped uniqueness at minute precision (soft-deleted games ignored).
+     * League-scoped uniqueness: one game per calendar day (soft-deleted games ignored).
      */
     private function leagueDateTimeConflictResponse(
         int $leagueId,
         string $date,
         ?int $ignoreGameId = null
     ): ?BaseResponse {
-        $minuteStart = Carbon::parse($date)->second(0)->microsecond(0);
-        $minuteEnd = $minuteStart->copy()->second(59);
-
         $query = Game::query()
             ->where('league_id', $leagueId)
-            ->whereBetween('date', [
-                $minuteStart->format('Y-m-d H:i:s'),
-                $minuteEnd->format('Y-m-d H:i:s'),
-            ]);
+            ->whereDate('date', Carbon::parse($date)->toDateString());
 
         if ($ignoreGameId !== null) {
             $query->whereKeyNot($ignoreGameId);
@@ -142,7 +137,7 @@ class GameController extends Controller
             return new BaseResponse(
                 STATUS_CODE_UNPROCESSABLE,
                 STATUS_CODE_UNPROCESSABLE,
-                'A game is already scheduled at this date and time.'
+                'A game is already scheduled on this date.'
             );
         }
 
@@ -380,30 +375,96 @@ class GameController extends Controller
 
     public function getByLeague($leagueId)
     {
-        $gamesQuery = Game::with([
+        $eagerLoad = [
             'myTeam',
             'opponentTeam',
             'configuredPlays',
             'configureMyTeams',
             'configureVisitingTeams',
-        ])->where('league_id', $leagueId);
+        ];
 
         $gameType = request()->query('type');
+        $statusFilter = strtolower(trim((string) request()->query('status', '')));
+        $startDate = trim((string) request()->query('start_date', ''));
+        $endDate = trim((string) request()->query('end_date', ''));
+        $singleDate = trim((string) request()->query('date', ''));
+        $datePattern = '/^\d{4}-\d{2}-\d{2}$/';
+
+        if ($singleDate !== '' && preg_match($datePattern, $singleDate)) {
+            $startDate = $singleDate;
+            $endDate = $singleDate;
+        }
+
+        $hasDateFilter = ($startDate !== '' && preg_match($datePattern, $startDate))
+            || ($endDate !== '' && preg_match($datePattern, $endDate));
+
+        $page = max(1, (int) request()->input('page', 1));
+        $perPage = max(1, min(100, (int) request()->input('per_page', 18)));
+
+        if (! $hasDateFilter && $statusFilter !== 'not-ended') {
+            return $this->getByLeagueDefaultFeed(
+                (int) $leagueId,
+                $eagerLoad,
+                $gameType,
+                $page,
+                $perPage
+            );
+        }
+
+        $gamesQuery = $this->buildLeagueGamesQuery(
+            (int) $leagueId,
+            $eagerLoad,
+            $gameType,
+            $statusFilter,
+            $startDate,
+            $endDate,
+            $datePattern
+        );
+
+        $gamesQuery
+            ->orderByRaw("CASE WHEN LOWER(COALESCE(status, '')) = 'ended' THEN 1 ELSE 0 END")
+            ->orderBy('date')
+            ->orderBy('id');
+
+        $paginator = $gamesQuery->paginate($perPage, ['*'], 'page', $page);
+
+        return new BaseResponse(
+            STATUS_CODE_OK,
+            STATUS_CODE_OK,
+            'games list',
+            $paginator->items(),
+            null,
+            null,
+            [
+                'total' => $paginator->total(),
+                'current_page' => $paginator->currentPage(),
+                'per_page' => $paginator->perPage(),
+                'last_page' => $paginator->lastPage(),
+            ]
+        );
+    }
+
+    private function buildLeagueGamesQuery(
+        int $leagueId,
+        array $eagerLoad,
+        $gameType,
+        string $statusFilter,
+        string $startDate,
+        string $endDate,
+        string $datePattern
+    ): Builder {
+        $gamesQuery = Game::with($eagerLoad)->where('league_id', $leagueId);
+
         if ($gameType !== null) {
             $gamesQuery->where('type', $gameType);
         }
 
-        $statusFilter = strtolower(trim((string) request()->query('status', '')));
         if ($statusFilter === 'not-ended') {
             $gamesQuery->where(function ($query) {
                 $query->whereNull('status')
                     ->orWhere('status', '!=', 'ended');
             });
         }
-
-        $startDate = trim((string) request()->query('start_date', ''));
-        $endDate = trim((string) request()->query('end_date', ''));
-        $datePattern = '/^\d{4}-\d{2}-\d{2}$/';
 
         if ($startDate !== '' && preg_match($datePattern, $startDate)) {
             $gamesQuery->whereDate('date', '>=', $startDate);
@@ -413,31 +474,173 @@ class GameController extends Controller
             $gamesQuery->whereDate('date', '<=', $endDate);
         }
 
-        $gamesQuery
-            ->orderByRaw("CASE WHEN LOWER(COALESCE(status, '')) = 'ended' THEN 1 ELSE 0 END")
+        return $gamesQuery;
+    }
+
+    /**
+     * Default games feed: upcoming first (6–9 on page 1, then up to 9 per page),
+     * then ended (3–6 on page 1, then up to 6 per page). Latest ended first.
+     */
+    private function getByLeagueDefaultFeed(
+        int $leagueId,
+        array $eagerLoad,
+        $gameType,
+        int $page,
+        int $perPage
+    ): BaseResponse {
+        $baseQuery = $this->buildLeagueGamesQuery(
+            $leagueId,
+            $eagerLoad,
+            $gameType,
+            '',
+            '',
+            '',
+            '/^\d{4}-\d{2}-\d{2}$/'
+        );
+
+        $upcomingQuery = (clone $baseQuery)
+            ->where(function ($query) {
+                $query->whereNull('status')
+                    ->orWhereRaw("LOWER(COALESCE(status, '')) != 'ended'");
+            })
             ->orderBy('date')
             ->orderBy('id');
 
-        $page = max(1, (int) request()->input('page', 1));
-        $perPage = max(1, min(100, (int) request()->input('per_page', 18)));
-        $paginator = $gamesQuery->paginate($perPage, ['*'], 'page', $page);
+        $endedQuery = (clone $baseQuery)
+            ->whereRaw("LOWER(COALESCE(status, '')) = 'ended'")
+            ->orderByDesc('date')
+            ->orderByDesc('id');
 
-        $pagination = [
-            'total' => $paginator->total(),
-            'current_page' => $paginator->currentPage(),
-            'per_page' => $paginator->perPage(),
-            'last_page' => $paginator->lastPage(),
-        ];
+        $upcomingTotal = (clone $upcomingQuery)->count();
+        $endedTotal = (clone $endedQuery)->count();
+        $total = $upcomingTotal + $endedTotal;
+
+        $window = $this->resolveDefaultGamesWindow(
+            $page,
+            $perPage,
+            $upcomingTotal,
+            $endedTotal
+        );
+
+        $items = collect();
+
+        if ($window['upcoming_take'] > 0) {
+            $items = $items->concat(
+                (clone $upcomingQuery)
+                    ->skip($window['upcoming_offset'])
+                    ->take($window['upcoming_take'])
+                    ->get()
+            );
+        }
+
+        if ($window['ended_take'] > 0) {
+            $items = $items->concat(
+                (clone $endedQuery)
+                    ->skip($window['ended_offset'])
+                    ->take($window['ended_take'])
+                    ->get()
+            );
+        }
 
         return new BaseResponse(
             STATUS_CODE_OK,
             STATUS_CODE_OK,
             'games list',
-            $paginator->items(),
+            $items->values()->all(),
             null,
             null,
-            $pagination
+            [
+                'total' => $total,
+                'current_page' => $page,
+                'per_page' => $items->count(),
+                'last_page' => max(1, $window['last_page']),
+            ]
         );
+    }
+
+    /**
+     * @return array{
+     *     upcoming_offset: int,
+     *     upcoming_take: int,
+     *     ended_offset: int,
+     *     ended_take: int,
+     *     last_page: int
+     * }
+     */
+    private function resolveDefaultGamesWindow(
+        int $page,
+        int $perPage,
+        int $upcomingTotal,
+        int $endedTotal
+    ): array {
+        $upcomingMin = 6;
+        $upcomingMax = 9;
+        $endedMin = 3;
+        $endedMax = 6;
+
+        $upcomingOffset = 0;
+        $endedOffset = 0;
+        $lastPage = 0;
+        $targetPageWindow = [
+            'upcoming_offset' => 0,
+            'upcoming_take' => 0,
+            'ended_offset' => 0,
+            'ended_take' => 0,
+            'last_page' => 1,
+        ];
+
+        while ($upcomingOffset < $upcomingTotal || $endedOffset < $endedTotal) {
+            $lastPage++;
+
+            if ($lastPage === 1) {
+                $upcomingTake = min($upcomingMax, $upcomingTotal - $upcomingOffset);
+                if ($upcomingTotal >= $upcomingMin) {
+                    $upcomingTake = max($upcomingMin, $upcomingTake);
+                }
+
+                $endedTake = min($endedMax, $endedTotal - $endedOffset);
+                if ($endedTotal >= $endedMin) {
+                    $endedTake = max($endedMin, $endedTake);
+                }
+            } elseif ($upcomingOffset < $upcomingTotal) {
+                $upcomingTake = min($upcomingMax, $upcomingTotal - $upcomingOffset, $perPage);
+                $endedTake = 0;
+            } else {
+                $upcomingTake = 0;
+                $endedTake = min($endedMax, $endedTotal - $endedOffset, $perPage);
+            }
+
+            if ($lastPage === $page) {
+                $targetPageWindow = [
+                    'upcoming_offset' => $upcomingOffset,
+                    'upcoming_take' => $upcomingTake,
+                    'ended_offset' => $endedOffset,
+                    'ended_take' => $endedTake,
+                    'last_page' => $lastPage,
+                ];
+            }
+
+            $upcomingOffset += $upcomingTake;
+            $endedOffset += $endedTake;
+        }
+
+        if ($lastPage === 0) {
+            $lastPage = 1;
+        }
+
+        if ($page > $lastPage) {
+            return [
+                'upcoming_offset' => $upcomingTotal,
+                'upcoming_take' => 0,
+                'ended_offset' => $endedTotal,
+                'ended_take' => 0,
+                'last_page' => $lastPage,
+            ];
+        }
+
+        $targetPageWindow['last_page'] = $lastPage;
+
+        return $targetPageWindow;
     }
 
     public function upcomingMatchesByLeague($leagueId)

@@ -137,7 +137,7 @@ namespace App\OpenApi;
  *     operationId="getGamesByLeague",
  *     tags={"Games"},
  *     summary="List games for a league with sort, pagination, and filters",
- *     description="Returns games for the given league. Non-ended (upcoming/live) games are sorted before ended games; within each group results are ordered by `date` ascending then `id` ascending. Supports optional `type`, `status`, and inclusive date-range (`start_date` / `end_date`) filters. Always paginated via `page` and `per_page`.",
+ *     description="Returns games for the given league. Without a date filter, the default feed returns upcoming games first (6–9 on page 1, then up to 9 per page) followed by ended games (3–6 on page 1, then up to 6 per page; most recent ended first). When `start_date`, `end_date`, or `date` is supplied, standard pagination applies with upcoming before ended within the filtered range. Supports optional `type` and `status` filters.",
  *     security={{"sanctum":{}}},
  *     @OA\Parameter(
  *         name="leagueId",
@@ -175,7 +175,13 @@ namespace App\OpenApi;
  *         @OA\Schema(type="string", format="date", example="2026-09-30")
  *     ),
  *     @OA\Parameter(
- *         name="page",
+ *         name="date",
+ *         in="query",
+ *         required=false,
+ *         description="Optional single-day filter on `games.date` (`YYYY-MM-DD`). Equivalent to setting both `start_date` and `end_date` to the same value.",
+ *         @OA\Schema(type="string", format="date", example="2026-09-15")
+ *     ),
+ *     @OA\Parameter(
  *         in="query",
  *         required=false,
  *         description="Page number. Defaults to 1.",
