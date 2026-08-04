@@ -2,8 +2,10 @@
 
 namespace App\Support;
 
+use App\Models\League;
 use App\Models\PlayGameMode;
 use App\Models\User;
+use App\Services\GameClockService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -214,9 +216,7 @@ class ActiveGameModeGuard
                 continue;
             }
 
-            $query = DB::table($table)
-                ->where('is_start', true)
-                ->where('updated_at', '<=', now()->subMinutes(self::liveSessionTimeoutMinutes()));
+            $query = DB::table($table)->where('is_start', true);
 
             if ($headCoachId !== null) {
                 $query->where('user_id', $headCoachId);
@@ -238,7 +238,13 @@ class ActiveGameModeGuard
 
     public static function expireStaleScoreboardRowIfNeeded(object $row, int $headCoachId, string $gameMode, string $table): bool
     {
-        if (! ($row->is_start ?? false) || ! self::scoreboardRowIsStale($row)) {
+        if (! ($row->is_start ?? false)) {
+            return false;
+        }
+
+        self::ensureRegulationEndedAtPersisted($row, $table);
+
+        if (! self::scoreboardRowIsStale($row)) {
             return false;
         }
 
@@ -255,15 +261,92 @@ class ActiveGameModeGuard
         return true;
     }
 
+    /**
+     * Stale only after regulation ends, based on last meaningful coach activity
+     * (not scoreboard poll / updated_at touches).
+     */
     private static function scoreboardRowIsStale(object $row): bool
     {
-        if (empty($row->updated_at)) {
+        $endedAt = self::resolveRegulationEndedAt($row);
+        if (! $endedAt) {
             return false;
         }
 
-        return Carbon::parse($row->updated_at)->lte(
-            now()->subMinutes(self::liveSessionTimeoutMinutes())
-        );
+        $activityAt = ! empty($row->last_meaningful_activity_at)
+            ? Carbon::parse($row->last_meaningful_activity_at)
+            : $endedAt;
+
+        $inactiveFrom = $activityAt->greaterThan($endedAt) ? $activityAt : $endedAt;
+
+        return $inactiveFrom->lte(now()->subMinutes(self::liveSessionTimeoutMinutes()));
+    }
+
+    public static function resolveRegulationEndedAt(object $row, ?League $league = null): ?Carbon
+    {
+        if (! empty($row->regulation_ended_at)) {
+            return Carbon::parse($row->regulation_ended_at);
+        }
+
+        $league ??= ! empty($row->league_id) ? League::find((int) $row->league_id) : null;
+        $clock = app(GameClockService::class);
+        $maxQuarters = $clock->maxQuarters($league);
+        $quarter = max(1, (int) ($row->quarter ?? 1));
+        $remaining = array_key_exists('timer_remaining', (array) $row) && $row->timer_remaining !== null
+            ? max(0, (int) $row->timer_remaining)
+            : null;
+
+        // Already parked at end of regulation (including paused/stopped at 0:00).
+        // Prefer last meaningful activity over sys_time — polls used to rewrite sys_time.
+        if ($remaining === 0 && $quarter >= $maxQuarters) {
+            if (! empty($row->last_meaningful_activity_at)) {
+                return Carbon::parse($row->last_meaningful_activity_at);
+            }
+
+            return now();
+        }
+
+        if ($clock->isPaused($row->action ?? null)) {
+            return null;
+        }
+
+        $resolved = $clock->resolveForLeague([
+            'quarter' => $quarter,
+            'timer_remaining' => $remaining,
+            'sys_time' => $row->sys_time ?? null,
+            'action' => $row->action ?? null,
+        ], $league);
+
+        if (! ($resolved['exhausted'] ?? false)) {
+            return null;
+        }
+
+        if (! empty($resolved['exhausted_at'])) {
+            return Carbon::parse($resolved['exhausted_at']);
+        }
+
+        return now();
+    }
+
+    public static function ensureRegulationEndedAtPersisted(object $row, string $table): void
+    {
+        if (! Schema::hasColumn($table, 'regulation_ended_at')) {
+            return;
+        }
+
+        if (! empty($row->regulation_ended_at)) {
+            return;
+        }
+
+        $endedAt = self::resolveRegulationEndedAt($row);
+        if (! $endedAt) {
+            return;
+        }
+
+        $value = $endedAt->toDateTimeString();
+        DB::table($table)->where('id', $row->id)->update([
+            'regulation_ended_at' => $value,
+        ]);
+        $row->regulation_ended_at = $value;
     }
 
     public static function scoreboardIndicatesLive(object $row, int $headCoachId, string $gameMode): bool
@@ -332,21 +415,19 @@ class ActiveGameModeGuard
         return $row;
     }
 
+    /**
+     * Soft touch used by polls / LIVE badge checks. Must NOT count as meaningful
+     * activity for auto-end, and must not rewrite sys_time / regulation timestamps.
+     */
     public static function touchLiveScoreboardRow(object $row, string $table): void
     {
         if (! ($row->is_start ?? false)) {
             return;
         }
 
-        $values = ['updated_at' => now()];
-
-        if (Schema::hasColumn($table, 'sys_time')) {
-            $values['sys_time'] = now()->toDateTimeString();
-        }
-
         DB::table($table)
             ->where('id', $row->id)
-            ->update($values);
+            ->update(['updated_at' => now()]);
     }
 
     public static function completeSession(int $headCoachId, int $sessionId): void

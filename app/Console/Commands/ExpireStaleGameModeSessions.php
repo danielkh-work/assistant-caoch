@@ -15,7 +15,7 @@ class ExpireStaleGameModeSessions extends Command
                             {--league= : Optional league id}
                             {--mode= : Optional mode filter: play or practice}';
 
-    protected $description = 'Expire abandoned live match/practice sessions after the inactivity timeout';
+    protected $description = 'Expire abandoned live match/practice sessions after regulation ends and inactivity timeout';
 
     public function handle(): int
     {

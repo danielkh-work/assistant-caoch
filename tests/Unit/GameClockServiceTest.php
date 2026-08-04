@@ -97,6 +97,8 @@ class GameClockServiceTest extends TestCase
         $this->assertSame(0, $resolved['timer_remaining']);
         $this->assertTrue($resolved['exhausted']);
         $this->assertTrue($resolved['advanced']);
+        // 60s left at 12:00 → regulation ended at 12:01:00
+        $this->assertSame('2026-08-04 12:01:00', $resolved['exhausted_at']);
     }
 
     public function test_exact_quarter_boundary_advances_to_full_next_quarter(): void

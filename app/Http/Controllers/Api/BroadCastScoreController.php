@@ -470,12 +470,31 @@ class BroadCastScoreController extends Controller
             return $row;
         }
 
+        $table = $row instanceof WebsocketPracticeScoreboard
+            ? 'websocket_practice_scoreboards'
+            : 'websocket_scoreboards';
+
         $clock = $this->clockService();
+        $league = $row->league_id ? League::find((int) $row->league_id) : null;
+
+        // Persist regulation end even when the clock is paused at 0:00 on the final quarter.
+        if (Schema::hasColumn($table, 'regulation_ended_at') && empty($row->regulation_ended_at)) {
+            $endedAt = ActiveGameModeGuard::resolveRegulationEndedAt($row, $league);
+            if ($endedAt) {
+                $row->regulation_ended_at = $endedAt->toDateTimeString();
+            }
+        }
+
         if ($clock->isPaused($row->action)) {
+            if ($row->isDirty()) {
+                $row->save();
+
+                return $row->fresh();
+            }
+
             return $row;
         }
 
-        $league = $row->league_id ? League::find((int) $row->league_id) : null;
         $resolved = $clock->resolveForLeague([
             'quarter' => $row->quarter,
             'timer_remaining' => $row->timer_remaining,
@@ -483,16 +502,89 @@ class BroadCastScoreController extends Controller
             'action' => $row->action,
         ], $league);
 
-        if (! $resolved['advanced']) {
+        if ($resolved['exhausted']
+            && Schema::hasColumn($table, 'regulation_ended_at')
+            && empty($row->regulation_ended_at)
+        ) {
+            $row->regulation_ended_at = $resolved['exhausted_at'] ?? now()->toDateTimeString();
+        }
+
+        // After regulation ends, keep the parked clock snapshot stable. Polls must not
+        // rewrite sys_time (that used to make abandoned matches look freshly active).
+        if ($resolved['exhausted'] && ! empty($row->regulation_ended_at) && (int) $row->timer_remaining === 0) {
+            if ($row->isDirty()) {
+                $row->save();
+
+                return $row->fresh();
+            }
+
             return $row;
         }
 
-        $row->quarter = $resolved['quarter'];
-        $row->timer_remaining = $resolved['timer_remaining'];
-        $row->sys_time = $resolved['sys_time'];
+        if (! $resolved['advanced'] && ! $row->isDirty()) {
+            return $row;
+        }
+
+        if ($resolved['advanced']) {
+            $row->quarter = $resolved['quarter'];
+            $row->timer_remaining = $resolved['timer_remaining'];
+            $row->sys_time = $resolved['sys_time'];
+        }
+
         $row->save();
 
         return $row->fresh();
+    }
+
+    /**
+     * Timestamps used for auto-end. Broadcast writes count as meaningful activity;
+     * scoreboard polls must not call this.
+     *
+     * @param  WebsocketScoreboard|WebsocketPracticeScoreboard|null  $existing
+     * @param  array{quarter?: mixed, timer_remaining?: mixed}  $clockFields
+     * @return array{last_meaningful_activity_at?: string, regulation_ended_at?: string|null}
+     */
+    private function scoreboardActivityFields(
+        $existing,
+        string $action,
+        array $clockFields,
+        ?League $league,
+        string $table
+    ): array {
+        $fields = [];
+
+        if (Schema::hasColumn($table, 'last_meaningful_activity_at')) {
+            $fields['last_meaningful_activity_at'] = now()->toDateTimeString();
+        }
+
+        if (! Schema::hasColumn($table, 'regulation_ended_at')) {
+            return $fields;
+        }
+
+        if ($action === 'Start') {
+            $fields['regulation_ended_at'] = null;
+
+            return $fields;
+        }
+
+        if (! empty($existing?->regulation_ended_at)) {
+            $fields['regulation_ended_at'] = $existing->regulation_ended_at;
+
+            return $fields;
+        }
+
+        $clock = $this->clockService();
+        $maxQuarters = $clock->maxQuarters($league);
+        $quarter = max(1, (int) ($clockFields['quarter'] ?? $existing?->quarter ?? 1));
+        $remaining = array_key_exists('timer_remaining', $clockFields) && $clockFields['timer_remaining'] !== null
+            ? max(0, (int) $clockFields['timer_remaining'])
+            : null;
+
+        if ($remaining === 0 && $quarter >= $maxQuarters) {
+            $fields['regulation_ended_at'] = now()->toDateTimeString();
+        }
+
+        return $fields;
     }
 
     /**
@@ -665,6 +757,14 @@ class BroadCastScoreController extends Controller
         self::$scores['left']['total'] = $scoreTotals['left'];
         self::$scores['right']['total'] = $scoreTotals['right'];
 
+        $activityFields = $this->scoreboardActivityFields(
+            $existingPractice,
+            $action,
+            $clockFields,
+            $this->leagueForScoreboard($existingPractice, $request),
+            'websocket_practice_scoreboards'
+        );
+
         $practiceValues = [
             'left_score' => self::$scores['left']['total'],
             'right_score' => self::$scores['right']['total'],
@@ -687,6 +787,7 @@ class BroadCastScoreController extends Controller
             'session_id' => $sessionFields['session_id'],
             'timer_remaining' => $timerRemaining,
             'sys_time' => $clockFields['sys_time'],
+            ...$activityFields,
         ];
 
         if ($shouldRefreshTime && ! $isRestoredStart) {
@@ -1146,6 +1247,14 @@ class BroadCastScoreController extends Controller
         self::$scores['left']['total'] = $scoreTotals['left'];
         self::$scores['right']['total'] = $scoreTotals['right'];
 
+        $activityFields = $this->scoreboardActivityFields(
+            $existingScoreboard,
+            $action,
+            $clockFields,
+            $this->leagueForScoreboard($existingScoreboard, $request),
+            'websocket_scoreboards'
+        );
+
         $scoreboardValues = [
             'left_score' => self::$scores['left']['total'],
             'right_score' => self::$scores['right']['total'],
@@ -1168,6 +1277,7 @@ class BroadCastScoreController extends Controller
             'session_id' => $sessionFields['session_id'],
             'timer_remaining' => $timerRemaining,
             'sys_time' => $clockFields['sys_time'],
+            ...$activityFields,
         ];
 
         if ($shouldRefreshTime && ! $isRestoredStart) {

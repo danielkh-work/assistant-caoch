@@ -40,7 +40,7 @@ class GameClockService
      * Compute live quarter + remaining from an anchor snapshot.
      *
      * @param  array{quarter?: mixed, timer_remaining?: mixed, sys_time?: mixed, action?: mixed}  $row
-     * @return array{quarter: int, timer_remaining: int, sys_time: string, exhausted: bool, advanced: bool}
+     * @return array{quarter: int, timer_remaining: int, sys_time: string, exhausted: bool, advanced: bool, exhausted_at: ?string}
      */
     public function resolve(
         array $row,
@@ -74,6 +74,7 @@ class GameClockService
                     : $nowString,
                 'exhausted' => false,
                 'advanced' => false,
+                'exhausted_at' => null,
             ];
         }
 
@@ -84,6 +85,7 @@ class GameClockService
                 'sys_time' => $nowString,
                 'exhausted' => false,
                 'advanced' => false,
+                'exhausted_at' => null,
             ];
         }
 
@@ -92,9 +94,12 @@ class GameClockService
         $remainingAfter = $remaining - $elapsed;
         $advanced = $elapsed > 0;
         $exhausted = false;
+        $exhaustedAt = null;
 
         while ($remainingAfter <= 0) {
             if ($quarter >= $maxQuarters) {
+                // remainingAfter is <= 0 seconds past (or at) regulation end.
+                $exhaustedAt = $now->copy()->addSeconds((int) $remainingAfter)->toDateTimeString();
                 $remainingAfter = 0;
                 $exhausted = true;
                 break;
@@ -112,12 +117,13 @@ class GameClockService
             'sys_time' => $nowString,
             'exhausted' => $exhausted,
             'advanced' => $advanced,
+            'exhausted_at' => $exhaustedAt,
         ];
     }
 
     /**
      * @param  array{quarter?: mixed, timer_remaining?: mixed, sys_time?: mixed, action?: mixed}  $row
-     * @return array{quarter: int, timer_remaining: int, sys_time: string, exhausted: bool, advanced: bool}
+     * @return array{quarter: int, timer_remaining: int, sys_time: string, exhausted: bool, advanced: bool, exhausted_at: ?string}
      */
     public function resolveForLeague(array $row, ?League $league, ?Carbon $now = null): array
     {
