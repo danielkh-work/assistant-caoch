@@ -643,6 +643,54 @@ class GameController extends Controller
         return $targetPageWindow;
     }
 
+    public function scheduledDatesByLeague(Request $request, $leagueId)
+    {
+        $league = League::select('id', 'title')->find($leagueId);
+
+        if (! $league) {
+            return new BaseResponse(STATUS_CODE_NOTFOUND, STATUS_CODE_NOTFOUND, 'League not found.');
+        }
+
+        $today = Carbon::today()->toDateString();
+        $datePattern = '/^\d{4}-\d{2}-\d{2}$/';
+        $startDate = trim((string) $request->query('start_date', ''));
+        $endDate = trim((string) $request->query('end_date', ''));
+
+        $effectiveStart = ($startDate !== '' && preg_match($datePattern, $startDate) && $startDate >= $today)
+            ? $startDate
+            : $today;
+
+        $datesQuery = Game::query()
+            ->where('league_id', $leagueId)
+            ->where('type', 1)
+            ->whereNotNull('date')
+            ->whereDate('date', '>=', $effectiveStart);
+
+        if ($endDate !== '' && preg_match($datePattern, $endDate)) {
+            $datesQuery->whereDate('date', '<=', $endDate);
+        }
+
+        $dates = $datesQuery
+            ->orderBy('date')
+            ->get(['date'])
+            ->map(fn (Game $game) => Carbon::parse($game->date)->format('Y-m-d'))
+            ->unique()
+            ->sort()
+            ->values();
+
+        return new BaseResponse(
+            STATUS_CODE_OK,
+            STATUS_CODE_OK,
+            'League scheduled dates',
+            [
+                'league_id' => $league->id,
+                'league_name' => $league->title,
+                'dates_count' => $dates->count(),
+                'dates' => $dates,
+            ]
+        );
+    }
+
     public function upcomingMatchesByLeague($leagueId)
     {
         $league = League::select('id', 'title')->find($leagueId);

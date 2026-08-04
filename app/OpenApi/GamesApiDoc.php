@@ -182,6 +182,7 @@ namespace App\OpenApi;
  *         @OA\Schema(type="string", format="date", example="2026-09-15")
  *     ),
  *     @OA\Parameter(
+ *         name="page",
  *         in="query",
  *         required=false,
  *         description="Page number. Defaults to 1.",
@@ -274,6 +275,65 @@ namespace App\OpenApi;
  *         @OA\JsonContent(ref="#/components/schemas/OpponentTeamOptionListResponse")
  *     ),
  *     @OA\Response(response=401, description="Unauthenticated")
+ * )
+ *
+ * @OA\Schema(
+ *     schema="LeagueScheduledDatesData",
+ *     type="object",
+ *     @OA\Property(property="league_id", type="integer", example=22),
+ *     @OA\Property(property="league_name", type="string", example="QFA League"),
+ *     @OA\Property(property="dates_count", type="integer", example=3),
+ *     @OA\Property(
+ *         property="dates",
+ *         type="array",
+ *         description="Distinct future calendar dates (YYYY-MM-DD) with a regular game scheduled.",
+ *         @OA\Items(type="string", format="date", example="2026-08-20")
+ *     )
+ * )
+ *
+ * @OA\Schema(
+ *     schema="LeagueScheduledDatesResponse",
+ *     type="object",
+ *     @OA\Property(property="status", type="integer", example=200),
+ *     @OA\Property(property="message", type="string", example="League scheduled dates"),
+ *     @OA\Property(property="data", ref="#/components/schemas/LeagueScheduledDatesData")
+ * )
+ *
+ * @OA\Get(
+ *     path="/api/leagues/{leagueId}/scheduled-dates",
+ *     operationId="getLeagueScheduledDates",
+ *     tags={"Games"},
+ *     summary="List future scheduled dates for a league",
+ *     description="Returns distinct calendar dates (YYYY-MM-DD) from today onward where the league has a regular game (`type = 1`) scheduled. Use optional `start_date` and `end_date` to scope a calendar month. Soft-deleted games are excluded.",
+ *     security={{"sanctum":{}}},
+ *     @OA\Parameter(
+ *         name="leagueId",
+ *         in="path",
+ *         required=true,
+ *         description="League id",
+ *         @OA\Schema(type="integer", example=22)
+ *     ),
+ *     @OA\Parameter(
+ *         name="start_date",
+ *         in="query",
+ *         required=false,
+ *         description="Optional inclusive range start (`YYYY-MM-DD`). Defaults to today; values before today are treated as today.",
+ *         @OA\Schema(type="string", format="date", example="2026-09-01")
+ *     ),
+ *     @OA\Parameter(
+ *         name="end_date",
+ *         in="query",
+ *         required=false,
+ *         description="Optional inclusive range end on `games.date` (`YYYY-MM-DD`).",
+ *         @OA\Schema(type="string", format="date", example="2026-09-30")
+ *     ),
+ *     @OA\Response(
+ *         response=200,
+ *         description="Distinct scheduled dates for the league",
+ *         @OA\JsonContent(ref="#/components/schemas/LeagueScheduledDatesResponse")
+ *     ),
+ *     @OA\Response(response=401, description="Unauthenticated"),
+ *     @OA\Response(response=404, description="League not found")
  * )
  *
  * @OA\Post(

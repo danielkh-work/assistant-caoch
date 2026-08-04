@@ -462,6 +462,91 @@ class GameControllerTest extends TestCase
         $this->assertNotContains($otherLeagueMatch->id, $matchIds);
     }
 
+    public function test_can_get_future_regular_scheduled_dates_for_league()
+    {
+        if (! Schema::hasColumn('games', 'type')) {
+            $this->markTestSkipped('Games type column is not available.');
+        }
+
+        $this->auth();
+
+        $futureRegularDay1 = now()->addDay()->format('Y-m-d');
+        $futureRegularDay2 = now()->addDays(3)->format('Y-m-d');
+        $futureRegularDay3 = now()->addDays(5)->format('Y-m-d');
+        $futureRegularDay4 = now()->addDays(10)->format('Y-m-d');
+
+        $this->createGameForLeague([
+            'date' => $futureRegularDay1 . ' 19:00:00',
+            'type' => 1,
+        ]);
+
+        $this->createGameForLeague([
+            'date' => $futureRegularDay2 . ' 14:00:00',
+            'type' => 1,
+        ]);
+
+        $this->createGameForLeague([
+            'date' => $futureRegularDay3 . ' 10:00:00',
+            'type' => 2,
+        ]);
+
+        $this->createGameForLeague([
+            'date' => now()->subDay()->format('Y-m-d H:i:s'),
+            'type' => 1,
+        ]);
+
+        $this->createGameForLeague([
+            'date' => $futureRegularDay4 . ' 12:00:00',
+            'type' => 1,
+        ]);
+
+        $otherLeague = new League();
+        $otherLeague->user_id = $this->user->id;
+        $otherLeague->sport_id = $this->league->sport_id;
+        $otherLeague->league_rule_id = $this->league->league_rule_id;
+        $otherLeague->title = 'Other League';
+        $otherLeague->number_of_team = 2;
+        $otherLeague->save();
+
+        $this->createGameForLeague([
+            'league_id' => $otherLeague->id,
+            'date' => now()->addDays(2)->format('Y-m-d H:i:s'),
+            'type' => 1,
+        ]);
+
+        $response = $this->getJson('/api/leagues/' . $this->league->id . '/scheduled-dates');
+
+        $response->assertStatus(200)
+            ->assertJsonPath('message', 'League scheduled dates')
+            ->assertJsonPath('data.league_id', $this->league->id)
+            ->assertJsonPath('data.league_name', 'Test League');
+
+        $dates = collect($response->json('data.dates'));
+        $this->assertTrue($dates->contains($futureRegularDay1));
+        $this->assertTrue($dates->contains($futureRegularDay2));
+        $this->assertTrue($dates->contains($futureRegularDay4));
+        $this->assertFalse($dates->contains($futureRegularDay3));
+        $this->assertFalse($dates->contains(now()->subDay()->format('Y-m-d')));
+        $this->assertFalse($dates->contains(now()->addDays(2)->format('Y-m-d')));
+
+        $rangeStart = now()->addDays(2)->format('Y-m-d');
+        $rangeEnd = now()->addDays(6)->format('Y-m-d');
+
+        $rangeResponse = $this->getJson(
+            '/api/leagues/' . $this->league->id
+            . '/scheduled-dates?start_date=' . $rangeStart
+            . '&end_date=' . $rangeEnd
+        );
+
+        $rangeResponse->assertStatus(200);
+
+        $rangeDates = collect($rangeResponse->json('data.dates'));
+        $this->assertFalse($rangeDates->contains($futureRegularDay1));
+        $this->assertTrue($rangeDates->contains($futureRegularDay2));
+        $this->assertFalse($rangeDates->contains($futureRegularDay4));
+        $this->assertSame($rangeDates->count(), $rangeResponse->json('data.dates_count'));
+    }
+
     public function test_can_get_searchable_non_practice_opponent_teams()
     {
         if (! Schema::hasTable('league_teams')) {
