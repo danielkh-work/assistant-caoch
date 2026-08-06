@@ -39,6 +39,15 @@ class GameController extends Controller
             return $conflict;
         }
 
+        $teamError = $this->leagueTeamIntegrityResponse(
+            (int) $validated['league_id'],
+            (int) $validated['my_team_id'],
+            (int) $validated['oponent_team_id']
+        );
+        if ($teamError) {
+            return $teamError;
+        }
+
         $validated['creator_id']= auth()->user()->id;
         $game = Game::create($validated);
 
@@ -117,6 +126,75 @@ class GameController extends Controller
         return $teamId ? (int) $teamId : null;
     }
 
+    private function leagueTeamExistsForGame(int $leagueId, int $teamId): bool
+    {
+        $query = LeagueTeam::query()
+            ->whereKey($teamId)
+            ->where('league_id', $leagueId);
+
+        if (Schema::hasColumn('league_teams', 'is_practice')) {
+            $query->where(function ($q) {
+                $q->where('is_practice', 0)
+                    ->orWhereNull('is_practice');
+            });
+        }
+
+        return $query->exists();
+    }
+
+    private function leagueTeamIntegrityResponse(
+        int $leagueId,
+        int $myTeamId,
+        int $opponentTeamId
+    ): ?BaseResponse {
+        if ($myTeamId === $opponentTeamId) {
+            return new BaseResponse(
+                STATUS_CODE_UNPROCESSABLE,
+                STATUS_CODE_UNPROCESSABLE,
+                'My team and opponent team must be different.'
+            );
+        }
+
+        foreach ([$myTeamId, $opponentTeamId] as $teamId) {
+            if (! $this->leagueTeamExistsForGame($leagueId, $teamId)) {
+                return new BaseResponse(
+                    STATUS_CODE_UNPROCESSABLE,
+                    STATUS_CODE_UNPROCESSABLE,
+                    'Selected team is invalid for this league.'
+                );
+            }
+        }
+
+        return null;
+    }
+
+    private function applyLeagueTeamIntegrityFilter(Builder $query, int $leagueId): Builder
+    {
+        return $query
+            ->whereHas('myTeam', fn (Builder $teamQuery) => $teamQuery->where('league_id', $leagueId))
+            ->whereHas('opponentTeam', fn (Builder $teamQuery) => $teamQuery->where('league_id', $leagueId));
+    }
+
+    private function mapUpcomingMatchSummaries($games)
+    {
+        return collect($games)->map(function (Game $game) {
+            return [
+                'id' => $game->id,
+                'date' => $game->date,
+                'status' => $game->status,
+                'match_start_date' => $game->match_start_date,
+                'match_end_date' => $game->match_end_date,
+                'my_team_id' => $game->my_team_id,
+                'my_team_name' => optional($game->myTeam)->team_name,
+                'opponent_team_id' => $game->oponent_team_id,
+                'opponent_team_name' => optional($game->opponentTeam)->team_name,
+                'location' => $game->location,
+                'location_type' => $game->location_type,
+                'neutral_location' => $game->neutral_location,
+            ];
+        });
+    }
+
     /**
      * League-scoped uniqueness: one game per calendar day (soft-deleted games ignored).
      */
@@ -162,25 +240,13 @@ class GameController extends Controller
             ? (int) $newOpponentTeamId
             : (int) $game->oponent_team_id;
 
-        if ($newOpponentTeamId !== (int) $game->oponent_team_id) {
-            $opponentQuery = LeagueTeam::query()
-                ->whereKey($newOpponentTeamId)
-                ->where('league_id', $game->league_id);
-
-            if (Schema::hasColumn('league_teams', 'is_practice')) {
-                $opponentQuery->where(function ($q) {
-                    $q->where('is_practice', 0)
-                        ->orWhereNull('is_practice');
-                });
-            }
-
-            if (! $opponentQuery->exists()) {
-                return new BaseResponse(
-                    STATUS_CODE_UNPROCESSABLE,
-                    STATUS_CODE_UNPROCESSABLE,
-                    'Selected opponent team is invalid for this league.'
-                );
-            }
+        if ($newOpponentTeamId !== (int) $game->oponent_team_id
+            && ! $this->leagueTeamExistsForGame((int) $game->league_id, $newOpponentTeamId)) {
+            return new BaseResponse(
+                STATUS_CODE_UNPROCESSABLE,
+                STATUS_CODE_UNPROCESSABLE,
+                'Selected opponent team is invalid for this league.'
+            );
         }
 
         $opponentChanged = $newOpponentTeamId !== (int) $game->oponent_team_id;
@@ -454,6 +520,7 @@ class GameController extends Controller
         string $datePattern
     ): Builder {
         $gamesQuery = Game::with($eagerLoad)->where('league_id', $leagueId);
+        $gamesQuery = $this->applyLeagueTeamIntegrityFilter($gamesQuery, $leagueId);
 
         if ($gameType !== null) {
             $gamesQuery->where('type', $gameType);
@@ -660,8 +727,10 @@ class GameController extends Controller
             ? $startDate
             : $today;
 
-        $datesQuery = Game::query()
-            ->where('league_id', $leagueId)
+        $datesQuery = $this->applyLeagueTeamIntegrityFilter(
+            Game::query()->where('league_id', $leagueId),
+            (int) $leagueId
+        )
             ->where('type', 1)
             ->whereNotNull('date')
             ->whereDate('date', '>=', $effectiveStart);
@@ -699,35 +768,23 @@ class GameController extends Controller
             return new BaseResponse(STATUS_CODE_NOTFOUND, STATUS_CODE_NOTFOUND, 'League not found.');
         }
 
-        $matches = Game::with([
-                'myTeam:id,team_name',
-                'opponentTeam:id,team_name',
-            ])
-            ->where('league_id', $leagueId)
-            ->where('type', 1)
-            ->where('date', '>=', now())
-            ->whereNull('status')
-            ->whereNull('match_start_date')
-            ->whereNull('match_end_date')
-            ->orderBy('date')
-            ->orderBy('id')
-            ->get()
-            ->map(function (Game $game) {
-                return [
-                    'id' => $game->id,
-                    'date' => $game->date,
-                    'status' => $game->status,
-                    'match_start_date' => $game->match_start_date,
-                    'match_end_date' => $game->match_end_date,
-                    'my_team_id' => $game->my_team_id,
-                    'my_team_name' => optional($game->myTeam)->team_name,
-                    'opponent_team_id' => $game->oponent_team_id,
-                    'opponent_team_name' => optional($game->opponentTeam)->team_name,
-                    'location' => $game->location,
-                    'location_type' => $game->location_type,
-                    'neutral_location' => $game->neutral_location,
-                ];
-            });
+        $matches = $this->mapUpcomingMatchSummaries(
+            $this->applyLeagueTeamIntegrityFilter(
+                Game::with([
+                    'myTeam:id,team_name',
+                    'opponentTeam:id,team_name',
+                ])->where('league_id', $leagueId),
+                (int) $leagueId
+            )
+                ->where('type', 1)
+                ->where('date', '>=', now())
+                ->whereNull('status')
+                ->whereNull('match_start_date')
+                ->whereNull('match_end_date')
+                ->orderBy('date')
+                ->orderBy('id')
+                ->get()
+        );
 
         return new BaseResponse(
             STATUS_CODE_OK,
@@ -751,36 +808,24 @@ class GameController extends Controller
             ->get();
 
         $leaguesWithMatches = $leagues->map(function ($league) {
-            $matches = Game::with([
-                    'myTeam:id,team_name',
-                    'opponentTeam:id,team_name',
-                ])
-                ->where('league_id', $league->id)
-                ->where('type', 1)
-                ->where('date', '>=', now())
-                ->whereNull('status')
-                ->whereNull('match_start_date')
-                ->whereNull('match_end_date')
-                ->orderBy('date')
-                ->orderBy('id')
-                ->limit(1)
-                ->get()
-                ->map(function (Game $game) {
-                    return [
-                        'id' => $game->id,
-                        'date' => $game->date,
-                        'status' => $game->status,
-                        'match_start_date' => $game->match_start_date,
-                        'match_end_date' => $game->match_end_date,
-                        'my_team_id' => $game->my_team_id,
-                        'my_team_name' => optional($game->myTeam)->team_name,
-                        'opponent_team_id' => $game->oponent_team_id,
-                        'opponent_team_name' => optional($game->opponentTeam)->team_name,
-                        'location' => $game->location,
-                        'location_type' => $game->location_type,
-                        'neutral_location' => $game->neutral_location,
-                    ];
-                })
+            $matches = $this->mapUpcomingMatchSummaries(
+                $this->applyLeagueTeamIntegrityFilter(
+                    Game::with([
+                        'myTeam:id,team_name',
+                        'opponentTeam:id,team_name',
+                    ])->where('league_id', $league->id),
+                    (int) $league->id
+                )
+                    ->where('type', 1)
+                    ->where('date', '>=', now())
+                    ->whereNull('status')
+                    ->whereNull('match_start_date')
+                    ->whereNull('match_end_date')
+                    ->orderBy('date')
+                    ->orderBy('id')
+                    ->limit(1)
+                    ->get()
+            )
                 ->values()
                 ->all();
 

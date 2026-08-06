@@ -19,6 +19,8 @@ class GameControllerTest extends TestCase
     protected User $user;
     protected League $league;
     protected Game $game;
+    protected int $myTeamId = 1;
+    protected int $opponentTeamId = 2;
 
     protected function setUp(): void
     {
@@ -43,11 +45,34 @@ class GameControllerTest extends TestCase
         $this->league->number_of_team = 2;
         $this->league->save();
 
+        if (Schema::hasTable('league_teams')) {
+            $teamRow = [
+                'league_id' => $this->league->id,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+
+            if (Schema::hasColumn('league_teams', 'is_practice')) {
+                $teamRow['is_practice'] = 0;
+            }
+
+            if (Schema::hasColumn('league_teams', 'type')) {
+                $teamRow['type'] = 1;
+            }
+
+            $this->myTeamId = DB::table('league_teams')->insertGetId(array_merge($teamRow, [
+                'team_name' => 'Test My Team',
+            ]));
+            $this->opponentTeamId = DB::table('league_teams')->insertGetId(array_merge($teamRow, [
+                'team_name' => 'Test Opponent',
+            ]));
+        }
+
         $this->game = new Game();
         $this->game->league_id = $this->league->id;
         $this->game->creator_id = $this->user->id;
-        $this->game->my_team_id = 1;
-        $this->game->oponent_team_id = 2;
+        $this->game->my_team_id = $this->myTeamId;
+        $this->game->oponent_team_id = $this->opponentTeamId;
         $this->game->date = now()->toDateString();
         $this->game->location_type = 'home';
         $this->game->save();
@@ -65,8 +90,8 @@ class GameControllerTest extends TestCase
 
         $response = $this->postJson('/api/games', [
             'league_id' => $this->league->id,
-            'my_team_id' => 1,
-            'oponent_team_id' => 2,
+            'my_team_id' => $this->myTeamId,
+            'oponent_team_id' => $this->opponentTeamId,
             'date' => now()->addDay()->format('Y-m-d') . ' 15:30:00',
             'location' => 'Home Stadium',
             'location_type' => 'home'
@@ -89,8 +114,8 @@ class GameControllerTest extends TestCase
 
         $response = $this->postJson('/api/games', [
             'league_id' => $this->league->id,
-            'my_team_id' => 1,
-            'oponent_team_id' => 2,
+            'my_team_id' => $this->myTeamId,
+            'oponent_team_id' => $this->opponentTeamId,
             'date' => now()->addDays(3)->format('Y-m-d') . 'T19:00',
             'location' => 'Another Stadium',
             'location_type' => 'home',
@@ -109,8 +134,8 @@ class GameControllerTest extends TestCase
 
         $response = $this->postJson('/api/games', [
             'league_id' => $this->league->id,
-            'my_team_id' => 1,
-            'oponent_team_id' => 2,
+            'my_team_id' => $this->myTeamId,
+            'oponent_team_id' => $this->opponentTeamId,
             'date' => $day . ' 18:30:00',
             'location' => 'Evening Field',
             'location_type' => 'home',
@@ -118,6 +143,93 @@ class GameControllerTest extends TestCase
 
         $response->assertStatus(422)
             ->assertJsonPath('message', 'A game is already scheduled on this date.');
+    }
+
+    public function test_create_game_rejects_teams_from_other_league()
+    {
+        if (! Schema::hasTable('league_teams')) {
+            $this->markTestSkipped('League teams table is not available.');
+        }
+
+        $this->auth();
+
+        $otherLeague = new League();
+        $otherLeague->user_id = $this->user->id;
+        $otherLeague->sport_id = $this->league->sport_id;
+        $otherLeague->league_rule_id = $this->league->league_rule_id;
+        $otherLeague->title = 'Other League';
+        $otherLeague->number_of_team = 2;
+        $otherLeague->save();
+
+        $foreignTeamId = DB::table('league_teams')->insertGetId([
+            'league_id' => $otherLeague->id,
+            'team_name' => 'Foreign Team',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->postJson('/api/games', [
+            'league_id' => $this->league->id,
+            'my_team_id' => $this->myTeamId,
+            'oponent_team_id' => $foreignTeamId,
+            'date' => now()->addDays(5)->format('Y-m-d') . ' 15:30:00',
+            'location' => 'Home Stadium',
+            'location_type' => 'home',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('message', 'Selected team is invalid for this league.');
+    }
+
+    public function test_get_games_by_league_excludes_games_with_mismatched_teams()
+    {
+        if (! Schema::hasTable('league_teams')) {
+            $this->markTestSkipped('League teams table is not available.');
+        }
+
+        $this->auth();
+
+        $otherLeague = new League();
+        $otherLeague->user_id = $this->user->id;
+        $otherLeague->sport_id = $this->league->sport_id;
+        $otherLeague->league_rule_id = $this->league->league_rule_id;
+        $otherLeague->title = 'Foreign League';
+        $otherLeague->number_of_team = 2;
+        $otherLeague->save();
+
+        $foreignMyTeamId = DB::table('league_teams')->insertGetId([
+            'league_id' => $otherLeague->id,
+            'team_name' => 'Foreign My Team',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $foreignOpponentId = DB::table('league_teams')->insertGetId([
+            'league_id' => $otherLeague->id,
+            'team_name' => 'team2',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $orphanedGame = $this->createGameForLeague([
+            'my_team_id' => $foreignMyTeamId,
+            'oponent_team_id' => $foreignOpponentId,
+            'date' => now()->addDays(6)->format('Y-m-d H:i:s'),
+        ]);
+
+        $validGame = $this->createGameForLeague([
+            'my_team_id' => $this->myTeamId,
+            'oponent_team_id' => $this->opponentTeamId,
+            'date' => now()->addDays(7)->format('Y-m-d H:i:s'),
+        ]);
+
+        $response = $this->getJson('/api/games/league/' . $this->league->id . '?per_page=100');
+
+        $response->assertStatus(200);
+
+        $gameIds = collect($response->json('data'))->pluck('id')->all();
+        $this->assertContains($validGame->id, $gameIds);
+        $this->assertNotContains($orphanedGame->id, $gameIds);
     }
 
     public function test_duplicate_game_rejects_duplicate_league_datetime()
@@ -940,8 +1052,8 @@ class GameControllerTest extends TestCase
         $game = new Game();
         $game->league_id = $attributes['league_id'] ?? $this->league->id;
         $game->creator_id = $this->user->id;
-        $game->my_team_id = $attributes['my_team_id'] ?? 1;
-        $game->oponent_team_id = $attributes['oponent_team_id'] ?? 2;
+        $game->my_team_id = $attributes['my_team_id'] ?? $this->myTeamId;
+        $game->oponent_team_id = $attributes['oponent_team_id'] ?? $this->opponentTeamId;
         $game->date = $attributes['date'] ?? now()->toDateString();
         $game->location_type = $attributes['location_type'] ?? 'home';
 
