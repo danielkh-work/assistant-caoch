@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 
 class PlayerListPresenter
 {
-    private const ALLOWED_FILTERS = ['current_league', 'current_team', 'not_assigned'];
+    private const ALLOWED_FILTERS = ['current_league', 'current_team', 'not_assigned', 'created_by_me'];
 
     public function validateListFilters(Request $request): ?string
     {
@@ -20,7 +20,7 @@ class PlayerListPresenter
         }
 
         if (! in_array($filter, self::ALLOWED_FILTERS, true)) {
-            return 'Invalid filter. Allowed values: current_league, current_team, not_assigned.';
+            return 'Invalid filter. Allowed values: current_league, current_team, not_assigned, created_by_me.';
         }
 
         if ($filter === 'current_league' && ! $request->filled('league_id')) {
@@ -66,6 +66,7 @@ class PlayerListPresenter
                 $teamPlayerQuery->where('team_id', (int) $request->input('team_id'));
             }),
             'not_assigned' => $query->whereDoesntHave('teamPlayers'),
+            'created_by_me' => $query->where('players.user_id', auth()->id()),
             default => null,
         };
     }

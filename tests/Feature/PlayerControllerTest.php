@@ -274,6 +274,37 @@ class PlayerControllerTest extends TestCase
         $this->assertNotContains('Assigned Player', $names);
     }
 
+    public function test_player_list_filter_created_by_me_returns_only_auth_user_players()
+    {
+        $this->auth();
+
+        $mine = $this->createPlayer('My Created Player');
+
+        $otherCoach = User::factory()->create([
+            'role' => 'head_coach',
+            'status' => 'approved',
+        ]);
+        $theirs = new Player();
+        $theirs->name = 'Other Coach Player';
+        $theirs->user_id = $otherCoach->id;
+        $theirs->number = 88;
+        $theirs->position = 'QB';
+        $theirs->size = 70;
+        $theirs->speed = 80;
+        $theirs->strength = 80;
+        $theirs->save();
+
+        $response = $this->getJson('/api/player-list?filter=created_by_me&page=1&per_page=20');
+
+        $response->assertStatus(200);
+
+        $names = collect($response->json('data'))->pluck('name')->all();
+
+        $this->assertContains('My Created Player', $names);
+        $this->assertNotContains('Other Coach Player', $names);
+        $this->assertSame($this->user->id, collect($response->json('data'))->firstWhere('name', 'My Created Player')['user_id'] ?? null);
+    }
+
     public function test_player_list_filter_current_league_requires_league_id()
     {
         $this->auth();
