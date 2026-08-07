@@ -14,7 +14,7 @@ class LeagueTeam extends Model
     }
     public function league()
     {
-        return $this->belongTo(League::class,'league_id');
+        return $this->belongsTo(League::class, 'league_id');
     }
 
     public function qb()

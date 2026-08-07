@@ -8,6 +8,10 @@ use App\Models\User;
 use App\Models\Player;
 use App\Models\Team;
 use App\Models\TeamPlayer;
+use App\Models\Sport;
+use App\Models\League;
+use App\Models\LeagueTeam;
+use App\Services\LeaguePlayerTeamValidator;
 use Laravel\Sanctum\Sanctum;
 use Illuminate\Support\Facades\Schema;
 
@@ -111,6 +115,122 @@ class PlayerControllerTest extends TestCase
                  ->assertJsonStructure(['status', 'message', 'data']);
     }
 
+    public function test_player_list_includes_league_and_team_metadata()
+    {
+        if (!Schema::hasTable('league_teams')) {
+            $this->markTestSkipped('Backend schema issue: league_teams table not found');
+        }
+
+        $this->auth();
+
+        [$league, $teamA] = array_slice($this->createLeagueWithTeams(), 0, 2);
+        $player = $this->createPlayer('Metadata Player');
+        $this->rosterPlayerOnTeam($player, $teamA);
+
+        $response = $this->getJson('/api/player-list?league_id=' . $league->id . '&page=1&per_page=20');
+
+        $response->assertStatus(200)
+            ->assertJsonFragment([
+                'name' => 'Metadata Player',
+            ]);
+
+        $listedPlayer = collect($response->json('data'))->firstWhere('name', 'Metadata Player');
+        $this->assertNotNull($listedPlayer);
+        $this->assertSame($teamA->id, $listedPlayer['teams'][0]['team_id'] ?? null);
+        $this->assertSame('Player Team A', $listedPlayer['teams'][0]['team_name'] ?? null);
+        $this->assertSame('Player Test League', $listedPlayer['leagues'][0]['league_name'] ?? null);
+    }
+
+    public function test_player_list_filter_current_league_returns_league_players()
+    {
+        if (!Schema::hasTable('league_teams')) {
+            $this->markTestSkipped('Backend schema issue: league_teams table not found');
+        }
+
+        $this->auth();
+
+        [$league, $teamA] = array_slice($this->createLeagueWithTeams(), 0, 2);
+
+        $inLeaguePool = $this->createPlayer('League Pool Player');
+        $inLeaguePool->league_id = $league->id;
+        $inLeaguePool->save();
+
+        $rosteredInLeague = $this->createPlayer('Rostered League Player');
+        $this->rosterPlayerOnTeam($rosteredInLeague, $teamA);
+
+        $outsideLeague = $this->createPlayer('Outside League Player');
+
+        $response = $this->getJson('/api/player-list?filter=current_league&league_id=' . $league->id . '&page=1&per_page=20');
+
+        $response->assertStatus(200);
+
+        $names = collect($response->json('data'))->pluck('name')->all();
+
+        $this->assertContains('League Pool Player', $names);
+        $this->assertContains('Rostered League Player', $names);
+        $this->assertNotContains('Outside League Player', $names);
+    }
+
+    public function test_player_list_filter_current_team_returns_rostered_players()
+    {
+        if (!Schema::hasTable('league_teams')) {
+            $this->markTestSkipped('Backend schema issue: league_teams table not found');
+        }
+
+        $this->auth();
+
+        [, $teamA] = $this->createLeagueWithTeams();
+
+        $onTeam = $this->createPlayer('On Team Player');
+        $this->rosterPlayerOnTeam($onTeam, $teamA);
+
+        $notOnTeam = $this->createPlayer('Not On Team Player');
+
+        $response = $this->getJson('/api/player-list?filter=current_team&team_id=' . $teamA->id . '&page=1&per_page=20');
+
+        $response->assertStatus(200);
+
+        $names = collect($response->json('data'))->pluck('name')->all();
+
+        $this->assertContains('On Team Player', $names);
+        $this->assertNotContains('Not On Team Player', $names);
+    }
+
+    public function test_player_list_filter_not_assigned_returns_unrostered_players()
+    {
+        if (!Schema::hasTable('league_teams')) {
+            $this->markTestSkipped('Backend schema issue: league_teams table not found');
+        }
+
+        $this->auth();
+
+        [, $teamA] = $this->createLeagueWithTeams();
+
+        $assigned = $this->createPlayer('Assigned Player');
+        $this->rosterPlayerOnTeam($assigned, $teamA);
+
+        $unassigned = $this->createPlayer('Unassigned Player');
+
+        $response = $this->getJson('/api/player-list?filter=not_assigned&page=1&per_page=20');
+
+        $response->assertStatus(200);
+
+        $names = collect($response->json('data'))->pluck('name')->all();
+
+        $this->assertContains('Unassigned Player', $names);
+        $this->assertNotContains('Assigned Player', $names);
+    }
+
+    public function test_player_list_filter_current_league_requires_league_id()
+    {
+        $this->auth();
+
+        $response = $this->getJson('/api/player-list?filter=current_league&page=1&per_page=20');
+
+        $response->assertStatus(422)
+            ->assertJsonPath('message', 'league_id is required when filter is current_league.');
+    }
+
     public function test_can_update_player_profile()
     {
         $this->auth();
@@ -172,6 +292,109 @@ class PlayerControllerTest extends TestCase
 
         $response->assertStatus(200);
         $this->assertDatabaseHas('team_players', ['player_id' => $player->id, 'name' => 'Updated Team Player']);
+    }
+
+    protected function createLeagueWithTeams(): array
+    {
+        $sport = Sport::where('title', 'Football Test')->first();
+        if (!$sport) {
+            $sport = new Sport();
+            $sport->title = 'Football Test';
+            $sport->save();
+        }
+
+        $league = new League();
+        $league->user_id = $this->user->id;
+        $league->sport_id = $sport->id;
+        $league->league_rule_id = \Illuminate\Support\Facades\DB::table('league_rules')->value('id') ?? 1;
+        $league->title = 'Player Test League';
+        $league->number_of_team = 2;
+        $league->save();
+
+        $teamA = new LeagueTeam();
+        $teamA->league_id = $league->id;
+        $teamA->team_name = 'Player Team A';
+        $teamA->save();
+
+        $teamB = new LeagueTeam();
+        $teamB->league_id = $league->id;
+        $teamB->team_name = 'Player Team B';
+        $teamB->save();
+
+        return [$league, $teamA, $teamB];
+    }
+
+    protected function rosterPlayerOnTeam(Player $player, LeagueTeam $team): void
+    {
+        $teamPlayer = new TeamPlayer();
+        $teamPlayer->player_id = $player->id;
+        $teamPlayer->team_id = $team->id;
+        $teamPlayer->name = $player->name;
+        $teamPlayer->number = $player->number;
+        $teamPlayer->position = $player->position;
+        $teamPlayer->save();
+    }
+
+    public function test_add_player_rejects_when_player_already_on_another_team_in_league()
+    {
+        if (!Schema::hasTable('league_teams')) {
+            $this->markTestSkipped('Backend schema issue: league_teams table not found');
+        }
+
+        $this->auth();
+
+        [$league, $teamA, $teamB] = $this->createLeagueWithTeams();
+        $player = $this->createPlayer('Existing Roster Player');
+        $this->rosterPlayerOnTeam($player, $teamA);
+
+        $validator = app(LeaguePlayerTeamValidator::class);
+        $message = $validator->firstConflictMessage($league->id, $teamB->id, [$player->id]);
+
+        $this->assertSame(
+            'Player "Existing Roster Player" is already assigned to team "Player Team A" in this league.',
+            $message
+        );
+
+        $response = $this->postJson('/api/add-player', [
+            'type' => 'team',
+            'team_id' => $teamB->id,
+            'name' => 'Existing Roster Player',
+            'number' => $player->number,
+            'position' => 'QB',
+            'size' => 70,
+            'weight' => 200,
+            'height' => 180,
+            'dob' => '1990-01-01',
+            'ofp' => 85,
+            'strength' => 90,
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('message', 'A player with this name and number already exists.');
+
+        $this->assertDatabaseMissing('team_players', [
+            'team_id' => $teamB->id,
+            'player_id' => $player->id,
+        ]);
+
+        $assignResponse = $this->postJson('/api/update-team/' . $teamB->id, [
+            'team_name' => $teamB->team_name,
+            'league_id' => $league->id,
+            'players' => json_encode([
+                [
+                    'player_id' => $player->id,
+                    'playertype' => 'offence',
+                    'name' => $player->name,
+                    'speed' => 80,
+                ],
+            ]),
+        ]);
+
+        $assignResponse->assertStatus(422)
+            ->assertJsonPath(
+                'message',
+                'Player "Existing Roster Player" is already assigned to team "Player Team A" in this league.'
+            );
     }
 
     public function test_can_update_ofp()
