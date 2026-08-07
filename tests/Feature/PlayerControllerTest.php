@@ -141,7 +141,7 @@ class PlayerControllerTest extends TestCase
         $this->assertSame('Player Test League', $listedPlayer['leagues'][0]['league_name'] ?? null);
     }
 
-    public function test_player_list_filter_current_league_returns_league_pool_players()
+    public function test_player_list_filter_current_league_returns_league_players()
     {
         if (!Schema::hasTable('league_teams')) {
             $this->markTestSkipped('Backend schema issue: league_teams table not found');
@@ -149,13 +149,16 @@ class PlayerControllerTest extends TestCase
 
         $this->auth();
 
-        [$league] = $this->createLeagueWithTeams();
+        [$league, $teamA] = array_slice($this->createLeagueWithTeams(), 0, 2);
 
         $inLeaguePool = $this->createPlayer('League Pool Player');
         $inLeaguePool->league_id = $league->id;
         $inLeaguePool->save();
 
-        $outsideLeaguePool = $this->createPlayer('Outside League Pool Player');
+        $rosteredInLeague = $this->createPlayer('Rostered League Player');
+        $this->rosterPlayerOnTeam($rosteredInLeague, $teamA);
+
+        $outsideLeague = $this->createPlayer('Outside League Player');
 
         $response = $this->getJson('/api/player-list?filter=current_league&league_id=' . $league->id . '&page=1&per_page=20');
 
@@ -164,7 +167,8 @@ class PlayerControllerTest extends TestCase
         $names = collect($response->json('data'))->pluck('name')->all();
 
         $this->assertContains('League Pool Player', $names);
-        $this->assertNotContains('Outside League Pool Player', $names);
+        $this->assertContains('Rostered League Player', $names);
+        $this->assertNotContains('Outside League Player', $names);
     }
 
     public function test_player_list_filter_current_team_returns_rostered_players()

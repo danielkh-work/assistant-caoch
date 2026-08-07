@@ -38,7 +38,17 @@ class PlayerListPresenter
         $filter = $this->normalizeFilter($request->input('filter'));
 
         match ($filter) {
-            'current_league' => $query->where('league_id', (int) $request->input('league_id')),
+            'current_league' => $query->where(function (Builder $leagueQuery) use ($request) {
+                $leagueId = (int) $request->input('league_id');
+
+                $leagueQuery
+                    ->where('players.league_id', $leagueId)
+                    ->orWhereHas('teamPlayers', function (Builder $teamPlayerQuery) use ($leagueId) {
+                        $teamPlayerQuery->whereHas('leagueTeam', function (Builder $leagueTeamQuery) use ($leagueId) {
+                            $leagueTeamQuery->where('league_id', $leagueId);
+                        });
+                    });
+            }),
             'current_team' => $query->whereHas('teamPlayers', function (Builder $teamPlayerQuery) use ($request) {
                 $teamPlayerQuery->where('team_id', (int) $request->input('team_id'));
             }),
