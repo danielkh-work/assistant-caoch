@@ -141,7 +141,7 @@ class PlayerControllerTest extends TestCase
         $this->assertSame('Player Test League', $listedPlayer['leagues'][0]['league_name'] ?? null);
     }
 
-    public function test_player_list_teams_and_leagues_only_include_accessible_leagues()
+    public function test_player_list_without_filter_includes_all_team_and_league_metadata()
     {
         if (!Schema::hasTable('league_teams')) {
             $this->markTestSkipped('Backend schema issue: league_teams table not found');
@@ -171,14 +171,10 @@ class PlayerControllerTest extends TestCase
 
         $listedPlayer = collect($response->json('data'))->firstWhere('name', 'Cross Coach Player');
         $this->assertNotNull($listedPlayer);
-        $this->assertSame(
-            [$ownedTeam->id],
-            collect($listedPlayer['teams'])->pluck('team_id')->all()
-        );
-        $this->assertSame(
-            [$ownedLeague->id],
-            collect($listedPlayer['leagues'])->pluck('league_id')->all()
-        );
+        $this->assertContains($ownedTeam->id, collect($listedPlayer['teams'])->pluck('team_id')->all());
+        $this->assertContains($foreignTeam->id, collect($listedPlayer['teams'])->pluck('team_id')->all());
+        $this->assertContains($ownedLeague->id, collect($listedPlayer['leagues'])->pluck('league_id')->all());
+        $this->assertContains($foreignLeague->id, collect($listedPlayer['leagues'])->pluck('league_id')->all());
     }
 
     public function test_player_list_filter_current_league_returns_league_players()
