@@ -9,17 +9,18 @@ use Illuminate\Http\Request;
 
 class PlayerListPresenter
 {
+    /**
+     * Scope filters (mutually exclusive via `filter`).
+     * `not_assigned` remains allowed for backward compatibility; prefer the
+     * additive `not_assigned=1` query flag so it can combine with a scope.
+     */
     private const ALLOWED_FILTERS = ['current_league', 'current_team', 'not_assigned', 'created_by_me'];
 
     public function validateListFilters(Request $request): ?string
     {
         $filter = $this->normalizeFilter($request->input('filter'));
 
-        if ($filter === null) {
-            return null;
-        }
-
-        if (! in_array($filter, self::ALLOWED_FILTERS, true)) {
+        if ($filter !== null && ! in_array($filter, self::ALLOWED_FILTERS, true)) {
             return 'Invalid filter. Allowed values: current_league, current_team, not_assigned, created_by_me.';
         }
 
@@ -41,6 +42,11 @@ class PlayerListPresenter
 
         if ($filter === 'current_team' && ! $request->filled('team_id')) {
             return 'team_id is required when filter is current_team.';
+        }
+
+        // Combining not_assigned with current_team is contradictory (team members are assigned).
+        if ($filter === 'current_team' && $this->wantsNotAssigned($request)) {
+            return 'not_assigned cannot be combined with filter current_team.';
         }
 
         return null;
@@ -65,10 +71,15 @@ class PlayerListPresenter
             'current_team' => $query->whereHas('teamPlayers', function (Builder $teamPlayerQuery) use ($request) {
                 $teamPlayerQuery->where('team_id', (int) $request->input('team_id'));
             }),
-            'not_assigned' => $query->whereDoesntHave('teamPlayers'),
             'created_by_me' => $query->where('players.user_id', auth()->id()),
             default => null,
         };
+
+        // Additive: works with all / current_league / created_by_me.
+        // Also honors legacy filter=not_assigned (unassigned across all players).
+        if ($filter === 'not_assigned' || $this->wantsNotAssigned($request)) {
+            $query->whereDoesntHave('teamPlayers');
+        }
     }
 
     /**
@@ -224,5 +235,23 @@ class PlayerListPresenter
         $filter = trim((string) $filter);
 
         return $filter === '' ? null : $filter;
+    }
+
+    /**
+     * Additive unassigned flag: not_assigned=1|true|yes (independent of `filter` scope).
+     */
+    private function wantsNotAssigned(Request $request): bool
+    {
+        if (! $request->has('not_assigned')) {
+            return false;
+        }
+
+        $value = $request->input('not_assigned');
+
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        return filter_var($value, FILTER_VALIDATE_BOOLEAN);
     }
 }
