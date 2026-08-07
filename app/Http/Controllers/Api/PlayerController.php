@@ -317,7 +317,7 @@ class PlayerController extends Controller
                 STATUS_CODE_OK,
                 STATUS_CODE_OK,
                 'Player List  ',
-                $presenter->formatPlayers($paginator->items()),
+                $presenter->formatPlayers($paginator->items(), $request),
                 null,
                 null,
                 $pagination,
@@ -330,7 +330,7 @@ class PlayerController extends Controller
             STATUS_CODE_OK,
             STATUS_CODE_OK,
             'Player List  ',
-            $presenter->formatPlayers($players)
+            $presenter->formatPlayers($players, $request)
         );
     }
     public function update(Request $request,$id)

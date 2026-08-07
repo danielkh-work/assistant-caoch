@@ -150,6 +150,7 @@ class PlayerControllerTest extends TestCase
         $this->auth();
 
         [$league, $teamA] = array_slice($this->createLeagueWithTeams(), 0, 2);
+        [$otherLeague, $otherTeam] = $this->createLeagueWithTeams('Other League', 'Other Team');
 
         $inLeaguePool = $this->createPlayer('League Pool Player');
         $inLeaguePool->league_id = $league->id;
@@ -157,6 +158,7 @@ class PlayerControllerTest extends TestCase
 
         $rosteredInLeague = $this->createPlayer('Rostered League Player');
         $this->rosterPlayerOnTeam($rosteredInLeague, $teamA);
+        $this->rosterPlayerOnTeam($rosteredInLeague, $otherTeam);
 
         $outsideLeague = $this->createPlayer('Outside League Player');
 
@@ -169,6 +171,17 @@ class PlayerControllerTest extends TestCase
         $this->assertContains('League Pool Player', $names);
         $this->assertContains('Rostered League Player', $names);
         $this->assertNotContains('Outside League Player', $names);
+
+        $listedPlayer = collect($response->json('data'))->firstWhere('name', 'Rostered League Player');
+        $this->assertNotNull($listedPlayer);
+        $this->assertSame(
+            [$teamA->id],
+            collect($listedPlayer['teams'])->pluck('team_id')->all()
+        );
+        $this->assertSame(
+            [$league->id],
+            collect($listedPlayer['leagues'])->pluck('league_id')->all()
+        );
     }
 
     public function test_player_list_filter_current_team_returns_rostered_players()
@@ -294,8 +307,11 @@ class PlayerControllerTest extends TestCase
         $this->assertDatabaseHas('team_players', ['player_id' => $player->id, 'name' => 'Updated Team Player']);
     }
 
-    protected function createLeagueWithTeams(): array
-    {
+    protected function createLeagueWithTeams(
+        string $leagueTitle = 'Player Test League',
+        string $teamAName = 'Player Team A',
+        string $teamBName = 'Player Team B',
+    ): array {
         $sport = Sport::where('title', 'Football Test')->first();
         if (!$sport) {
             $sport = new Sport();
@@ -307,18 +323,18 @@ class PlayerControllerTest extends TestCase
         $league->user_id = $this->user->id;
         $league->sport_id = $sport->id;
         $league->league_rule_id = \Illuminate\Support\Facades\DB::table('league_rules')->value('id') ?? 1;
-        $league->title = 'Player Test League';
+        $league->title = $leagueTitle;
         $league->number_of_team = 2;
         $league->save();
 
         $teamA = new LeagueTeam();
         $teamA->league_id = $league->id;
-        $teamA->team_name = 'Player Team A';
+        $teamA->team_name = $teamAName;
         $teamA->save();
 
         $teamB = new LeagueTeam();
         $teamB->league_id = $league->id;
-        $teamB->team_name = 'Player Team B';
+        $teamB->team_name = $teamBName;
         $teamB->save();
 
         return [$league, $teamA, $teamB];

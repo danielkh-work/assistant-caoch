@@ -61,37 +61,60 @@ class PlayerListPresenter
      * @param  iterable<Player>  $players
      * @return array<int, array<string, mixed>>
      */
-    public function formatPlayers(iterable $players): array
+    public function formatPlayers(iterable $players, ?Request $request = null): array
     {
+        $scope = $this->resolveListScope($request);
         $formatted = [];
 
         foreach ($players as $player) {
-            $formatted[] = $this->formatPlayer($player);
+            $formatted[] = $this->formatPlayer($player, $scope);
         }
 
         return $formatted;
     }
 
     /**
+     * @param  array{league_id?: int, team_id?: int}  $scope
      * @return array<string, mixed>
      */
-    public function formatPlayer(Player $player): array
+    public function formatPlayer(Player $player, array $scope = []): array
     {
         $data = $player->toArray();
         unset($data['team_players'], $data['league']);
 
-        $data['teams'] = $this->buildTeams($player);
-        $data['leagues'] = $this->buildLeagues($player);
+        $data['teams'] = $this->buildTeams($player, $scope);
+        $data['leagues'] = $this->buildLeagues($player, $scope);
 
         return $data;
     }
 
     /**
+     * When a list filter is active, scope nested team/league metadata to that context.
+     *
+     * @return array{league_id?: int, team_id?: int}
+     */
+    private function resolveListScope(?Request $request): array
+    {
+        if ($request === null) {
+            return [];
+        }
+
+        $filter = $this->normalizeFilter($request->input('filter'));
+
+        return match ($filter) {
+            'current_league' => ['league_id' => (int) $request->input('league_id')],
+            'current_team' => ['team_id' => (int) $request->input('team_id')],
+            default => [],
+        };
+    }
+
+    /**
+     * @param  array{league_id?: int, team_id?: int}  $scope
      * @return array<int, array{team_id: int, team_name: string|null, league_id: int|null}>
      */
-    private function buildTeams(Player $player): array
+    private function buildTeams(Player $player, array $scope = []): array
     {
-        return $player->teamPlayers
+        $teams = $player->teamPlayers
             ->map(function ($teamPlayer) {
                 return [
                     'team_id' => $teamPlayer->team_id,
@@ -99,15 +122,30 @@ class PlayerListPresenter
                     'league_id' => $teamPlayer->leagueTeam?->league_id,
                 ];
             })
-            ->filter(fn (array $team) => $team['team_id'] !== null)
-            ->values()
-            ->all();
+            ->filter(fn (array $team) => $team['team_id'] !== null);
+
+        if (isset($scope['league_id'])) {
+            $leagueId = $scope['league_id'];
+            $teams = $teams->filter(
+                fn (array $team) => (int) ($team['league_id'] ?? 0) === $leagueId
+            );
+        }
+
+        if (isset($scope['team_id'])) {
+            $teamId = $scope['team_id'];
+            $teams = $teams->filter(
+                fn (array $team) => (int) $team['team_id'] === $teamId
+            );
+        }
+
+        return $teams->values()->all();
     }
 
     /**
+     * @param  array{league_id?: int, team_id?: int}  $scope
      * @return array<int, array{league_id: int, league_name: string|null}>
      */
-    private function buildLeagues(Player $player): array
+    private function buildLeagues(Player $player, array $scope = []): array
     {
         $leagues = collect();
 
@@ -128,6 +166,26 @@ class PlayerListPresenter
                 'league_id' => (int) $player->league_id,
                 'league_name' => $player->league?->title,
             ]);
+        }
+
+        if (isset($scope['league_id'])) {
+            $leagueId = $scope['league_id'];
+            $leagues = $leagues->filter(
+                fn (array $league) => (int) $league['league_id'] === $leagueId
+            );
+        }
+
+        if (isset($scope['team_id'])) {
+            $teamLeagueId = $player->teamPlayers
+                ->first(fn ($teamPlayer) => (int) $teamPlayer->team_id === $scope['team_id'])
+                ?->leagueTeam
+                ?->league_id;
+
+            if ($teamLeagueId !== null) {
+                $leagues = $leagues->filter(
+                    fn (array $league) => (int) $league['league_id'] === (int) $teamLeagueId
+                );
+            }
         }
 
         return $leagues->values()->all();
