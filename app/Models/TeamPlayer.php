@@ -24,4 +24,9 @@ class TeamPlayer extends Model
     {
         return $this->hasMany(TeamPlayerPosition::class, 'teamplayer_id');
     }
+
+    public function leagueTeam()
+    {
+        return $this->belongsTo(LeagueTeam::class, 'team_id');
+    }
 }
