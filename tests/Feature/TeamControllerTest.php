@@ -9,6 +9,8 @@ use App\Models\Sport;
 use App\Models\League;
 use App\Models\LeagueTeam;
 use App\Models\Team;
+use App\Models\Player;
+use App\Models\TeamPlayer;
 use Laravel\Sanctum\Sanctum;
 
 class TeamControllerTest extends TestCase
@@ -140,6 +142,148 @@ class TeamControllerTest extends TestCase
 
         $response->assertStatus(200);
         $this->assertDatabaseHas('league_teams', ['id' => $leagueTeam->id, 'team_name' => 'New Awesome Team']);
+    }
+
+    protected function createLeaguePlayer(string $name = 'Roster Player'): Player
+    {
+        $player = new Player();
+        $player->name = $name;
+        $player->user_id = $this->user->id;
+        $player->number = rand(10, 99);
+        $player->position = 'QB';
+        $player->size = 70;
+        $player->speed = 80;
+        $player->strength = 80;
+        $player->weight = 200;
+        $player->height = 180;
+        $player->save();
+
+        return $player;
+    }
+
+    protected function rosterPlayerOnTeam(Player $player, LeagueTeam $team): void
+    {
+        $teamPlayer = new TeamPlayer();
+        $teamPlayer->player_id = $player->id;
+        $teamPlayer->team_id = $team->id;
+        $teamPlayer->name = $player->name;
+        $teamPlayer->number = $player->number;
+        $teamPlayer->position = $player->position;
+        $teamPlayer->save();
+    }
+
+    protected function buildUpdateTeamPayload(LeagueTeam $team, array $players): array
+    {
+        return [
+            'team_name' => $team->team_name,
+            'league_id' => $this->league->id,
+            'players' => json_encode($players),
+        ];
+    }
+
+    public function test_update_team_rejects_player_already_on_another_team_in_same_league()
+    {
+        $this->auth();
+
+        $teamA = new LeagueTeam();
+        $teamA->league_id = $this->league->id;
+        $teamA->team_name = 'Team Alpha';
+        $teamA->save();
+
+        $teamB = new LeagueTeam();
+        $teamB->league_id = $this->league->id;
+        $teamB->team_name = 'Team Beta';
+        $teamB->save();
+
+        $player = $this->createLeaguePlayer('Shared Player');
+        $this->rosterPlayerOnTeam($player, $teamA);
+
+        $response = $this->postJson('/api/update-team/' . $teamB->id, $this->buildUpdateTeamPayload($teamB, [
+            [
+                'player_id' => $player->id,
+                'playertype' => 'offence',
+                'name' => $player->name,
+                'speed' => 80,
+            ],
+        ]));
+
+        $response->assertStatus(422)
+            ->assertJsonPath('message', 'Player "Shared Player" is already assigned to team "Team Alpha" in this league.');
+
+        $this->assertDatabaseMissing('team_players', [
+            'team_id' => $teamB->id,
+            'player_id' => $player->id,
+        ]);
+    }
+
+    public function test_update_team_allows_player_on_teams_in_different_leagues()
+    {
+        $this->auth();
+
+        $otherLeague = new League();
+        $otherLeague->user_id = $this->user->id;
+        $otherLeague->sport_id = $this->league->sport_id;
+        $otherLeague->league_rule_id = $this->league->league_rule_id;
+        $otherLeague->title = 'Other League';
+        $otherLeague->number_of_team = 2;
+        $otherLeague->save();
+
+        $teamA = new LeagueTeam();
+        $teamA->league_id = $this->league->id;
+        $teamA->team_name = 'League One Team';
+        $teamA->save();
+
+        $teamB = new LeagueTeam();
+        $teamB->league_id = $otherLeague->id;
+        $teamB->team_name = 'League Two Team';
+        $teamB->save();
+
+        $player = $this->createLeaguePlayer('Cross League Player');
+        $this->rosterPlayerOnTeam($player, $teamA);
+
+        $response = $this->postJson('/api/update-team/' . $teamB->id, $this->buildUpdateTeamPayload($teamB, [
+            [
+                'player_id' => $player->id,
+                'playertype' => 'offence',
+                'name' => $player->name,
+                'speed' => 80,
+            ],
+        ]));
+
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('team_players', [
+            'team_id' => $teamB->id,
+            'player_id' => $player->id,
+        ]);
+    }
+
+    public function test_update_team_allows_resaving_player_on_same_team()
+    {
+        $this->auth();
+
+        $team = new LeagueTeam();
+        $team->league_id = $this->league->id;
+        $team->team_name = 'Same Team';
+        $team->save();
+
+        $player = $this->createLeaguePlayer('Same Team Player');
+        $this->rosterPlayerOnTeam($player, $team);
+
+        $response = $this->postJson('/api/update-team/' . $team->id, $this->buildUpdateTeamPayload($team, [
+            [
+                'player_id' => $player->id,
+                'playertype' => 'deffence',
+                'name' => $player->name,
+                'speed' => 85,
+            ],
+        ]));
+
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('team_players', [
+            'team_id' => $team->id,
+            'player_id' => $player->id,
+            'type' => 'deffence',
+        ]);
     }
 
     public function test_can_list_team_by_league()

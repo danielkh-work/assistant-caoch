@@ -8,10 +8,12 @@ use App\Models\Player;
 use App\Models\PracticeTeamPlayer;
 use App\Models\PracticeTeamPlayerPosition;
 use App\Models\PersionalGrouping;
+use App\Models\LeagueTeam;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use App\Models\TeamPlayer;
+use App\Services\LeaguePlayerTeamValidator;
 
 class PlayerController extends Controller
 {
@@ -118,6 +120,23 @@ class PlayerController extends Controller
             $player->load('playerPosition');
             //    if($type === 'team'){
                     $teamPlayerPositionValue = $resolvedPositionNames[0] ?? null;
+
+                    if ($request->filled('team_id')) {
+                        $targetTeam = LeagueTeam::findOrFail($request->team_id);
+
+                        $conflictMessage = app(LeaguePlayerTeamValidator::class)
+                            ->firstConflictMessage($targetTeam->league_id, $targetTeam->id, [$player->id]);
+
+                        if ($conflictMessage !== null) {
+                            DB::rollBack();
+
+                            return new BaseResponse(
+                                STATUS_CODE_UNPROCESSABLE,
+                                STATUS_CODE_UNPROCESSABLE,
+                                $conflictMessage
+                            );
+                        }
+                    }
 
                     $teamPlayerId = DB::table('team_players')->insertGetId([
                         'player_id' => $player->id,

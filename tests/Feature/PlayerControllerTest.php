@@ -8,6 +8,10 @@ use App\Models\User;
 use App\Models\Player;
 use App\Models\Team;
 use App\Models\TeamPlayer;
+use App\Models\Sport;
+use App\Models\League;
+use App\Models\LeagueTeam;
+use App\Services\LeaguePlayerTeamValidator;
 use Laravel\Sanctum\Sanctum;
 use Illuminate\Support\Facades\Schema;
 
@@ -172,6 +176,109 @@ class PlayerControllerTest extends TestCase
 
         $response->assertStatus(200);
         $this->assertDatabaseHas('team_players', ['player_id' => $player->id, 'name' => 'Updated Team Player']);
+    }
+
+    protected function createLeagueWithTeams(): array
+    {
+        $sport = Sport::where('title', 'Football Test')->first();
+        if (!$sport) {
+            $sport = new Sport();
+            $sport->title = 'Football Test';
+            $sport->save();
+        }
+
+        $league = new League();
+        $league->user_id = $this->user->id;
+        $league->sport_id = $sport->id;
+        $league->league_rule_id = \Illuminate\Support\Facades\DB::table('league_rules')->value('id') ?? 1;
+        $league->title = 'Player Test League';
+        $league->number_of_team = 2;
+        $league->save();
+
+        $teamA = new LeagueTeam();
+        $teamA->league_id = $league->id;
+        $teamA->team_name = 'Player Team A';
+        $teamA->save();
+
+        $teamB = new LeagueTeam();
+        $teamB->league_id = $league->id;
+        $teamB->team_name = 'Player Team B';
+        $teamB->save();
+
+        return [$league, $teamA, $teamB];
+    }
+
+    protected function rosterPlayerOnTeam(Player $player, LeagueTeam $team): void
+    {
+        $teamPlayer = new TeamPlayer();
+        $teamPlayer->player_id = $player->id;
+        $teamPlayer->team_id = $team->id;
+        $teamPlayer->name = $player->name;
+        $teamPlayer->number = $player->number;
+        $teamPlayer->position = $player->position;
+        $teamPlayer->save();
+    }
+
+    public function test_add_player_rejects_when_player_already_on_another_team_in_league()
+    {
+        if (!Schema::hasTable('league_teams')) {
+            $this->markTestSkipped('Backend schema issue: league_teams table not found');
+        }
+
+        $this->auth();
+
+        [$league, $teamA, $teamB] = $this->createLeagueWithTeams();
+        $player = $this->createPlayer('Existing Roster Player');
+        $this->rosterPlayerOnTeam($player, $teamA);
+
+        $validator = app(LeaguePlayerTeamValidator::class);
+        $message = $validator->firstConflictMessage($league->id, $teamB->id, [$player->id]);
+
+        $this->assertSame(
+            'Player "Existing Roster Player" is already assigned to team "Player Team A" in this league.',
+            $message
+        );
+
+        $response = $this->postJson('/api/add-player', [
+            'type' => 'team',
+            'team_id' => $teamB->id,
+            'name' => 'Existing Roster Player',
+            'number' => $player->number,
+            'position' => 'QB',
+            'size' => 70,
+            'weight' => 200,
+            'height' => 180,
+            'dob' => '1990-01-01',
+            'ofp' => 85,
+            'strength' => 90,
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('message', 'A player with this name and number already exists.');
+
+        $this->assertDatabaseMissing('team_players', [
+            'team_id' => $teamB->id,
+            'player_id' => $player->id,
+        ]);
+
+        $assignResponse = $this->postJson('/api/update-team/' . $teamB->id, [
+            'team_name' => $teamB->team_name,
+            'league_id' => $league->id,
+            'players' => json_encode([
+                [
+                    'player_id' => $player->id,
+                    'playertype' => 'offence',
+                    'name' => $player->name,
+                    'speed' => 80,
+                ],
+            ]),
+        ]);
+
+        $assignResponse->assertStatus(422)
+            ->assertJsonPath(
+                'message',
+                'Player "Existing Roster Player" is already assigned to team "Player Team A" in this league.'
+            );
     }
 
     public function test_can_update_ofp()
