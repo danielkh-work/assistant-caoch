@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\League;
 use App\Models\Player;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -24,6 +25,18 @@ class PlayerListPresenter
 
         if ($filter === 'current_league' && ! $request->filled('league_id')) {
             return 'league_id is required when filter is current_league.';
+        }
+
+        if ($filter === 'current_league') {
+            $leagueId = (int) $request->input('league_id');
+            $isAccessible = League::query()
+                ->visibleToUser(auth()->user())
+                ->whereKey($leagueId)
+                ->exists();
+
+            if (! $isAccessible) {
+                return 'You do not have access to this league.';
+            }
         }
 
         if ($filter === 'current_team' && ! $request->filled('team_id')) {
@@ -90,26 +103,88 @@ class PlayerListPresenter
 
     /**
      * When a list filter is active, scope nested team/league metadata to that context.
+     * Always intersect with leagues visible on the authenticated user's dashboard.
      *
-     * @return array{league_id?: int, team_id?: int}
+     * @return array{league_id?: int, team_id?: int, accessible_league_ids?: array<int, int>}
      */
     private function resolveListScope(?Request $request): array
     {
-        if ($request === null) {
-            return [];
+        $scope = [];
+
+        if ($request !== null) {
+            $filter = $this->normalizeFilter($request->input('filter'));
+
+            $scope = match ($filter) {
+                'current_league' => ['league_id' => (int) $request->input('league_id')],
+                'current_team' => ['team_id' => (int) $request->input('team_id')],
+                default => [],
+            };
         }
 
-        $filter = $this->normalizeFilter($request->input('filter'));
+        $user = auth()->user();
+        if ($user !== null) {
+            $scope['accessible_league_ids'] = $this->resolveAccessibleLeagueIds($request, $user);
+        }
 
-        return match ($filter) {
-            'current_league' => ['league_id' => (int) $request->input('league_id')],
-            'current_team' => ['team_id' => (int) $request->input('team_id')],
-            default => [],
-        };
+        return $scope;
     }
 
     /**
-     * @param  array{league_id?: int, team_id?: int}  $scope
+     * Same league visibility rules as the dashboard: owned/shared leagues,
+     * optionally limited to the sport of the current league/team context.
+     *
+     * @return array<int, int>
+     */
+    private function resolveAccessibleLeagueIds(?Request $request, $user): array
+    {
+        $query = League::query()->visibleToUser($user);
+
+        $sportId = $this->resolveContextSportId($request, $user);
+        if ($sportId !== null) {
+            $query->where('sport_id', $sportId);
+        }
+
+        return $query
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
+
+    private function resolveContextSportId(?Request $request, $user): ?int
+    {
+        if ($request === null) {
+            return null;
+        }
+
+        if ($request->filled('sport_id')) {
+            return (int) $request->input('sport_id');
+        }
+
+        if ($request->filled('league_id')) {
+            $sportId = League::query()
+                ->visibleToUser($user)
+                ->whereKey((int) $request->input('league_id'))
+                ->value('sport_id');
+
+            return $sportId !== null ? (int) $sportId : null;
+        }
+
+        if ($request->filled('team_id')) {
+            $sportId = League::query()
+                ->visibleToUser($user)
+                ->whereHas('teams', function (Builder $teamQuery) use ($request) {
+                    $teamQuery->whereKey((int) $request->input('team_id'));
+                })
+                ->value('sport_id');
+
+            return $sportId !== null ? (int) $sportId : null;
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array{league_id?: int, team_id?: int, accessible_league_ids?: array<int, int>}  $scope
      * @return array<int, array{team_id: int, team_name: string|null, league_id: int|null}>
      */
     private function buildTeams(Player $player, array $scope = []): array
@@ -122,14 +197,9 @@ class PlayerListPresenter
                     'league_id' => $teamPlayer->leagueTeam?->league_id,
                 ];
             })
-            ->filter(fn (array $team) => $team['team_id'] !== null);
+            ->filter(fn (array $team) => $team['team_id'] !== null && $team['league_id'] !== null);
 
-        if (isset($scope['league_id'])) {
-            $leagueId = $scope['league_id'];
-            $teams = $teams->filter(
-                fn (array $team) => (int) ($team['league_id'] ?? 0) === $leagueId
-            );
-        }
+        $teams = $this->applyLeagueScope($teams, $scope);
 
         if (isset($scope['team_id'])) {
             $teamId = $scope['team_id'];
@@ -138,11 +208,14 @@ class PlayerListPresenter
             );
         }
 
-        return $teams->values()->all();
+        return $teams
+            ->unique(fn (array $team) => (int) $team['team_id'].'-'.(int) $team['league_id'])
+            ->values()
+            ->all();
     }
 
     /**
-     * @param  array{league_id?: int, team_id?: int}  $scope
+     * @param  array{league_id?: int, team_id?: int, accessible_league_ids?: array<int, int>}  $scope
      * @return array<int, array{league_id: int, league_name: string|null}>
      */
     private function buildLeagues(Player $player, array $scope = []): array
@@ -168,12 +241,7 @@ class PlayerListPresenter
             ]);
         }
 
-        if (isset($scope['league_id'])) {
-            $leagueId = $scope['league_id'];
-            $leagues = $leagues->filter(
-                fn (array $league) => (int) $league['league_id'] === $leagueId
-            );
-        }
+        $leagues = $this->applyLeagueScope($leagues, $scope);
 
         if (isset($scope['team_id'])) {
             $teamLeagueId = $player->teamPlayers
@@ -189,6 +257,30 @@ class PlayerListPresenter
         }
 
         return $leagues->values()->all();
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $items
+     * @param  array{league_id?: int, accessible_league_ids?: array<int, int>}  $scope
+     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     */
+    private function applyLeagueScope($items, array $scope)
+    {
+        if (isset($scope['league_id'])) {
+            $leagueId = $scope['league_id'];
+            $items = $items->filter(
+                fn (array $row) => (int) ($row['league_id'] ?? 0) === $leagueId
+            );
+        }
+
+        if (! empty($scope['accessible_league_ids'])) {
+            $allowed = $scope['accessible_league_ids'];
+            $items = $items->filter(
+                fn (array $row) => in_array((int) ($row['league_id'] ?? 0), $allowed, true)
+            );
+        }
+
+        return $items;
     }
 
     private function normalizeFilter(mixed $filter): ?string

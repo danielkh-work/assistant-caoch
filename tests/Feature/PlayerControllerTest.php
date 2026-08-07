@@ -141,6 +141,46 @@ class PlayerControllerTest extends TestCase
         $this->assertSame('Player Test League', $listedPlayer['leagues'][0]['league_name'] ?? null);
     }
 
+    public function test_player_list_teams_and_leagues_only_include_accessible_leagues()
+    {
+        if (!Schema::hasTable('league_teams')) {
+            $this->markTestSkipped('Backend schema issue: league_teams table not found');
+        }
+
+        $this->auth();
+
+        [$ownedLeague, $ownedTeam] = array_slice($this->createLeagueWithTeams(), 0, 2);
+
+        $otherCoach = User::factory()->create([
+            'role' => 'head_coach',
+            'status' => 'approved',
+        ]);
+        [$foreignLeague, $foreignTeam] = $this->createLeagueWithTeamsForUser(
+            $otherCoach,
+            'Foreign League',
+            'Foreign Team',
+        );
+
+        $player = $this->createPlayer('Cross Coach Player');
+        $this->rosterPlayerOnTeam($player, $ownedTeam);
+        $this->rosterPlayerOnTeam($player, $foreignTeam);
+
+        $response = $this->getJson('/api/player-list?page=1&per_page=20');
+
+        $response->assertStatus(200);
+
+        $listedPlayer = collect($response->json('data'))->firstWhere('name', 'Cross Coach Player');
+        $this->assertNotNull($listedPlayer);
+        $this->assertSame(
+            [$ownedTeam->id],
+            collect($listedPlayer['teams'])->pluck('team_id')->all()
+        );
+        $this->assertSame(
+            [$ownedLeague->id],
+            collect($listedPlayer['leagues'])->pluck('league_id')->all()
+        );
+    }
+
     public function test_player_list_filter_current_league_returns_league_players()
     {
         if (!Schema::hasTable('league_teams')) {
@@ -321,6 +361,40 @@ class PlayerControllerTest extends TestCase
 
         $league = new League();
         $league->user_id = $this->user->id;
+        $league->sport_id = $sport->id;
+        $league->league_rule_id = \Illuminate\Support\Facades\DB::table('league_rules')->value('id') ?? 1;
+        $league->title = $leagueTitle;
+        $league->number_of_team = 2;
+        $league->save();
+
+        $teamA = new LeagueTeam();
+        $teamA->league_id = $league->id;
+        $teamA->team_name = $teamAName;
+        $teamA->save();
+
+        $teamB = new LeagueTeam();
+        $teamB->league_id = $league->id;
+        $teamB->team_name = $teamBName;
+        $teamB->save();
+
+        return [$league, $teamA, $teamB];
+    }
+
+    protected function createLeagueWithTeamsForUser(
+        User $user,
+        string $leagueTitle = 'Player Test League',
+        string $teamAName = 'Player Team A',
+        string $teamBName = 'Player Team B',
+    ): array {
+        $sport = Sport::where('title', 'Football Test')->first();
+        if (!$sport) {
+            $sport = new Sport();
+            $sport->title = 'Football Test';
+            $sport->save();
+        }
+
+        $league = new League();
+        $league->user_id = $user->id;
         $league->sport_id = $sport->id;
         $league->league_rule_id = \Illuminate\Support\Facades\DB::table('league_rules')->value('id') ?? 1;
         $league->title = $leagueTitle;
