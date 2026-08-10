@@ -5,10 +5,11 @@ use Spatie\Permission\Models\Role;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Player extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
     public function teams()
     {
           return $this->belongsToMany(Team::class, 'team_players', 'player_id', 'team_id');
