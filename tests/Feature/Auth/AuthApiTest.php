@@ -363,7 +363,7 @@ class AuthApiTest extends TestCase
         ]);
 
         $response = $this->actingAs($headCoach, 'sanctum')
-                         ->getJson('/api/get-assistant-coach');
+                         ->getJson('/api/assistant-coaches');
 
         $response->assertStatus(200)
                  ->assertJsonFragment(['role' => 'assistant_coach']);
@@ -542,7 +542,7 @@ public function head_coach_can_add_assistant_coach()
     ]);
 
     $response = $this->actingAs($headCoach, 'sanctum')
-                     ->postJson('/api/add-assistant-coach', [
+                     ->postJson('/api/assistant-coaches', [
                          'name' => 'Assistant User',
                          'email' => 'assistant@test.com',
                          'password' => '12345678',

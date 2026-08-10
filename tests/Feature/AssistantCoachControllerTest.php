@@ -50,16 +50,22 @@ class AssistantCoachControllerTest extends TestCase
     }
 
     /** @test */
-    public function legacy_get_assistant_coach_route_still_works()
+    public function head_coach_can_paginate_assistant_coaches()
     {
-        $assistant = $this->createAssistant(['email' => 'legacy-list@test.com']);
+        for ($i = 1; $i <= 3; $i++) {
+            $this->createAssistant(['email' => "assistant-page-{$i}@test.com"]);
+        }
 
         Sanctum::actingAs($this->headCoach);
 
-        $response = $this->getJson('/api/get-assistant-coach');
+        $response = $this->getJson('/api/assistant-coaches?page=1&per_page=2');
 
         $response->assertStatus(200)
-            ->assertJsonFragment(['email' => $assistant->email]);
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('pagination.total', 3)
+            ->assertJsonPath('pagination.current_page', 1)
+            ->assertJsonPath('pagination.per_page', 2)
+            ->assertJsonPath('pagination.last_page', 2);
     }
 
     /** @test */
@@ -86,25 +92,6 @@ class AssistantCoachControllerTest extends TestCase
             'head_coach_id' => $this->headCoach->id,
             'status' => 'approved',
         ]);
-    }
-
-    /** @test */
-    public function legacy_add_assistant_coach_route_still_works()
-    {
-        Sanctum::actingAs($this->headCoach);
-
-        $response = $this->postJson('/api/add-assistant-coach', [
-            'name' => 'Legacy Assistant',
-            'email' => 'legacy-create@test.com',
-            'password' => '12345678',
-            'role' => 'performance_coach',
-        ]);
-
-        $response->assertStatus(200)
-            ->assertJsonFragment([
-                'email' => 'legacy-create@test.com',
-                'role' => 'performance_coach',
-            ]);
     }
 
     /** @test */

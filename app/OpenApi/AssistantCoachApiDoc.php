@@ -21,40 +21,44 @@ namespace App\OpenApi;
  *     @OA\Property(property="updated_at", type="string", format="date-time")
  * )
  *
+ * @OA\Schema(
+ *     schema="AssistantCoachPagination",
+ *     type="object",
+ *     @OA\Property(property="total", type="integer", example=25),
+ *     @OA\Property(property="current_page", type="integer", example=1),
+ *     @OA\Property(property="per_page", type="integer", example=20),
+ *     @OA\Property(property="last_page", type="integer", example=2)
+ * )
+ *
  * @OA\Get(
  *     path="/api/assistant-coaches",
  *     operationId="listAssistantCoaches",
  *     tags={"Assistant Coaches"},
  *     summary="List assistant coaches",
- *     description="Returns all assistant and performance coaches created by the authenticated head coach.",
+ *     description="Returns assistant and performance coaches created by the authenticated head coach. Pass page or per_page to enable pagination.",
  *     security={{"sanctum":{}}},
- *     @OA\Response(
- *         response=200,
- *         description="Assistant coach list",
- *         @OA\JsonContent(
- *             @OA\Property(property="status", type="integer", example=200),
- *             @OA\Property(property="message", type="string", example="assistant coach list"),
- *             @OA\Property(property="data", type="array", @OA\Items(ref="#/components/schemas/AssistantCoach"))
- *         )
+ *     @OA\Parameter(
+ *         name="page",
+ *         in="query",
+ *         required=false,
+ *         description="Page number (enables pagination when provided with or without per_page)",
+ *         @OA\Schema(type="integer", example=1, default=1)
  *     ),
- *     @OA\Response(response=401, description="Unauthenticated"),
- *     @OA\Response(response=403, description="Only head coaches may manage assistant coaches")
- * )
- *
- * @OA\Get(
- *     path="/api/get-assistant-coach",
- *     operationId="listAssistantCoachesLegacy",
- *     tags={"Assistant Coaches"},
- *     summary="List assistant coaches (legacy)",
- *     description="Legacy alias for GET /api/assistant-coaches.",
- *     security={{"sanctum":{}}},
+ *     @OA\Parameter(
+ *         name="per_page",
+ *         in="query",
+ *         required=false,
+ *         description="Items per page (max 500; enables pagination when provided with or without page)",
+ *         @OA\Schema(type="integer", example=20, default=20)
+ *     ),
  *     @OA\Response(
  *         response=200,
  *         description="Assistant coach list",
  *         @OA\JsonContent(
  *             @OA\Property(property="status", type="integer", example=200),
  *             @OA\Property(property="message", type="string", example="assistant coach list"),
- *             @OA\Property(property="data", type="array", @OA\Items(ref="#/components/schemas/AssistantCoach"))
+ *             @OA\Property(property="data", type="array", @OA\Items(ref="#/components/schemas/AssistantCoach")),
+ *             @OA\Property(property="pagination", ref="#/components/schemas/AssistantCoachPagination")
  *         )
  *     ),
  *     @OA\Response(response=401, description="Unauthenticated"),
@@ -67,37 +71,6 @@ namespace App\OpenApi;
  *     tags={"Assistant Coaches"},
  *     summary="Create assistant coach",
  *     description="Creates an assistant or performance coach under the authenticated head coach. New coaches are created with status approved so they can log in immediately.",
- *     security={{"sanctum":{}}},
- *     @OA\RequestBody(
- *         required=true,
- *         @OA\JsonContent(
- *             required={"name", "email", "password", "role"},
- *             @OA\Property(property="name", type="string", example="Albert"),
- *             @OA\Property(property="email", type="string", format="email", example="albert@albert.com"),
- *             @OA\Property(property="password", type="string", format="password", example="password123"),
- *             @OA\Property(property="role", type="string", enum={"assistant_coach", "performance_coach"}, example="assistant_coach")
- *         )
- *     ),
- *     @OA\Response(
- *         response=200,
- *         description="Assistant coach created",
- *         @OA\JsonContent(
- *             @OA\Property(property="status", type="integer", example=200),
- *             @OA\Property(property="message", type="string", example="Add Assistant Coach Successfully"),
- *             @OA\Property(property="data", ref="#/components/schemas/AssistantCoach")
- *         )
- *     ),
- *     @OA\Response(response=401, description="Unauthenticated"),
- *     @OA\Response(response=403, description="Only head coaches may manage assistant coaches"),
- *     @OA\Response(response=422, description="Validation error")
- * )
- *
- * @OA\Post(
- *     path="/api/add-assistant-coach",
- *     operationId="createAssistantCoachLegacy",
- *     tags={"Assistant Coaches"},
- *     summary="Create assistant coach (legacy)",
- *     description="Legacy alias for POST /api/assistant-coaches.",
  *     security={{"sanctum":{}}},
  *     @OA\RequestBody(
  *         required=true,
