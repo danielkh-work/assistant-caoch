@@ -15,11 +15,34 @@ class AssistantCoachController extends Controller
     {
         $headCoach = $this->assertHeadCoach();
 
-        $coaches = User::query()
+        $query = User::query()
             ->where('head_coach_id', $headCoach->id)
             ->whereIn('role', self::ASSISTANT_ROLES)
-            ->orderBy('name')
-            ->get();
+            ->orderBy('name');
+
+        if ($request->has('page') || $request->has('per_page')) {
+            $page = max(1, (int) $request->input('page', 1));
+            $perPage = max(1, min(500, (int) $request->input('per_page', 20)));
+
+            $paginator = $query->paginate($perPage, ['*'], 'page', $page);
+
+            return new BaseResponse(
+                STATUS_CODE_OK,
+                STATUS_CODE_OK,
+                'assistant coach list',
+                $paginator->items(),
+                null,
+                null,
+                [
+                    'total' => $paginator->total(),
+                    'current_page' => $paginator->currentPage(),
+                    'per_page' => $paginator->perPage(),
+                    'last_page' => $paginator->lastPage(),
+                ],
+            );
+        }
+
+        $coaches = $query->get();
 
         return new BaseResponse(
             STATUS_CODE_OK,
