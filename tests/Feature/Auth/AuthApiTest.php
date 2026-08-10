@@ -490,6 +490,29 @@ public function login_fails_for_wrong_credentials()
 }
 
 /** @test */
+public function login_fails_for_inactive_user()
+{
+    User::create([
+        'name' => 'Inactive Assistant',
+        'email' => 'inactive-login@test.com',
+        'password' => Hash::make('12345678'),
+        'role' => 'assistant_coach',
+        'status' => 'inactive',
+    ]);
+
+    $response = $this->postJson('/api/login', [
+        'email' => 'inactive-login@test.com',
+        'password' => '12345678',
+    ]);
+
+    $response->assertStatus(422)
+        ->assertJsonValidationErrors(['email'])
+        ->assertJsonFragment([
+            'email' => ['you account access is blocked please contact your headcoach'],
+        ]);
+}
+
+/** @test */
 public function authenticated_user_can_view_profile()
 {
     Role::create(['name' => 'head_coach']);

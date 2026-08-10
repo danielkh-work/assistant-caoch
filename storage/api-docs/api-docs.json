@@ -5,6 +5,581 @@
         "version": "1.0.0"
     },
     "paths": {
+        "/api/assistant-coaches": {
+            "get": {
+                "tags": [
+                    "Assistant Coaches"
+                ],
+                "summary": "List assistant coaches",
+                "description": "Returns all assistant and performance coaches created by the authenticated head coach.",
+                "operationId": "listAssistantCoaches",
+                "responses": {
+                    "200": {
+                        "description": "Assistant coach list",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "assistant coach list"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/AssistantCoach"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Only head coaches may manage assistant coaches"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Assistant Coaches"
+                ],
+                "summary": "Create assistant coach",
+                "description": "Creates an assistant or performance coach under the authenticated head coach. New coaches are created with status approved so they can log in immediately.",
+                "operationId": "createAssistantCoach",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "name",
+                                    "email",
+                                    "password",
+                                    "role"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Albert"
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "albert@albert.com"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "password123"
+                                    },
+                                    "role": {
+                                        "type": "string",
+                                        "enum": [
+                                            "assistant_coach",
+                                            "performance_coach"
+                                        ],
+                                        "example": "assistant_coach"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Assistant coach created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Add Assistant Coach Successfully"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/AssistantCoach"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Only head coaches may manage assistant coaches"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/get-assistant-coach": {
+            "get": {
+                "tags": [
+                    "Assistant Coaches"
+                ],
+                "summary": "List assistant coaches (legacy)",
+                "description": "Legacy alias for GET /api/assistant-coaches.",
+                "operationId": "listAssistantCoachesLegacy",
+                "responses": {
+                    "200": {
+                        "description": "Assistant coach list",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "assistant coach list"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/AssistantCoach"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Only head coaches may manage assistant coaches"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/add-assistant-coach": {
+            "post": {
+                "tags": [
+                    "Assistant Coaches"
+                ],
+                "summary": "Create assistant coach (legacy)",
+                "description": "Legacy alias for POST /api/assistant-coaches.",
+                "operationId": "createAssistantCoachLegacy",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "name",
+                                    "email",
+                                    "password",
+                                    "role"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Albert"
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "albert@albert.com"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "password123"
+                                    },
+                                    "role": {
+                                        "type": "string",
+                                        "enum": [
+                                            "assistant_coach",
+                                            "performance_coach"
+                                        ],
+                                        "example": "assistant_coach"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Assistant coach created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Add Assistant Coach Successfully"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/AssistantCoach"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Only head coaches may manage assistant coaches"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/assistant-coaches/{id}": {
+            "get": {
+                "tags": [
+                    "Assistant Coaches"
+                ],
+                "summary": "Get assistant coach",
+                "description": "Retrieve a single assistant or performance coach owned by the authenticated head coach.",
+                "operationId": "showAssistantCoach",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Assistant coach user ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 12
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Assistant coach retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Assistant coach retrieved successfully"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/AssistantCoach"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Only head coaches may manage assistant coaches"
+                    },
+                    "404": {
+                        "description": "Assistant coach not found"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Assistant Coaches"
+                ],
+                "summary": "Update assistant coach",
+                "description": "Update an assistant or performance coach owned by the authenticated head coach.",
+                "operationId": "updateAssistantCoach",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Assistant coach user ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 12
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Albert Updated"
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "albert.updated@albert.com"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "newpassword123",
+                                        "nullable": true
+                                    },
+                                    "role": {
+                                        "type": "string",
+                                        "enum": [
+                                            "assistant_coach",
+                                            "performance_coach"
+                                        ],
+                                        "example": "performance_coach"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Assistant coach updated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Assistant coach updated successfully"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/AssistantCoach"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Only head coaches may manage assistant coaches"
+                    },
+                    "404": {
+                        "description": "Assistant coach not found"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Assistant Coaches"
+                ],
+                "summary": "Delete assistant coach",
+                "description": "Permanently delete an assistant or performance coach owned by the authenticated head coach. Revokes all active tokens first.",
+                "operationId": "deleteAssistantCoach",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Assistant coach user ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 12
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Assistant coach deleted successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Assistant coach deleted successfully"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Only head coaches may manage assistant coaches"
+                    },
+                    "404": {
+                        "description": "Assistant coach not found"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/assistant-coaches/{id}/status": {
+            "patch": {
+                "tags": [
+                    "Assistant Coaches"
+                ],
+                "summary": "Activate or deactivate assistant coach",
+                "description": "Set assistant coach status to approved (active) or inactive. Inactive coaches cannot log in and existing tokens are revoked.",
+                "operationId": "updateAssistantCoachStatus",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Assistant coach user ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 12
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "status"
+                                ],
+                                "properties": {
+                                    "status": {
+                                        "type": "string",
+                                        "enum": [
+                                            "approved",
+                                            "inactive"
+                                        ],
+                                        "example": "inactive"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Assistant coach status updated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Assistant coach status updated successfully"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/AssistantCoach"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Only head coaches may manage assistant coaches"
+                    },
+                    "404": {
+                        "description": "Assistant coach not found"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/api/play/show-yardage/assistant-coach": {
             "post": {
                 "tags": [
@@ -3037,6 +3612,54 @@
     },
     "components": {
         "schemas": {
+            "AssistantCoach": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 12
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Albert"
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "example": "albert@albert.com"
+                    },
+                    "role": {
+                        "type": "string",
+                        "enum": [
+                            "assistant_coach",
+                            "performance_coach"
+                        ],
+                        "example": "assistant_coach"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "approved",
+                            "inactive",
+                            "pending",
+                            "rejected"
+                        ],
+                        "example": "approved"
+                    },
+                    "head_coach_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
             "YardagePlayToAssistantRequest": {
                 "description": "Exact JSON keys read by BroadCastScoreController::yardagePlaytoAssistant (Vue client may send `play`; stored in broadcast payload as `play`).",
                 "properties": {
@@ -4930,6 +5553,10 @@
         }
     },
     "tags": [
+        {
+            "name": "Assistant Coaches",
+            "description": "Head coach management of assistant and performance coaches"
+        },
         {
             "name": "Broadcast",
             "description": "Coach-group Pusher broadcasts between head coach and assistant coach"
