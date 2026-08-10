@@ -299,7 +299,8 @@ class PlayerController extends Controller
             || $request->has('per_page')
             || $request->filled('search')
             || $request->filled('filter')
-            || $request->has('not_assigned');
+            || $request->has('not_assigned')
+            || $request->has('positions');
 
         if ($paginateRequested) {
             $page = max(1, (int) $request->input('page', 1));

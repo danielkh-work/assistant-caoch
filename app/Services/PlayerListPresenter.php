@@ -14,14 +14,14 @@ class PlayerListPresenter
      * `not_assigned` remains allowed for backward compatibility; prefer the
      * additive `not_assigned=1` query flag so it can combine with a scope.
      */
-    private const ALLOWED_FILTERS = ['current_league', 'current_team', 'not_assigned', 'created_by_me'];
+    private const ALLOWED_FILTERS = ['current_league', 'current_team', 'not_assigned', 'created_by_me', 'my_leagues'];
 
     public function validateListFilters(Request $request): ?string
     {
         $filter = $this->normalizeFilter($request->input('filter'));
 
         if ($filter !== null && ! in_array($filter, self::ALLOWED_FILTERS, true)) {
-            return 'Invalid filter. Allowed values: current_league, current_team, not_assigned, created_by_me.';
+            return 'Invalid filter. Allowed values: current_league, current_team, not_assigned, created_by_me, my_leagues.';
         }
 
         if ($filter === 'current_league' && ! $request->filled('league_id')) {
@@ -72,10 +72,26 @@ class PlayerListPresenter
                 $teamPlayerQuery->where('team_id', (int) $request->input('team_id'));
             }),
             'created_by_me' => $query->where('players.user_id', auth()->id()),
+            'my_leagues' => $query->where(function (Builder $ownedLeaguesQuery) {
+                $ownedLeaguesQuery
+                    ->whereHas('league', function (Builder $leagueQuery) {
+                        $leagueQuery->where('user_id', auth()->id());
+                    })
+                    ->orWhereHas('teamPlayers.leagueTeam.league', function (Builder $leagueQuery) {
+                        $leagueQuery->where('user_id', auth()->id());
+                    });
+            }),
             default => null,
         };
 
-        // Additive: works with all / current_league / created_by_me.
+        $positionNames = $this->normalizePositionNames($request);
+        if ($positionNames !== []) {
+            $query->whereHas('playerPosition', function (Builder $positionQuery) use ($positionNames) {
+                $positionQuery->whereIn('position_name', $positionNames);
+            });
+        }
+
+        // Additive: works with all / current_league / created_by_me / my_leagues.
         // Also honors legacy filter=not_assigned (unassigned across all players).
         if ($filter === 'not_assigned' || $this->wantsNotAssigned($request)) {
             $query->whereDoesntHave('teamPlayers');
@@ -235,6 +251,33 @@ class PlayerListPresenter
         $filter = trim((string) $filter);
 
         return $filter === '' ? null : $filter;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function normalizePositionNames(Request $request): array
+    {
+        if (! $request->has('positions')) {
+            return [];
+        }
+
+        $raw = $request->input('positions');
+        $values = is_array($raw) ? $raw : [$raw];
+
+        $names = [];
+        foreach ($values as $value) {
+            if (! is_string($value) && ! is_numeric($value)) {
+                continue;
+            }
+
+            $name = trim((string) $value);
+            if ($name !== '') {
+                $names[] = $name;
+            }
+        }
+
+        return array_values(array_unique($names));
     }
 
     /**
