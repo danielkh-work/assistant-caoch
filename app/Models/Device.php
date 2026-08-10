@@ -20,10 +20,18 @@ class Device extends Model implements \Illuminate\Contracts\Auth\Authenticatable
         'user_id',
         'paired_at',
         'session_id',
+        'battery',
+        'signal_strength',
+        'battery_signal_synced_at',
+    ];
+
+    protected $appends = [
+        'signal_label',
     ];
 
     protected $casts = [
         'paired_at' => 'datetime',
+        'battery_signal_synced_at' => 'datetime',
     ];
 
     protected static function boot(): void
@@ -115,5 +123,25 @@ class Device extends Model implements \Illuminate\Contracts\Auth\Authenticatable
     {
         $this->status = 'inactive';
         $this->save();
+    }
+
+    /**
+     * Get the human-readable signal strength label.
+     */
+    public function getSignalLabelAttribute(): string
+    {
+        if ($this->signal_strength === null) {
+            return 'Unknown';
+        }
+
+        if ($this->signal_strength <= 33) {
+            return 'Low';
+        }
+
+        if ($this->signal_strength <= 66) {
+            return 'Medium';
+        }
+
+        return 'High';
     }
 }

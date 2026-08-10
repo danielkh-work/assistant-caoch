@@ -335,50 +335,6 @@ class PersionalGrouping extends Model
         }
     }
 
-    /**
-     * Practice match end: demote `active` groups whose on-roster member count is no longer 7/11/12.
-     * Off-roster ("Not in the match") residue is ignored, matching {@see syncStatusesForConfigureLanding}.
-     */
-    public static function syncInvalidActivePracticeGroupStatusesForMatchEnd(int $matchId): void
-    {
-        $game = Game::query()->find($matchId);
-        if ($game === null) {
-            return;
-        }
-
-        $configureGameType = (int) ($game->type ?? 1) === 2 ? 2 : 1;
-        if ($configureGameType !== 2) {
-            return;
-        }
-
-        $groups = self::query()
-            ->where('game_id', $matchId)
-            ->where('group_level', 2)
-            ->get();
-
-        $rosterFlipByTeam = [];
-
-        foreach ($groups as $group) {
-            if (strtolower((string) ($group->status ?? '')) !== 'active') {
-                continue;
-            }
-
-            $teamId = (int) $group->team_id;
-            if (! isset($rosterFlipByTeam[$teamId])) {
-                $rosterFlipByTeam[$teamId] = array_flip(
-                    self::matchRosterPlayerIdsForConfigure($teamId, $matchId, $configureGameType)
-                );
-            }
-
-            $n = self::countGroupMembersOnMatchRosterFromPayload($group, true, $rosterFlipByTeam[$teamId]);
-
-            if (! self::practiceGroupMemberCountIsValid($n)) {
-                $group->status = 'inactive';
-                $group->save();
-            }
-        }
-    }
-
     /** @return array<int,int> Sizes that may remain or be set `active` for practice personal groups. */
     public static function practiceGroupAllowedMemberCounts(): array
     {
@@ -672,62 +628,6 @@ class PersionalGrouping extends Model
         }
 
         return $n !== self::leagueNonPracticePlayerLimitForGroup($group);
-    }
-
-    /**
-     * Match end: delete configure-player rows except those in an **active** personal group and
-     * still on the match configure roster (same rule as coach-vue `collectActiveGroupedPlayerIdsBySide`).
-     * Historic group members shown as "Not in the match" are not kept. `special` rows are preserved.
-     *
-     * Run after {@see syncInvalidActivePracticeGroupStatusesForMatchEnd} so demoted groups are excluded.
-     */
-    public static function pruneMatchConfigurePlayersNotInAnyGroup(int $matchId): void
-    {
-        $game = Game::query()->find($matchId);
-        if ($game === null) {
-            return;
-        }
-
-        $configureGameType = (int) ($game->type ?? 1) === 2 ? 2 : 1;
-        $isPracticeConfigure = $configureGameType === 2;
-        $expectedGroupLevel = $isPracticeConfigure ? 2 : 1;
-
-        foreach (
-            [
-                ['team_id' => (int) $game->my_team_id, 'team_type' => 1],
-                ['team_id' => (int) $game->oponent_team_id, 'team_type' => 2],
-            ] as $side
-        ) {
-            if ($side['team_id'] <= 0) {
-                continue;
-            }
-
-            $rosterFlip = array_flip(
-                self::matchRosterPlayerIdsForConfigureResolved(
-                    $side['team_id'],
-                    $matchId,
-                    $configureGameType
-                )
-            );
-
-            $idsBySide = self::groupedPlayerIdsByConfigureSideFromGroups(
-                $side['team_id'],
-                $matchId,
-                $expectedGroupLevel,
-                $isPracticeConfigure,
-                $rosterFlip,
-                true
-            );
-
-            self::deleteConfiguredRowsWithoutMatchingGroupMembership(
-                $side['team_id'],
-                $matchId,
-                $configureGameType,
-                $side['team_type'],
-                $idsBySide['offensive'],
-                $idsBySide['defensive']
-            );
-        }
     }
 
     /**

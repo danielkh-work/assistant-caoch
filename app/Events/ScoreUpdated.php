@@ -7,6 +7,7 @@ use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PresenceChannel;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use App\Support\ScoreboardBroadcastPayload;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
@@ -53,35 +54,10 @@ class ScoreUpdated implements ShouldBroadcast
     {
         $data = $this->data;
 
-        // Convert object to array if needed
         if (is_object($data)) {
             $data = (array) $data;
         }
 
-        // Add team names inside scores structure if not already present
-        if (isset($data['scores']) && isset($data['game_id'])) {
-            // Use team names from request if available
-            if (isset($data['leftTeamName']) && !isset($data['scores']['left']['name'])) {
-                $data['scores']['left']['name'] = $data['leftTeamName'];
-            }
-            if (isset($data['rightTeamName']) && !isset($data['scores']['right']['name'])) {
-                $data['scores']['right']['name'] = $data['rightTeamName'];
-            }
-
-            // Fallback to database query if names still not present
-            if (!isset($data['scores']['left']['name']) || !isset($data['scores']['right']['name'])) {
-                $game = \App\Models\PlayGameMode::find($data['game_id']);
-                if ($game) {
-                    if (!isset($data['scores']['left']['name']) && $game->myTeam) {
-                        $data['scores']['left']['name'] = $game->myTeam->team_name;
-                    }
-                    if (!isset($data['scores']['right']['name']) && $game->opponentTeam) {
-                        $data['scores']['right']['name'] = $game->opponentTeam->team_name;
-                    }
-                }
-            }
-        }
-
-        return $data;
+        return ScoreboardBroadcastPayload::enrichTeamNames($data);
     }
 }

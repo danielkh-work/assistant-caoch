@@ -8,8 +8,10 @@ use Illuminate\Http\Request;
 
 class TeamGroupController extends Controller
 {
-    public function index(int $teamId)
+    public function index($teamId)
     {
+        $teamId = (int) $teamId;
+
         $groups = TeamGroup::where('team_id', $teamId)
             ->orderBy('created_at', 'desc')
             ->get();
@@ -17,8 +19,10 @@ class TeamGroupController extends Controller
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Team groups fetched', $groups);
     }
 
-    public function store(Request $request, int $teamId)
+    public function store(Request $request, $teamId)
     {
+        $teamId = (int) $teamId;
+
         $request->validate([
             'group_name'      => 'required|string|max:255',
             'description'     => 'nullable|string',
@@ -58,8 +62,10 @@ class TeamGroupController extends Controller
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Team group created', $group);
     }
 
-    public function update(Request $request, int $id)
+    public function update(Request $request, $id)
     {
+        $id = (int) $id;
+
         $group = TeamGroup::findOrFail($id);
 
         $request->validate([
@@ -99,17 +105,23 @@ class TeamGroupController extends Controller
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Team group updated', $group->fresh());
     }
 
-    public function destroy(int $id)
+    public function destroy($id)
     {
+        $id = (int) $id;
+
         $group = TeamGroup::findOrFail($id);
         $group->delete();
 
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Team group deleted');
     }
 
-    public function players(int $teamId)
+    public function players(Request $request, $teamId)
     {
+        $teamId = (int) $teamId;
+
         $team = \App\Models\LeagueTeam::findOrFail($teamId);
+        $page = max(1, (int) $request->input('page', 1));
+        $perPage = max(1, min(500, (int) $request->input('per_page', 10)));
 
         if ((int) ($team->is_practice ?? 0) === 1) {
             $ptpRows = \App\Models\PracticeTeamPlayer::where('team_id', $teamId)->get();
@@ -183,14 +195,35 @@ class TeamGroupController extends Controller
                 }
             }
 
-            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Players fetched', array_values($byName));
+            $players = array_values($byName);
+            $total = count($players);
+            $paginatedPlayers = array_slice($players, ($page - 1) * $perPage, $perPage);
+
+            $pagination = [
+                'total' => $total,
+                'current_page' => $page,
+                'per_page' => $perPage,
+                'last_page' => (int) ceil($total / $perPage),
+            ];
+
+            return new BaseResponse(
+                STATUS_CODE_OK,
+                STATUS_CODE_OK,
+                'Players fetched',
+                $paginatedPlayers,
+                null,
+                null,
+                $pagination,
+                true
+            );
         }
 
-        $rows = \App\Models\TeamPlayer::where('team_id', $teamId)
+        $paginator = \App\Models\TeamPlayer::where('team_id', $teamId)
             ->with(['teamPlayerPosition' => fn ($q) => $q->orderBy('sort')])
-            ->get();
+            ->orderBy('id')
+            ->paginate($perPage, ['*'], 'page', $page);
 
-        $players = $rows->map(function ($p) {
+        $players = $paginator->getCollection()->map(function ($p) {
             return [
                 'id'             => $p->id,
                 'name'           => $p->name ?? $p->player_name ?? null,
@@ -203,13 +236,31 @@ class TeamGroupController extends Controller
                     ? $p->teamPlayerPosition->pluck('position_name')->filter()->values()->all()
                     : [],
             ];
-        })->values();
+        })->values()->all();
 
-        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Players fetched', $players);
+        $pagination = [
+            'total' => $paginator->total(),
+            'current_page' => $paginator->currentPage(),
+            'per_page' => $paginator->perPage(),
+            'last_page' => $paginator->lastPage(),
+        ];
+
+        return new BaseResponse(
+            STATUS_CODE_OK,
+            STATUS_CODE_OK,
+            'Players fetched',
+            $players,
+            null,
+            null,
+            $pagination,
+            true
+        );
     }
 
-    public function importToGame(Request $request, int $gameId)
+    public function importToGame(Request $request, $gameId)
     {
+        $gameId = (int) $gameId;
+
         $request->validate([
             'group_ids'    => 'required|array',
             'group_ids.*'  => 'integer',

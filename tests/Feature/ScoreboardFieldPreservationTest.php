@@ -280,4 +280,152 @@ class ScoreboardFieldPreservationTest extends TestCase
             'action' => 'RED',
         ]);
     }
+
+    public function test_restored_play_start_preserves_scores_from_ended_scoreboard(): void
+    {
+        $user = $this->createHeadCoachUser();
+        Sanctum::actingAs($user);
+        $this->actingAs($user, 'api');
+
+        [$league, $team1] = $this->createLeagueWithTeams($user);
+        $gameId = 38;
+
+        WebsocketScoreboard::create([
+            'user_id' => $user->id,
+            'game_id' => $gameId,
+            'league_id' => $league->id,
+            'left_score' => 17,
+            'right_score' => 24,
+            'is_start' => false,
+            'action' => 'EndMatch',
+            'quarter' => 4,
+            'down' => 3,
+            'distance' => 8,
+            'strategies' => 'red zone',
+            'expected_yard_gain' => 'long',
+            'position_number' => 42,
+            'team_position' => 2,
+            'possession' => (string) $team1->id,
+            'weather' => 'Rain',
+            'coverage_category' => 'man',
+            'h_mark_position' => 'hmark_left',
+            'timer_remaining' => 321,
+        ]);
+
+        $this->postJson('/api/scoreboard/broadcast', [
+            'game_id' => $gameId,
+            'team' => 'both',
+            'teamLeftScore' => 0,
+            'teamRightScore' => 0,
+            'points' => 0,
+            'action' => 'Start',
+            'isStartTime' => true,
+            'time' => 600,
+            'quarter' => 1,
+            'league_id' => $league->id,
+        ])->assertNoContent();
+
+        $this->assertDatabaseHas('websocket_scoreboards', [
+            'game_id' => $gameId,
+            'left_score' => 17,
+            'right_score' => 24,
+            'action' => 'Start',
+            'quarter' => 4,
+            'down' => 3,
+            'distance' => 8,
+            'strategies' => 'red zone',
+            'expected_yard_gain' => 'long',
+            'position_number' => 42,
+            'team_position' => 2,
+            'possession' => (string) $team1->id,
+            'weather' => 'Rain',
+            'coverage_category' => 'man',
+            'h_mark_position' => 'hmark_left',
+            'timer_remaining' => 321,
+        ]);
+
+        $this->postJson('/api/scoreboard/broadcast', [
+            'game_id' => $gameId,
+            'team' => 'both',
+            'teamLeftScore' => 0,
+            'teamRightScore' => 0,
+            'points' => 0,
+            'action' => 'INFO',
+            'isStartTime' => true,
+            'time' => 599,
+            'quarter' => 1,
+            'league_id' => $league->id,
+        ])->assertNoContent();
+
+        $this->assertDatabaseHas('websocket_scoreboards', [
+            'game_id' => $gameId,
+            'left_score' => 17,
+            'right_score' => 24,
+            'action' => 'INFO',
+        ]);
+    }
+
+    public function test_restored_practice_start_preserves_scores_from_ended_scoreboard(): void
+    {
+        $user = $this->createHeadCoachUser();
+        Sanctum::actingAs($user);
+        $this->actingAs($user, 'api');
+
+        [$league, $team1, $team2] = $this->createLeagueWithTeams($user);
+        $gameId = 39;
+
+        WebsocketPracticeScoreboard::create([
+            'user_id' => $user->id,
+            'game_id' => $gameId,
+            'league_id' => $league->id,
+            'left_score' => 10,
+            'right_score' => 14,
+            'is_start' => false,
+            'action' => 'EndMatch',
+            'quarter' => 4,
+            'down' => 2,
+            'distance' => 6,
+            'strategies' => 'aggressive',
+            'expected_yard_gain' => 'medium',
+            'position_number' => 62,
+            'team_position' => 1,
+            'possession' => (string) $team2->id,
+            'weather' => 'Snow',
+            'coverage_category' => 'zone',
+            'h_mark_position' => 'hmark_right',
+            'timer_remaining' => 222,
+        ]);
+
+        $this->postJson('/api/practice/scoreboard/broadcast', [
+            'game_id' => $gameId,
+            'team' => 'both',
+            'teamLeftScore' => 0,
+            'teamRightScore' => 0,
+            'points' => 0,
+            'action' => 'Start',
+            'isStartTime' => true,
+            'time' => 600,
+            'quarter' => 1,
+            'league_id' => $league->id,
+        ])->assertNoContent();
+
+        $this->assertDatabaseHas('websocket_practice_scoreboards', [
+            'game_id' => $gameId,
+            'left_score' => 10,
+            'right_score' => 14,
+            'action' => 'Start',
+            'quarter' => 4,
+            'down' => 2,
+            'distance' => 6,
+            'strategies' => 'aggressive',
+            'expected_yard_gain' => 'medium',
+            'position_number' => 62,
+            'team_position' => 1,
+            'possession' => (string) $team2->id,
+            'weather' => 'Snow',
+            'coverage_category' => 'zone',
+            'h_mark_position' => 'hmark_right',
+            'timer_remaining' => 222,
+        ]);
+    }
 }

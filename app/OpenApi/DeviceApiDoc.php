@@ -313,6 +313,57 @@ namespace App\OpenApi;
  *     @OA\Response(response=404, description="Device not found")
  * )
  *
+ * @OA\Schema(
+ *     schema="DeviceActiveMatch",
+ *     type="object",
+ *     nullable=true,
+ *     description="Live scoreboard state when a game or practice match is running for this device's head coach; null when no match is active. Same shape as Pusher score.updated / practice.score.updated payloads.",
+ *     @OA\Property(property="game_mode", type="string", enum={"play", "practice"}, example="play"),
+ *     @OA\Property(
+ *         property="scores",
+ *         type="object",
+ *         @OA\Property(
+ *             property="left",
+ *             type="object",
+ *             @OA\Property(property="total", type="integer", example=0),
+ *             @OA\Property(property="name", type="string", example="DU VErsant")
+ *         ),
+ *         @OA\Property(
+ *             property="right",
+ *             type="object",
+ *             @OA\Property(property="total", type="integer", example=0),
+ *             @OA\Property(property="name", type="string", example="Hormisdas-Gamelin")
+ *         )
+ *     ),
+ *     @OA\Property(property="team", type="string", example="both"),
+ *     @OA\Property(property="game_id", type="string", example="25"),
+ *     @OA\Property(property="user_id", type="integer", example=20),
+ *     @OA\Property(property="points", type="integer", example=0),
+ *     @OA\Property(property="action", type="string", example="Start"),
+ *     @OA\Property(property="sync_time", type="integer", example=900),
+ *     @OA\Property(property="isStart", type="boolean", example=true),
+ *     @OA\Property(property="time", type="string", nullable=true),
+ *     @OA\Property(property="sys_time", type="string", nullable=true),
+ *     @OA\Property(property="quarter", type="string", nullable=true),
+ *     @OA\Property(property="down", type="string", nullable=true),
+ *     @OA\Property(property="distance", type="integer", nullable=true, minimum=1, maximum=100),
+ *     @OA\Property(property="strategies", type="string", nullable=true),
+ *     @OA\Property(property="teamPosition", type="string", nullable=true),
+ *     @OA\Property(property="expectedyardgain", type="integer", nullable=true),
+ *     @OA\Property(property="positionNumber", type="string", nullable=true),
+ *     @OA\Property(property="pkg", type="string", nullable=true),
+ *     @OA\Property(property="possession", type="string", nullable=true),
+ *     @OA\Property(property="weather", type="string", nullable=true),
+ *     @OA\Property(property="coverageCategory", type="string", nullable=true),
+ *     @OA\Property(property="session_id", type="integer", nullable=true),
+ *     @OA\Property(property="h_mark_position", type="string", nullable=true),
+ *     @OA\Property(property="league_id", type="integer", nullable=true),
+ *     @OA\Property(property="myteamId", type="integer", nullable=true),
+ *     @OA\Property(property="oppteamId", type="integer", nullable=true),
+ *     @OA\Property(property="teamLeftScore", type="integer", example=0),
+ *     @OA\Property(property="teamRightScore", type="integer", example=0)
+ * )
+ *
  * @OA\Get(
  *     path="/api/devices/session-status/{session_id}",
  *     operationId="deviceSessionStatus",
@@ -357,6 +408,80 @@ namespace App\OpenApi;
  *             @OA\Property(property="message", type="string", example="Unauthenticated")
  *         )
  *     )
+ * )
+ *
+ * @OA\Get(
+ *     path="/api/devices/active-match/{session_id}",
+ *     operationId="deviceActiveMatch",
+ *     tags={"Devices"},
+ *     summary="Get active match for device session (FOR APP)",
+ *     description="Returns the live active match payload for a device bound to the given mobile session UUID. Returns active_match as null when no match is active. Returns 401 when no device has this session_id.",
+ *     @OA\Parameter(
+ *         name="session_id",
+ *         in="path",
+ *         required=true,
+ *         description="Mobile pairing session UUID",
+ *         @OA\Schema(type="string", format="uuid", example="822fc835-75aa-48bf-8473-354a4913aab2")
+ *     ),
+ *     @OA\Response(
+ *         response=200,
+ *         description="Active match state retrieved successfully",
+ *         @OA\JsonContent(
+ *             @OA\Property(property="status", type="integer", example=200),
+ *             @OA\Property(property="session_id", type="string", format="uuid", example="822fc835-75aa-48bf-8473-354a4913aab2"),
+ *             @OA\Property(property="active_match", ref="#/components/schemas/DeviceActiveMatch")
+ *         )
+ *     ),
+ *     @OA\Response(
+ *         response=401,
+ *         description="Unauthenticated - no device with this session_id",
+ *         @OA\JsonContent(
+ *             @OA\Property(property="status", type="integer", example=401),
+ *             @OA\Property(property="message", type="string", example="Unauthenticated")
+ *         )
+ *     )
+ * )
+ * @OA\Post(
+ *     path="/api/devices/update-info",
+ *     operationId="updateDeviceInfo",
+ *     tags={"Devices"},
+ *     summary="Update device battery and signal strength (FOR APP)",
+ *     description="Mobile app endpoint to report real-time battery and signal status. Broadcasts `device.updated` to `headcoach.{headCoachId}.league.{leagueId}.device` for each league the device belongs to. FOR APP - Mobile device status update endpoint.",
+ *     security={{"sanctum":{}}},
+ *     @OA\RequestBody(
+ *         required=false,
+ *         @OA\JsonContent(
+ *             @OA\Property(property="battery", type="integer", minimum=0, maximum=100, example=79, description="Battery percentage (0-100)"),
+ *             @OA\Property(property="signal_strength", type="integer", minimum=0, maximum=100, example=62, description="Signal strength value (0-100)")
+ *         )
+ *     ),
+ *     @OA\Response(
+ *         response=200,
+ *         description="Device status updated successfully",
+ *         @OA\JsonContent(
+ *             @OA\Property(property="status", type="integer", example=200),
+ *             @OA\Property(property="message", type="string", example="Device status updated successfully"),
+ *             @OA\Property(
+ *                 property="data",
+ *                 type="object",
+ *                 @OA\Property(property="id", type="integer", example=5),
+ *                 @OA\Property(property="device_id", type="string", example="QB-4821"),
+ *                 @OA\Property(property="device_name", type="string", example="Device Name"),
+ *                 @OA\Property(property="pairing_code", type="string", example="1234"),
+ *                 @OA\Property(property="status", type="string", example="registered"),
+ *                 @OA\Property(property="team_id", type="integer", nullable=true),
+ *                 @OA\Property(property="user_id", type="integer", nullable=true),
+ *                 @OA\Property(property="session_id", type="string", nullable=true),
+ *                 @OA\Property(property="paired_at", type="string", format="date-time", nullable=true),
+ *                 @OA\Property(property="is_connected", type="boolean", example=true),
+ *                 @OA\Property(property="battery", type="integer", nullable=true, example=79),
+ *                 @OA\Property(property="signal_strength", type="integer", nullable=true, example=62),
+ *                 @OA\Property(property="signal_label", type="string", example="Medium", description="Human-readable signal label: Low, Medium, or High")
+ *             )
+ *         )
+ *     ),
+ *     @OA\Response(response=401, description="Unauthenticated"),
+ *     @OA\Response(response=422, description="Validation error or device-only endpoint - battery and signal_strength must be between 0 and 100, or endpoint requires device token")
  * )
  *
  *

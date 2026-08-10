@@ -117,7 +117,7 @@ class ConfiguredPlaySort
 
     public function applyDefaultSqlSort(Builder $query, string $table): void
     {
-        $query->orderByDesc('win_result')
+        $query->orderByRaw('COALESCE(win_result / NULLIF(total_count, 0), 0) DESC')
             ->orderBy("{$table}.id", 'asc');
     }
 
@@ -128,7 +128,9 @@ class ConfiguredPlaySort
     public function applyCollectionSorts(Collection $plays, array $sorts): Collection
     {
         if ($sorts === []) {
-            return $plays->sortByDesc('win_result')->sortBy('id')->values();
+            return $plays->sortByDesc(function ($play) {
+                return $this->rateValue($play, self::KEY_PLAY_SUCCESS_RATE);
+            })->sortBy('id')->values();
         }
 
         return $plays->sort(function ($left, $right) use ($sorts) {

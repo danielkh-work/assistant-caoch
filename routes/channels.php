@@ -132,6 +132,14 @@ Broadcast::channel('headcoach.{headCoachId}.league.{leagueId}.devices', function
     return false;
 });
 
+Broadcast::channel('headcoach.{headCoachId}.league.{leagueId}.device', function ($user, $headCoachId, $leagueId) {
+    if (! $user instanceof User) {
+        return false;
+    }
+
+    return BroadcastChannelAuth::headCoachOwnsLeague($user, (int) $headCoachId, (int) $leagueId);
+});
+
 Broadcast::channel('league.{leagueId}.devices', function ($user, $leagueId) {
     if (! $user instanceof Device) {
         return false;

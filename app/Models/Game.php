@@ -8,9 +8,30 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Game extends Model
 {
     use HasFactory,SoftDeletes;
-   
+
 
     protected $guarded = [];
+
+    protected $fillable = [
+        'league_id',
+        'creator_id',
+        'name',
+        'descrptions',
+        'my_team_id',
+        'oponent_team_id',
+        'status',
+        'match_start_date',
+        'match_end_date',
+        'date',
+        'location',
+        'neutral_location',
+        'location_type',
+    ];
+
+    protected $casts = [
+        'match_start_date' => 'datetime',
+        'match_end_date' => 'datetime',
+    ];
 
     public function myTeam()
     {
@@ -22,8 +43,13 @@ class Game extends Model
         return $this->belongsTo(LeagueTeam::class, 'oponent_team_id');
     }
 
-   
-  
+    public function league()
+    {
+        return $this->belongsTo(League::class, 'league_id');
+    }
+
+
+
     public function configureMyTeams()
     {
         return $this->hasMany(ConfiguredPlayingTeamPlayer::class, 'match_id')

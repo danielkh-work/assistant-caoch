@@ -5,12 +5,24 @@ namespace App\Http\Controllers\Api;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use App\Http\Responses\BaseResponse;
+use App\Events\MatchLogCreated;
 use App\Models\ConfiguredPlayingTeamPlayer;
 use App\Models\ConfigureFormation;
 use App\Models\ConfigurePlay;
 use App\Models\ConfigureDefensivePlay;
+use App\Models\Game;
 use App\Models\PersionalGrouping;
+use App\Models\PlayGameLog;
+use App\Models\PlayGameMode;
+use App\Models\Player;
+use App\Models\PracticeTeamPlayer;
+use App\Models\TeamPlayer;
+use App\Models\WebsocketPracticeScoreboard;
+use App\Models\WebsocketScoreboard;
+use App\Support\ActiveGameModeGuard;
+use App\Support\BroadcastLeagueDeviceResolver;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ConfigureController extends Controller
 {
@@ -67,6 +79,19 @@ class ConfigureController extends Controller
 
             $newRosterIds = array_values(array_unique(array_map('intval', $playerIds)));
             $removedRosterIds = array_values(array_diff($previousRosterIds, $newRosterIds));
+
+            $liveSession = $this->resolveLiveSessionForScheduledGame($matchId, $gameType);
+            $removalReason = trim((string) $request->input('removal_reason', ''));
+
+            if ($liveSession && $removedRosterIds !== [] && $removalReason === '') {
+                DB::rollBack();
+
+                return new BaseResponse(
+                    STATUS_CODE_UNPROCESSABLE,
+                    STATUS_CODE_UNPROCESSABLE,
+                    'A reason is required to remove players while the match is in progress.'
+                );
+            }
           
            DB::commit();
            PersionalGrouping::syncAfterConfigureRosterSave(
@@ -75,7 +100,28 @@ class ConfigureController extends Controller
                $gameType,
                $removedRosterIds
            );
-           return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "configure Player successFully");
+
+           $removalLogged = false;
+           if ($liveSession && $removedRosterIds !== [] && $removalReason !== '') {
+               $this->logLiveRosterRemoval(
+                   $liveSession,
+                   $matchId,
+                   $gameType,
+                   $removedRosterIds,
+                   $removalReason
+               );
+               $removalLogged = true;
+           }
+
+           return new BaseResponse(
+               STATUS_CODE_OK,
+               STATUS_CODE_OK,
+               'configure Player successFully',
+               [
+                   'removed_player_ids' => $removedRosterIds,
+                   'removal_logged' => $removalLogged,
+               ]
+           );
         } catch (\Throwable $th) {
           DB::rollBack();
           return new BaseResponse(STATUS_CODE_UNPROCESSABLE, STATUS_CODE_UNPROCESSABLE, $th->getMessage());
@@ -142,6 +188,164 @@ class ConfigureController extends Controller
           return new BaseResponse(STATUS_CODE_UNPROCESSABLE, STATUS_CODE_UNPROCESSABLE, $th->getMessage());
         }
     }
+
+    /**
+     * @return object{session_id: int, scoreboard: object}|null
+     */
+    private function resolveLiveSessionForScheduledGame(int $scheduledGameId, int $gameType): ?object
+    {
+        $isPractice = $gameType === 2;
+        $row = $isPractice
+            ? WebsocketPracticeScoreboard::query()->where('game_id', $scheduledGameId)->latest('updated_at')->first()
+            : WebsocketScoreboard::query()->where('game_id', $scheduledGameId)->latest('updated_at')->first();
+
+        if (! $row || ! ($row->is_start ?? false) || ($row->action ?? null) === 'EndMatch') {
+            return null;
+        }
+
+        $user = auth()->user();
+        if (! $user) {
+            return null;
+        }
+
+        $headCoachId = ActiveGameModeGuard::resolveHeadCoachId($user);
+        $mode = $isPractice ? 'practice' : 'play';
+        $table = $isPractice ? 'websocket_practice_scoreboards' : 'websocket_scoreboards';
+
+        if (! ActiveGameModeGuard::scoreboardIndicatesLive($row, $headCoachId, $mode)) {
+            return null;
+        }
+
+        $sessionId = ! empty($row->session_id)
+            ? (int) $row->session_id
+            : PlayGameMode::query()
+                ->where('user_id', $headCoachId)
+                ->where('game_mode', $mode)
+                ->where('status', ActiveGameModeGuard::STATUS_ACTIVE)
+                ->when($row->league_id, fn ($q) => $q->where('league_id', (int) $row->league_id))
+                ->latest('updated_at')
+                ->value('id');
+
+        if (! $sessionId) {
+            return null;
+        }
+
+        // Touch keeps the live row from looking abandoned during roster edits.
+        ActiveGameModeGuard::touchLiveScoreboardRow($row, $table);
+
+        return (object) [
+            'session_id' => (int) $sessionId,
+            'scoreboard' => $row,
+        ];
+    }
+
+    /**
+     * @param  list<int>  $removedRosterIds
+     */
+    private function logLiveRosterRemoval(
+        object $liveSession,
+        int $scheduledGameId,
+        int $gameType,
+        array $removedRosterIds,
+        string $removalReason
+    ): void {
+        try {
+            $user = auth()->user();
+            if (! $user) {
+                return;
+            }
+
+            $headCoachId = ActiveGameModeGuard::resolveHeadCoachId($user);
+            $sessionId = (int) $liveSession->session_id;
+            $scheduledGame = Game::find($scheduledGameId);
+            $session = PlayGameMode::find($sessionId);
+
+            $outPlayers = $this->resolveRemovedPlayerPayloads($removedRosterIds, $gameType);
+
+            $log = new PlayGameLog();
+            $log->game_id = $sessionId;
+            $log->sport_id = $user->sport_id;
+            $log->league_id = $scheduledGame?->league_id ?? $session?->league_id;
+            $log->my_team_id = $scheduledGame?->my_team_id ?? $session?->my_team_id;
+            $log->oponent_team_id = $scheduledGame?->oponent_team_id ?? $session?->oponent_team_id;
+            $log->type_of_log = 'player_removed';
+            $log->reasons = $removalReason;
+            $log->players_out = $outPlayers;
+            $log->players_in = [];
+            $log->time = $liveSession->scoreboard->sync_time
+                ?? $liveSession->scoreboard->timer_remaining
+                ?? null;
+            $log->quater = $liveSession->scoreboard->quarter ?? null;
+            $log->downs = $liveSession->scoreboard->down ?? null;
+            $log->actor_id = $user->id;
+            $log->actor_role = $user->role;
+            $log->actor_name = $user->name;
+            $log->save();
+
+            $log->load('myTeam', 'opponentTeam');
+            $logData = [
+                'id' => $log->id,
+                'type_of_log' => $log->type_of_log,
+                'reasons' => $log->reasons,
+                'actor_id' => $log->actor_id,
+                'actor_role' => $log->actor_role,
+                'actor_name' => $log->actor_name,
+                'players_out' => $outPlayers,
+                'players_in' => [],
+                'my_team' => $log->myTeam,
+                'opponent_team' => $log->opponentTeam,
+                'quater' => $log->quater,
+                'time' => $log->time,
+                'downs' => $log->downs,
+            ];
+
+            $deviceId = BroadcastLeagueDeviceResolver::deviceIdForGame($sessionId);
+            broadcast(new MatchLogCreated($logData, (int) $headCoachId, $sessionId, $deviceId));
+        } catch (\Throwable $e) {
+            Log::error('Live roster removal log failed: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * @param  list<int>  $removedRosterIds
+     * @return list<array{id: int, name: string}>
+     */
+    private function resolveRemovedPlayerPayloads(array $removedRosterIds, int $gameType): array
+    {
+        if ($removedRosterIds === []) {
+            return [];
+        }
+
+        if ($gameType === 2) {
+            return PracticeTeamPlayer::query()
+                ->whereIn('id', $removedRosterIds)
+                ->get()
+                ->map(fn ($p) => [
+                    'id' => (int) $p->id,
+                    'name' => (string) ($p->name ?? $p->player_name ?? 'Unknown'),
+                ])
+                ->values()
+                ->all();
+        }
+
+        $teamPlayers = TeamPlayer::query()
+            ->whereIn('id', $removedRosterIds)
+            ->get();
+
+        $playerIds = $teamPlayers->pluck('player_id')->filter()->unique()->values();
+        $namesByPlayerId = Player::query()
+            ->whereIn('id', $playerIds)
+            ->pluck('name', 'id');
+
+        return $teamPlayers
+            ->map(fn (TeamPlayer $tp) => [
+                'id' => (int) $tp->id,
+                'name' => (string) ($namesByPlayerId[$tp->player_id] ?? $tp->player_name ?? 'Unknown'),
+            ])
+            ->values()
+            ->all();
+    }
+
     public function view(Request $request)
     {
      

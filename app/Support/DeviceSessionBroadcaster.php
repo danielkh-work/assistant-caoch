@@ -23,6 +23,10 @@ class DeviceSessionBroadcaster
             'session_id' => $device->session_id,
             'paired_at' => $device->paired_at?->toIso8601String(),
             'is_connected' => $device->tokens()->exists(),
+            'battery' => $device->battery,
+            'signal_strength' => $device->signal_strength,
+            'signal_label' => $device->signal_label,
+            'battery_signal_synced_at' => $device->battery_signal_synced_at?->toIso8601String(),
         ];
     }
 
@@ -48,6 +52,10 @@ class DeviceSessionBroadcaster
             'device_name' => $device->device_name,
             'pairing_code' => $device->pairing_code,
             'status' => $device->status,
+            'battery' => $device->battery,
+            'signal_strength' => $device->signal_strength,
+            'signal_label' => $device->signal_label,
+            'battery_signal_synced_at' => $device->battery_signal_synced_at?->toIso8601String(),
         ];
     }
 

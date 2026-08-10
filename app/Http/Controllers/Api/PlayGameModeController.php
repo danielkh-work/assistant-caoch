@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Events\MatchLogCreated;
 use App\Http\Controllers\Controller;
 use App\Http\Responses\BaseResponse;
+use App\Models\BenchPlayer;
+use App\Models\ConfiguredPlayingTeamPlayer;
+use App\Models\Game;
 use App\Models\League;
 use App\Models\PlayGameLog;
 use App\Models\PlayGameMode;
@@ -22,12 +25,22 @@ class PlayGameModeController extends Controller
             'my_team_id' => 'required|integer',
             'oponent_team_id' => 'required|integer',
             'is_practice' => 'sometimes|boolean',
+            'game_id' => 'sometimes|nullable|integer',
         ]);
 
         $user = auth()->user();
         $headCoachId = ActiveGameModeGuard::resolveHeadCoachId($user);
         $isPractice = filter_var($request->is_practice, FILTER_VALIDATE_BOOLEAN);
         $leagueId = $request->league_id ? (int) $request->league_id : null;
+
+        $scheduledGame = $this->resolveScheduledGameForStart($request, $isPractice);
+        if (! $isPractice && $scheduledGame && strtolower(trim((string) $scheduledGame->status)) === 'ended') {
+            return new BaseResponse(
+                STATUS_CODE_UNPROCESSABLE,
+                STATUS_CODE_UNPROCESSABLE,
+                "Game can't be started because it is already ended. (game_id: {$scheduledGame->id})"
+            );
+        }
 
         try {
             ActiveGameModeGuard::assertCanStart($headCoachId, $isPractice, $leagueId);
@@ -71,6 +84,37 @@ class PlayGameModeController extends Controller
             );
         }
 
+        if ($scheduledGame) {
+            $gameType = $isPractice ? 2 : 1;
+            // Always validate against the fixture's my team only — never require
+            // opponent/visiting roster. Position UI can show field players from
+            // either configured_playing_team_players or my-team bench rows.
+            $myTeamId = (int) ($scheduledGame->my_team_id ?: $request->my_team_id);
+
+            $hasConfiguredPlayers = ConfiguredPlayingTeamPlayer::query()
+                ->where('match_id', $scheduledGame->id)
+                ->where('team_id', $myTeamId)
+                ->where(function ($query) use ($gameType) {
+                    $query->where('game_type', $gameType)
+                        ->orWhereNull('game_type');
+                })
+                ->exists();
+
+            $hasBenchPlayers = BenchPlayer::query()
+                ->where('game_id', $scheduledGame->id)
+                ->where('team_id', $myTeamId)
+                ->where('type', 'myteam')
+                ->exists();
+
+            if (! $hasConfiguredPlayers && ! $hasBenchPlayers) {
+                return new BaseResponse(
+                    STATUS_CODE_UNPROCESSABLE,
+                    STATUS_CODE_UNPROCESSABLE,
+                    'Cannot start match: your team has no players configured.'
+                );
+            }
+        }
+
         // Only clean up orphaned opposite-mode scoreboard rows for THIS league.
         if ($isPractice) {
             DB::table('websocket_scoreboards')
@@ -106,6 +150,38 @@ class PlayGameModeController extends Controller
 
             return new BaseResponse(STATUS_CODE_BADREQUEST, STATUS_CODE_BADREQUEST, $th->getMessage());
         }
+    }
+
+    private function resolveScheduledGameForStart(Request $request, bool $isPractice): ?Game
+    {
+        if ($request->filled('game_id')) {
+            $game = Game::find((int) $request->game_id);
+            if ($game) {
+                return $game;
+            }
+        }
+
+        // Without an explicit game_id, prefer the latest non-ended fixture for this pair.
+        // Otherwise an older ended rematch of the same teams blocks starting a new one.
+        $query = Game::query()
+            ->where('league_id', $request->league_id)
+            ->where('my_team_id', $request->my_team_id)
+            ->where('oponent_team_id', $request->oponent_team_id)
+            ->where('type', $isPractice ? 2 : 1);
+
+        $nonEnded = (clone $query)
+            ->where(function ($q) {
+                $q->whereNull('status')
+                    ->orWhereRaw('LOWER(TRIM(status)) != ?', ['ended']);
+            })
+            ->latest('id')
+            ->first();
+
+        if ($nonEnded) {
+            return $nonEnded;
+        }
+
+        return $query->latest('id')->first();
     }
 
 
@@ -225,6 +301,7 @@ class PlayGameModeController extends Controller
                     'targetdata'       => $targetData,
                     'play'             => $log->target_team,
                     'type_of_log'      => $log->type_of_log,
+                    'reasons'          => $log->reasons,
                     'confirmed'        => $log->confirmed,
                     'actor_id'         => $log->actor_id,
                     'actor_role'       => $log->actor_role,
