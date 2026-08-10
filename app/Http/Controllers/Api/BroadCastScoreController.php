@@ -313,6 +313,10 @@ class BroadCastScoreController extends Controller
      */
     private function resolvePersistedTimerRemaining($existing, Request $request, array $persistedFields): ?int
     {
+        if ($request->input('action') === 'SyncTime' && $request->has('sync_time') && is_numeric($request->input('sync_time'))) {
+            return (int) $request->input('sync_time');
+        }
+
         // Reject time=0: zero means the timer hit the quarter boundary and hasn't
         // been reset yet. Storing 0 causes session restore to see diffSeconds=quarterSeconds
         // and auto-advance the quarter on the next page refresh.
@@ -413,6 +417,22 @@ class BroadCastScoreController extends Controller
                 'timer_remaining' => $clientTime > 0
                     ? $clientTime
                     : (int) ($existing?->timer_remaining ?? $quarterLength),
+                'sys_time' => $nowString,
+            ];
+        }
+
+        if ($action === 'SyncTime') {
+            $syncTime = $request->has('sync_time') && is_numeric($request->input('sync_time'))
+                ? (int) $request->input('sync_time')
+                : null;
+
+            return [
+                'quarter' => $requestQuarter ?? $existingQuarter ?? 1,
+                'timer_remaining' => $syncTime !== null
+                    ? $syncTime
+                    : ($clientTime > 0
+                        ? $clientTime
+                        : (int) ($existing?->timer_remaining ?? $quarterLength)),
                 'sys_time' => $nowString,
             ];
         }
