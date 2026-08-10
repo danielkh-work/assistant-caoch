@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\AssistantCoachController;
 use App\Http\Controllers\Api\ConfigureController;
 use App\Http\Controllers\Api\LeagueController;
 use App\Http\Controllers\Api\DeviceController;
@@ -113,8 +114,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('userUpdate',[AuthController::class,'userUpdate']);
     Route::post('save-sport',[AuthController::class,'saveSport']);
     Route::post('change-password',[AuthController::class,'changePassword'])->name('password.change');
-    Route::post('add-assistant-coach',[AuthController::class,'addAssistantCoach'])->name('add.assistantCoach');
-    Route::get('get-assistant-coach',[AuthController::class,'getQAssistantCoach'])->name('get.assistant.coach');
+    Route::get('assistant-coaches', [AssistantCoachController::class, 'index'])->name('assistant-coaches.index');
+    Route::post('assistant-coaches', [AssistantCoachController::class, 'store'])->name('assistant-coaches.store');
+    Route::get('assistant-coaches/{id}', [AssistantCoachController::class, 'show'])->name('assistant-coaches.show');
+    Route::put('assistant-coaches/{id}', [AssistantCoachController::class, 'update'])->name('assistant-coaches.update');
+    Route::patch('assistant-coaches/{id}/status', [AssistantCoachController::class, 'updateStatus'])->name('assistant-coaches.update-status');
+    Route::delete('assistant-coaches/{id}', [AssistantCoachController::class, 'destroy'])->name('assistant-coaches.destroy');
+    Route::post('add-assistant-coach', [AssistantCoachController::class, 'store'])->name('add.assistantCoach');
+    Route::get('get-assistant-coach', [AssistantCoachController::class, 'index'])->name('get.assistant.coach');
 
 
     Route::get('/sport',[SportController::class,'sport'])->name('sport');

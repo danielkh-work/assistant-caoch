@@ -27,6 +27,7 @@ class User extends Authenticatable
         'sport_id',
         'is_subscribe',
         'role',
+        'status',
         'subscription_id',
         'image','is_subscribed',
         'code',
