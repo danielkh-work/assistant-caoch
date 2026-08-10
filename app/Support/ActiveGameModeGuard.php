@@ -2,8 +2,11 @@
 
 namespace App\Support;
 
+use App\Models\League;
 use App\Models\PlayGameMode;
 use App\Models\User;
+use App\Services\GameClockService;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
@@ -13,6 +16,11 @@ class ActiveGameModeGuard
     public const STATUS_ACTIVE = 2;
 
     public const STATUS_COMPLETED = 4;
+
+    public static function liveSessionTimeoutMinutes(): int
+    {
+        return max(1, (int) config('game_modes.live_session_timeout_minutes', 60));
+    }
 
     public static function resolveHeadCoachId(User $user): int
     {
@@ -63,7 +71,10 @@ class ActiveGameModeGuard
                 PlayGameMode::query()
                     ->whereKey($session->id)
                     ->where('status', self::STATUS_ACTIVE)
-                    ->update(['status' => self::STATUS_COMPLETED]);
+                    ->update([
+                        'status' => self::STATUS_COMPLETED,
+                        'updated_at' => now(),
+                    ]);
             }
         }
     }
@@ -90,11 +101,25 @@ class ActiveGameModeGuard
             return false;
         }
 
-        return $query->exists();
+        $rows = $query->get();
+
+        foreach ($rows as $row) {
+            if (self::expireStaleScoreboardRowIfNeeded($row, $headCoachId, $session->game_mode, $table)) {
+                continue;
+            }
+
+            if (self::scoreboardIndicatesLive($row, $headCoachId, $session->game_mode)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public static function assertCanStart(int $headCoachId, bool $isPractice, ?int $leagueId = null): void
     {
+        self::expireStaleSessions($headCoachId, null, $leagueId);
+
         $otherMode = $isPractice ? 'play' : 'practice';
         self::reconcileOrphanedSessionsForMode($headCoachId, $otherMode);
 
@@ -114,6 +139,8 @@ class ActiveGameModeGuard
 
     public static function assertNoOtherModeActive(int $headCoachId, bool $isPractice, ?int $leagueId = null): void
     {
+        self::expireStaleSessions($headCoachId, null, $leagueId);
+
         $otherMode = $isPractice ? 'play' : 'practice';
         self::reconcileOrphanedSessionsForMode($headCoachId, $otherMode);
 
@@ -161,6 +188,10 @@ class ActiveGameModeGuard
         $rows = $query->get();
 
         foreach ($rows as $row) {
+            if (self::expireStaleScoreboardRowIfNeeded($row, $headCoachId, $gameMode, $table)) {
+                continue;
+            }
+
             if (self::scoreboardIndicatesLive($row, $headCoachId, $gameMode)) {
                 return true;
             }
@@ -169,6 +200,153 @@ class ActiveGameModeGuard
         }
 
         return false;
+    }
+
+    public static function expireStaleSessions(?int $headCoachId = null, ?string $gameMode = null, ?int $leagueId = null): int
+    {
+        $modes = $gameMode ? [$gameMode] : ['play', 'practice'];
+        $expired = 0;
+
+        foreach ($modes as $mode) {
+            $table = $mode === 'practice'
+                ? 'websocket_practice_scoreboards'
+                : 'websocket_scoreboards';
+
+            if (! Schema::hasTable($table)) {
+                continue;
+            }
+
+            $query = DB::table($table)->where('is_start', true);
+
+            if ($headCoachId !== null) {
+                $query->where('user_id', $headCoachId);
+            }
+
+            if ($leagueId !== null && Schema::hasColumn($table, 'league_id')) {
+                $query->where('league_id', $leagueId);
+            }
+
+            foreach ($query->get() as $row) {
+                if (self::expireStaleScoreboardRowIfNeeded($row, (int) $row->user_id, $mode, $table)) {
+                    $expired++;
+                }
+            }
+        }
+
+        return $expired;
+    }
+
+    public static function expireStaleScoreboardRowIfNeeded(object $row, int $headCoachId, string $gameMode, string $table): bool
+    {
+        if (! ($row->is_start ?? false)) {
+            return false;
+        }
+
+        self::ensureRegulationEndedAtPersisted($row, $table);
+
+        if (! self::scoreboardRowIsStale($row)) {
+            return false;
+        }
+
+        if (! empty($row->session_id)) {
+            self::completeSession($headCoachId, (int) $row->session_id);
+        } elseif (! empty($row->league_id)) {
+            self::completeActiveSessionsForMode($headCoachId, $gameMode, (int) $row->league_id);
+        } else {
+            self::completeActiveSessionsForMode($headCoachId, $gameMode);
+        }
+
+        self::clearStaleScoreboardRow($row, $table);
+
+        return true;
+    }
+
+    /**
+     * Stale only after regulation ends, based on last meaningful coach activity
+     * (not scoreboard poll / updated_at touches).
+     */
+    private static function scoreboardRowIsStale(object $row): bool
+    {
+        $endedAt = self::resolveRegulationEndedAt($row);
+        if (! $endedAt) {
+            return false;
+        }
+
+        $activityAt = ! empty($row->last_meaningful_activity_at)
+            ? Carbon::parse($row->last_meaningful_activity_at)
+            : $endedAt;
+
+        $inactiveFrom = $activityAt->greaterThan($endedAt) ? $activityAt : $endedAt;
+
+        return $inactiveFrom->lte(now()->subMinutes(self::liveSessionTimeoutMinutes()));
+    }
+
+    public static function resolveRegulationEndedAt(object $row, ?League $league = null): ?Carbon
+    {
+        if (! empty($row->regulation_ended_at)) {
+            return Carbon::parse($row->regulation_ended_at);
+        }
+
+        $league ??= ! empty($row->league_id) ? League::find((int) $row->league_id) : null;
+        $clock = app(GameClockService::class);
+        $maxQuarters = $clock->maxQuarters($league);
+        $quarter = max(1, (int) ($row->quarter ?? 1));
+        $remaining = array_key_exists('timer_remaining', (array) $row) && $row->timer_remaining !== null
+            ? max(0, (int) $row->timer_remaining)
+            : null;
+
+        // Already parked at end of regulation (including paused/stopped at 0:00).
+        // Prefer last meaningful activity over sys_time — polls used to rewrite sys_time.
+        if ($remaining === 0 && $quarter >= $maxQuarters) {
+            if (! empty($row->last_meaningful_activity_at)) {
+                return Carbon::parse($row->last_meaningful_activity_at);
+            }
+
+            return now();
+        }
+
+        if ($clock->isPaused($row->action ?? null)) {
+            return null;
+        }
+
+        $resolved = $clock->resolveForLeague([
+            'quarter' => $quarter,
+            'timer_remaining' => $remaining,
+            'sys_time' => $row->sys_time ?? null,
+            'action' => $row->action ?? null,
+        ], $league);
+
+        if (! ($resolved['exhausted'] ?? false)) {
+            return null;
+        }
+
+        if (! empty($resolved['exhausted_at'])) {
+            return Carbon::parse($resolved['exhausted_at']);
+        }
+
+        return now();
+    }
+
+    public static function ensureRegulationEndedAtPersisted(object $row, string $table): void
+    {
+        if (! Schema::hasColumn($table, 'regulation_ended_at')) {
+            return;
+        }
+
+        if (! empty($row->regulation_ended_at)) {
+            return;
+        }
+
+        $endedAt = self::resolveRegulationEndedAt($row);
+        if (! $endedAt) {
+            return;
+        }
+
+        $value = $endedAt->toDateTimeString();
+        DB::table($table)->where('id', $row->id)->update([
+            'regulation_ended_at' => $value,
+        ]);
+        $row->regulation_ended_at = $value;
     }
 
     public static function scoreboardIndicatesLive(object $row, int $headCoachId, string $gameMode): bool
@@ -201,13 +379,19 @@ class ActiveGameModeGuard
 
     public static function clearStaleScoreboardRow(object $row, string $table): void
     {
+        $values = [
+            'is_start' => false,
+            'action' => 'INFO',
+            'updated_at' => now(),
+        ];
+
+        if (Schema::hasColumn($table, 'sys_time')) {
+            $values['sys_time'] = now()->toDateTimeString();
+        }
+
         DB::table($table)
             ->where('id', $row->id)
-            ->update([
-                'is_start' => false,
-                'action' => 'INFO',
-                'updated_at' => now(),
-            ]);
+            ->update($values);
     }
 
     public static function reconcileScoreboardRow(?object $row, int $headCoachId, string $gameMode, string $table): ?object
@@ -216,6 +400,9 @@ class ActiveGameModeGuard
             return null;
         }
 
+        if (self::expireStaleScoreboardRowIfNeeded($row, $headCoachId, $gameMode, $table)) {
+            return null;
+        }
 
         if (! self::scoreboardIndicatesLive($row, $headCoachId, $gameMode)) {
             if ($row->is_start) {
@@ -228,13 +415,31 @@ class ActiveGameModeGuard
         return $row;
     }
 
+    /**
+     * Soft touch used by polls / LIVE badge checks. Must NOT count as meaningful
+     * activity for auto-end, and must not rewrite sys_time / regulation timestamps.
+     */
+    public static function touchLiveScoreboardRow(object $row, string $table): void
+    {
+        if (! ($row->is_start ?? false)) {
+            return;
+        }
+
+        DB::table($table)
+            ->where('id', $row->id)
+            ->update(['updated_at' => now()]);
+    }
+
     public static function completeSession(int $headCoachId, int $sessionId): void
     {
         PlayGameMode::query()
             ->whereKey($sessionId)
             ->where('user_id', $headCoachId)
             ->where('status', self::STATUS_ACTIVE)
-            ->update(['status' => self::STATUS_COMPLETED]);
+            ->update([
+                'status' => self::STATUS_COMPLETED,
+                'updated_at' => now(),
+            ]);
     }
 
     public static function completeActiveSessionsForMode(int $headCoachId, string $gameMode, ?int $leagueId = null): void
@@ -248,6 +453,9 @@ class ActiveGameModeGuard
             $query->where('league_id', $leagueId);
         }
 
-        $query->update(['status' => self::STATUS_COMPLETED]);
+        $query->update([
+            'status' => self::STATUS_COMPLETED,
+            'updated_at' => now(),
+        ]);
     }
 }

@@ -22,6 +22,7 @@ class Device extends Model implements \Illuminate\Contracts\Auth\Authenticatable
         'session_id',
         'battery',
         'signal_strength',
+        'battery_signal_synced_at',
     ];
 
     protected $appends = [
@@ -30,6 +31,7 @@ class Device extends Model implements \Illuminate\Contracts\Auth\Authenticatable
 
     protected $casts = [
         'paired_at' => 'datetime',
+        'battery_signal_synced_at' => 'datetime',
     ];
 
     protected static function boot(): void

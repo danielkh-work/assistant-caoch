@@ -8,6 +8,7 @@ use App\Models\LeagueTeam;
 use App\Models\PracticeTeamPlayer;
 use App\Models\Team;
 use App\Models\TeamPlayer;
+use App\Services\LeaguePlayerTeamValidator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -284,14 +285,33 @@ class TeamController extends Controller
 
     public function update(Request $request, $id)
     {
-        
-      $players = json_decode($request->players, true) ?? [];
-     
+        $players = json_decode($request->players, true) ?? [];
 
         DB::beginTransaction();
         try {
 
             $team = LeagueTeam::findOrFail($id);
+
+            $playerIds = collect($players)
+                ->pluck('player_id')
+                ->filter(fn ($id) => $id !== null && $id !== '')
+                ->unique()
+                ->values()
+                ->all();
+
+            $conflictMessage = app(LeaguePlayerTeamValidator::class)
+                ->firstConflictMessage($team->league_id, $team->id, $playerIds);
+
+            if ($conflictMessage !== null) {
+                DB::rollBack();
+
+                return new BaseResponse(
+                    STATUS_CODE_UNPROCESSABLE,
+                    STATUS_CODE_UNPROCESSABLE,
+                    $conflictMessage
+                );
+            }
+
             $team->team_name = $request->team_name;
 
             if ($request->hasFile('image')) {
@@ -300,10 +320,6 @@ class TeamController extends Controller
             }
 
             $team->save();
-
-            $players = json_decode($request->players, true) ?? [];
-
-            
 
             $existingPlayerIds = [];
 

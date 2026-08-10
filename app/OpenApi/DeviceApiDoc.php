@@ -313,6 +313,57 @@ namespace App\OpenApi;
  *     @OA\Response(response=404, description="Device not found")
  * )
  *
+ * @OA\Schema(
+ *     schema="DeviceActiveMatch",
+ *     type="object",
+ *     nullable=true,
+ *     description="Live scoreboard state when a game or practice match is running for this device's head coach; null when no match is active. Same shape as Pusher score.updated / practice.score.updated payloads.",
+ *     @OA\Property(property="game_mode", type="string", enum={"play", "practice"}, example="play"),
+ *     @OA\Property(
+ *         property="scores",
+ *         type="object",
+ *         @OA\Property(
+ *             property="left",
+ *             type="object",
+ *             @OA\Property(property="total", type="integer", example=0),
+ *             @OA\Property(property="name", type="string", example="DU VErsant")
+ *         ),
+ *         @OA\Property(
+ *             property="right",
+ *             type="object",
+ *             @OA\Property(property="total", type="integer", example=0),
+ *             @OA\Property(property="name", type="string", example="Hormisdas-Gamelin")
+ *         )
+ *     ),
+ *     @OA\Property(property="team", type="string", example="both"),
+ *     @OA\Property(property="game_id", type="string", example="25"),
+ *     @OA\Property(property="user_id", type="integer", example=20),
+ *     @OA\Property(property="points", type="integer", example=0),
+ *     @OA\Property(property="action", type="string", example="Start"),
+ *     @OA\Property(property="sync_time", type="integer", example=900),
+ *     @OA\Property(property="isStart", type="boolean", example=true),
+ *     @OA\Property(property="time", type="string", nullable=true),
+ *     @OA\Property(property="sys_time", type="string", nullable=true),
+ *     @OA\Property(property="quarter", type="string", nullable=true),
+ *     @OA\Property(property="down", type="string", nullable=true),
+ *     @OA\Property(property="distance", type="integer", nullable=true, minimum=1, maximum=100),
+ *     @OA\Property(property="strategies", type="string", nullable=true),
+ *     @OA\Property(property="teamPosition", type="string", nullable=true),
+ *     @OA\Property(property="expectedyardgain", type="integer", nullable=true),
+ *     @OA\Property(property="positionNumber", type="string", nullable=true),
+ *     @OA\Property(property="pkg", type="string", nullable=true),
+ *     @OA\Property(property="possession", type="string", nullable=true),
+ *     @OA\Property(property="weather", type="string", nullable=true),
+ *     @OA\Property(property="coverageCategory", type="string", nullable=true),
+ *     @OA\Property(property="session_id", type="integer", nullable=true),
+ *     @OA\Property(property="h_mark_position", type="string", nullable=true),
+ *     @OA\Property(property="league_id", type="integer", nullable=true),
+ *     @OA\Property(property="myteamId", type="integer", nullable=true),
+ *     @OA\Property(property="oppteamId", type="integer", nullable=true),
+ *     @OA\Property(property="teamLeftScore", type="integer", example=0),
+ *     @OA\Property(property="teamRightScore", type="integer", example=0)
+ * )
+ *
  * @OA\Get(
  *     path="/api/devices/session-status/{session_id}",
  *     operationId="deviceSessionStatus",
@@ -346,62 +397,44 @@ namespace App\OpenApi;
  *                 @OA\Property(property="session_id", type="string", nullable=true),
  *                 @OA\Property(property="paired_at", type="string", format="date-time", nullable=true),
  *                 @OA\Property(property="is_connected", type="boolean", description="True if device has active Sanctum tokens", example=true)
- *             ),
- *             @OA\Property(
- *                 property="active_match",
- *                 type="object",
- *                 nullable=true,
- *                 description="Live scoreboard state when a game or practice match is running for this device's head coach; null when no match is active. Same shape as Pusher score.updated / practice.score.updated payloads.",
- *                 @OA\Property(property="game_mode", type="string", enum={"play", "practice"}, example="play"),
- *                 @OA\Property(
- *                     property="scores",
- *                     type="object",
- *                     @OA\Property(
- *                         property="left",
- *                         type="object",
- *                         @OA\Property(property="total", type="integer", example=0),
- *                         @OA\Property(property="name", type="string", example="DU VErsant")
- *                     ),
- *                     @OA\Property(
- *                         property="right",
- *                         type="object",
- *                         @OA\Property(property="total", type="integer", example=0),
- *                         @OA\Property(property="name", type="string", example="Hormisdas-Gamelin")
- *                     )
- *                 ),
- *                 @OA\Property(property="team", type="string", example="both"),
- *                 @OA\Property(property="game_id", type="string", example="25"),
- *                 @OA\Property(property="user_id", type="integer", example=20),
- *                 @OA\Property(property="points", type="integer", example=0),
- *                 @OA\Property(property="action", type="string", example="Start"),
- *                 @OA\Property(property="sync_time", type="integer", example=900),
- *                 @OA\Property(property="isStart", type="boolean", example=true),
- *                 @OA\Property(property="time", type="string", nullable=true),
- *                 @OA\Property(property="sys_time", type="string", nullable=true),
- *                 @OA\Property(property="quarter", type="string", nullable=true),
- *                 @OA\Property(property="down", type="string", nullable=true),
- *                 @OA\Property(property="distance", type="integer", nullable=true, minimum=1, maximum=100),
- *                 @OA\Property(property="strategies", type="string", nullable=true),
- *                 @OA\Property(property="teamPosition", type="string", nullable=true),
- *                 @OA\Property(property="expectedyardgain", type="integer", nullable=true),
- *                 @OA\Property(property="positionNumber", type="string", nullable=true),
- *                 @OA\Property(property="pkg", type="string", nullable=true),
- *                 @OA\Property(property="possession", type="string", nullable=true),
- *                 @OA\Property(property="weather", type="string", nullable=true),
- *                 @OA\Property(property="coverageCategory", type="string", nullable=true),
- *                 @OA\Property(property="session_id", type="integer", nullable=true),
- *                 @OA\Property(property="h_mark_position", type="string", nullable=true),
- *                 @OA\Property(property="league_id", type="integer", nullable=true),
- *                 @OA\Property(property="myteamId", type="integer", nullable=true),
- *                 @OA\Property(property="oppteamId", type="integer", nullable=true),
- *                 @OA\Property(property="teamLeftScore", type="integer", example=0),
- *                 @OA\Property(property="teamRightScore", type="integer", example=0)
  *             )
  *         )
  *     ),
  *     @OA\Response(
  *         response=401,
  *         description="Unauthenticated — no device with this session_id",
+ *         @OA\JsonContent(
+ *             @OA\Property(property="status", type="integer", example=401),
+ *             @OA\Property(property="message", type="string", example="Unauthenticated")
+ *         )
+ *     )
+ * )
+ *
+ * @OA\Get(
+ *     path="/api/devices/active-match/{session_id}",
+ *     operationId="deviceActiveMatch",
+ *     tags={"Devices"},
+ *     summary="Get active match for device session (FOR APP)",
+ *     description="Returns the live active match payload for a device bound to the given mobile session UUID. Returns active_match as null when no match is active. Returns 401 when no device has this session_id.",
+ *     @OA\Parameter(
+ *         name="session_id",
+ *         in="path",
+ *         required=true,
+ *         description="Mobile pairing session UUID",
+ *         @OA\Schema(type="string", format="uuid", example="822fc835-75aa-48bf-8473-354a4913aab2")
+ *     ),
+ *     @OA\Response(
+ *         response=200,
+ *         description="Active match state retrieved successfully",
+ *         @OA\JsonContent(
+ *             @OA\Property(property="status", type="integer", example=200),
+ *             @OA\Property(property="session_id", type="string", format="uuid", example="822fc835-75aa-48bf-8473-354a4913aab2"),
+ *             @OA\Property(property="active_match", ref="#/components/schemas/DeviceActiveMatch")
+ *         )
+ *     ),
+ *     @OA\Response(
+ *         response=401,
+ *         description="Unauthenticated - no device with this session_id",
  *         @OA\JsonContent(
  *             @OA\Property(property="status", type="integer", example=401),
  *             @OA\Property(property="message", type="string", example="Unauthenticated")

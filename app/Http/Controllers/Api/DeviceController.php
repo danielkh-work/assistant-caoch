@@ -376,6 +376,10 @@ class DeviceController extends Controller
                 $device->signal_strength = $validated['signal_strength'];
             }
 
+            if (array_key_exists('battery', $validated) || array_key_exists('signal_strength', $validated)) {
+                $device->battery_signal_synced_at = now();
+            }
+
             $device->save();
 
             DB::commit();

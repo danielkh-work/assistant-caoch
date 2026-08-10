@@ -101,6 +101,7 @@ Route::match(['get', 'post'], '/devices/login-with-code', [AuthController::class
 
 Route::get('/devices/logout/{id}', [WebQrController::class, 'logoutDeviceApplication']);
 Route::get('/devices/session-status/{session_id}', [WebQrController::class, 'deviceSessionStatus']);
+Route::get('/devices/active-match/{session_id}', [WebQrController::class, 'deviceActiveMatch']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/devices/update-info', [DeviceController::class, 'updateInfo']);
@@ -233,9 +234,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::controller(GameController::class)->group(function () {
             Route::get('/games/id', 'index');
             Route::post('/games', 'store');
+            Route::post('/games/{id}/duplicate', 'duplicate');
             Route::get('/game/{id}', 'show');
             Route::get('/game/{id}/opponents_my', 'getOpponentMyTeamPlayers');
+            Route::get('/leagues/{leagueId}/opponent-teams', 'opponentTeams');
+            Route::get('/leagues/{leagueId}/scheduled-dates', 'scheduledDatesByLeague');
             Route::get('/games/league/{leagueId}', 'getByLeague');
+            Route::get('/leagues-upcoming-matches', 'leaguesUpcomingMatches');
             Route::post('/penalities', 'Penalities');
             Route::get('/penalty-list', 'penaltyList');
             Route::get('/delete-game/{id}','delete');
@@ -279,12 +284,12 @@ Route::middleware('auth:sanctum')->group(function () {
   Route::get('/persional-groups-players', [PersionalGroupingController::class, 'getGroupsByTeamAndGame']);
 
   // Team Groups
-  Route::get('/teams/{teamId}/groups', [\App\Http\Controllers\TeamGroupController::class, 'index']);
-  Route::post('/teams/{teamId}/groups', [\App\Http\Controllers\TeamGroupController::class, 'store']);
-  Route::put('/groups/{id}', [\App\Http\Controllers\TeamGroupController::class, 'update']);
-  Route::delete('/groups/{id}', [\App\Http\Controllers\TeamGroupController::class, 'destroy']);
-  Route::get('/teams/{teamId}/players', [\App\Http\Controllers\TeamGroupController::class, 'players']);
-  Route::post('/games/{gameId}/import-team-groups', [\App\Http\Controllers\TeamGroupController::class, 'importToGame']);
+  Route::get('/teams/{teamId}/groups', [\App\Http\Controllers\TeamGroupController::class, 'index'])->whereNumber('teamId');
+  Route::post('/teams/{teamId}/groups', [\App\Http\Controllers\TeamGroupController::class, 'store'])->whereNumber('teamId');
+  Route::put('/groups/{id}', [\App\Http\Controllers\TeamGroupController::class, 'update'])->whereNumber('id');
+  Route::delete('/groups/{id}', [\App\Http\Controllers\TeamGroupController::class, 'destroy'])->whereNumber('id');
+  Route::get('/teams/{teamId}/players', [\App\Http\Controllers\TeamGroupController::class, 'players'])->whereNumber('teamId');
+  Route::post('/games/{gameId}/import-team-groups', [\App\Http\Controllers\TeamGroupController::class, 'importToGame'])->whereNumber('gameId');
 
 
    Route::prefix('leagues')->group(function () {
@@ -327,5 +332,3 @@ Route::post('/verify-code', [AuthController::class, 'verifyCode']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/forget-password',[AuthController::class,'forgotPassword'])->name('forget.change');
 Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('password.reset');
-
-

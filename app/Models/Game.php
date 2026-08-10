@@ -22,6 +22,10 @@ class Game extends Model
         'status',
         'match_start_date',
         'match_end_date',
+        'date',
+        'location',
+        'neutral_location',
+        'location_type',
     ];
 
     protected $casts = [
@@ -37,6 +41,11 @@ class Game extends Model
     public function opponentTeam()
     {
         return $this->belongsTo(LeagueTeam::class, 'oponent_team_id');
+    }
+
+    public function league()
+    {
+        return $this->belongsTo(League::class, 'league_id');
     }
 
 

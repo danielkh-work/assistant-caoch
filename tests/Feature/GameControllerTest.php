@@ -19,6 +19,8 @@ class GameControllerTest extends TestCase
     protected User $user;
     protected League $league;
     protected Game $game;
+    protected int $myTeamId = 1;
+    protected int $opponentTeamId = 2;
 
     protected function setUp(): void
     {
@@ -43,11 +45,34 @@ class GameControllerTest extends TestCase
         $this->league->number_of_team = 2;
         $this->league->save();
 
+        if (Schema::hasTable('league_teams')) {
+            $teamRow = [
+                'league_id' => $this->league->id,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+
+            if (Schema::hasColumn('league_teams', 'is_practice')) {
+                $teamRow['is_practice'] = 0;
+            }
+
+            if (Schema::hasColumn('league_teams', 'type')) {
+                $teamRow['type'] = 1;
+            }
+
+            $this->myTeamId = DB::table('league_teams')->insertGetId(array_merge($teamRow, [
+                'team_name' => 'Test My Team',
+            ]));
+            $this->opponentTeamId = DB::table('league_teams')->insertGetId(array_merge($teamRow, [
+                'team_name' => 'Test Opponent',
+            ]));
+        }
+
         $this->game = new Game();
         $this->game->league_id = $this->league->id;
         $this->game->creator_id = $this->user->id;
-        $this->game->my_team_id = 1;
-        $this->game->oponent_team_id = 2;
+        $this->game->my_team_id = $this->myTeamId;
+        $this->game->oponent_team_id = $this->opponentTeamId;
         $this->game->date = now()->toDateString();
         $this->game->location_type = 'home';
         $this->game->save();
@@ -65,9 +90,9 @@ class GameControllerTest extends TestCase
 
         $response = $this->postJson('/api/games', [
             'league_id' => $this->league->id,
-            'my_team_id' => 1,
-            'oponent_team_id' => 2,
-            'date' => now()->toDateString(),
+            'my_team_id' => $this->myTeamId,
+            'oponent_team_id' => $this->opponentTeamId,
+            'date' => now()->addDay()->format('Y-m-d') . ' 15:30:00',
             'location' => 'Home Stadium',
             'location_type' => 'home'
         ]);
@@ -78,6 +103,148 @@ class GameControllerTest extends TestCase
             'location_type' => 'home',
             'location' => 'Home Stadium'
         ]);
+    }
+
+    public function test_create_game_rejects_duplicate_league_datetime()
+    {
+        $this->auth();
+
+        $slot = now()->addDays(3)->format('Y-m-d') . ' 19:00:00';
+        $this->createGameForLeague(['date' => $slot]);
+
+        $response = $this->postJson('/api/games', [
+            'league_id' => $this->league->id,
+            'my_team_id' => $this->myTeamId,
+            'oponent_team_id' => $this->opponentTeamId,
+            'date' => now()->addDays(3)->format('Y-m-d') . 'T19:00',
+            'location' => 'Another Stadium',
+            'location_type' => 'home',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('message', 'A game is already scheduled on this date.');
+    }
+
+    public function test_create_game_rejects_same_day_different_time()
+    {
+        $this->auth();
+
+        $day = now()->addDays(4)->format('Y-m-d');
+        $this->createGameForLeague(['date' => $day . ' 10:00:00']);
+
+        $response = $this->postJson('/api/games', [
+            'league_id' => $this->league->id,
+            'my_team_id' => $this->myTeamId,
+            'oponent_team_id' => $this->opponentTeamId,
+            'date' => $day . ' 18:30:00',
+            'location' => 'Evening Field',
+            'location_type' => 'home',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('message', 'A game is already scheduled on this date.');
+    }
+
+    public function test_create_game_rejects_teams_from_other_league()
+    {
+        if (! Schema::hasTable('league_teams')) {
+            $this->markTestSkipped('League teams table is not available.');
+        }
+
+        $this->auth();
+
+        $otherLeague = new League();
+        $otherLeague->user_id = $this->user->id;
+        $otherLeague->sport_id = $this->league->sport_id;
+        $otherLeague->league_rule_id = $this->league->league_rule_id;
+        $otherLeague->title = 'Other League';
+        $otherLeague->number_of_team = 2;
+        $otherLeague->save();
+
+        $foreignTeamId = DB::table('league_teams')->insertGetId([
+            'league_id' => $otherLeague->id,
+            'team_name' => 'Foreign Team',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->postJson('/api/games', [
+            'league_id' => $this->league->id,
+            'my_team_id' => $this->myTeamId,
+            'oponent_team_id' => $foreignTeamId,
+            'date' => now()->addDays(5)->format('Y-m-d') . ' 15:30:00',
+            'location' => 'Home Stadium',
+            'location_type' => 'home',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('message', 'Selected team is invalid for this league.');
+    }
+
+    public function test_get_games_by_league_excludes_games_with_mismatched_teams()
+    {
+        if (! Schema::hasTable('league_teams')) {
+            $this->markTestSkipped('League teams table is not available.');
+        }
+
+        $this->auth();
+
+        $otherLeague = new League();
+        $otherLeague->user_id = $this->user->id;
+        $otherLeague->sport_id = $this->league->sport_id;
+        $otherLeague->league_rule_id = $this->league->league_rule_id;
+        $otherLeague->title = 'Foreign League';
+        $otherLeague->number_of_team = 2;
+        $otherLeague->save();
+
+        $foreignMyTeamId = DB::table('league_teams')->insertGetId([
+            'league_id' => $otherLeague->id,
+            'team_name' => 'Foreign My Team',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $foreignOpponentId = DB::table('league_teams')->insertGetId([
+            'league_id' => $otherLeague->id,
+            'team_name' => 'team2',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $orphanedGame = $this->createGameForLeague([
+            'my_team_id' => $foreignMyTeamId,
+            'oponent_team_id' => $foreignOpponentId,
+            'date' => now()->addDays(6)->format('Y-m-d H:i:s'),
+        ]);
+
+        $validGame = $this->createGameForLeague([
+            'my_team_id' => $this->myTeamId,
+            'oponent_team_id' => $this->opponentTeamId,
+            'date' => now()->addDays(7)->format('Y-m-d H:i:s'),
+        ]);
+
+        $response = $this->getJson('/api/games/league/' . $this->league->id . '?per_page=100');
+
+        $response->assertStatus(200);
+
+        $gameIds = collect($response->json('data'))->pluck('id')->all();
+        $this->assertContains($validGame->id, $gameIds);
+        $this->assertNotContains($orphanedGame->id, $gameIds);
+    }
+
+    public function test_duplicate_game_rejects_duplicate_league_datetime()
+    {
+        $this->auth();
+
+        $slot = now()->addDays(5)->format('Y-m-d') . ' 14:00:00';
+        $this->createGameForLeague(['date' => $slot]);
+
+        $response = $this->postJson('/api/games/' . $this->game->id . '/duplicate', [
+            'date' => $slot,
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('message', 'A game is already scheduled on this date.');
     }
 
     public function test_can_get_game_index()
@@ -114,7 +281,793 @@ class GameControllerTest extends TestCase
 
         $response = $this->getJson('/api/games/league/' . $this->league->id);
 
+        $response->assertStatus(200)
+            ->assertJsonStructure([
+                'status',
+                'message',
+                'data',
+                'pagination' => ['total', 'current_page', 'per_page', 'last_page'],
+            ]);
+    }
+
+    public function test_get_games_by_league_returns_all_statuses_without_status_filter()
+    {
+        if (! Schema::hasColumn('games', 'status')) {
+            $this->markTestSkipped('Games status column is not available.');
+        }
+
+        $this->auth();
+
+        $endedGame = $this->createGameForLeague(['status' => 'ended']);
+        $startedGame = $this->createGameForLeague(['status' => 'started']);
+
+        $response = $this->getJson('/api/games/league/' . $this->league->id . '?per_page=100');
+
         $response->assertStatus(200);
+
+        $gameIds = collect($response->json('data'))->pluck('id')->all();
+        $this->assertContains($endedGame->id, $gameIds);
+        $this->assertContains($startedGame->id, $gameIds);
+    }
+
+    public function test_get_games_by_league_can_filter_not_ended_games()
+    {
+        if (! Schema::hasColumn('games', 'status')) {
+            $this->markTestSkipped('Games status column is not available.');
+        }
+
+        $this->auth();
+
+        $endedGame = $this->createGameForLeague(['status' => 'ended']);
+        $startedGame = $this->createGameForLeague(['status' => 'started']);
+        $scheduledGame = $this->createGameForLeague(['status' => null]);
+
+        $response = $this->getJson('/api/games/league/' . $this->league->id . '?status=not-ended&per_page=100');
+
+        $response->assertStatus(200);
+
+        $gameIds = collect($response->json('data'))->pluck('id')->all();
+        $this->assertNotContains($endedGame->id, $gameIds);
+        $this->assertContains($startedGame->id, $gameIds);
+        $this->assertContains($scheduledGame->id, $gameIds);
+    }
+
+    public function test_get_games_by_league_sorts_upcoming_before_ended()
+    {
+        if (! Schema::hasColumn('games', 'status')) {
+            $this->markTestSkipped('Games status column is not available.');
+        }
+
+        $this->auth();
+
+        $endedGame = $this->createGameForLeague([
+            'status' => 'ended',
+            'date' => now()->subDays(2)->format('Y-m-d H:i:s'),
+        ]);
+        $startedGame = $this->createGameForLeague([
+            'status' => 'started',
+            'date' => now()->addDay()->format('Y-m-d H:i:s'),
+        ]);
+        $scheduledGame = $this->createGameForLeague([
+            'status' => null,
+            'date' => now()->addDays(2)->format('Y-m-d H:i:s'),
+        ]);
+
+        $response = $this->getJson('/api/games/league/' . $this->league->id . '?per_page=100');
+
+        $response->assertStatus(200);
+
+        $statuses = collect($response->json('data'))
+            ->filter(fn ($game) => in_array($game['id'], [$endedGame->id, $startedGame->id, $scheduledGame->id], true))
+            ->pluck('status')
+            ->values()
+            ->all();
+
+        $endedIndex = array_search('ended', $statuses, true);
+        $this->assertNotFalse($endedIndex);
+        $this->assertSame('ended', $statuses[$endedIndex]);
+        $this->assertTrue($endedIndex > 0, 'Ended games should appear after non-ended games');
+        $this->assertNotContains('ended', array_slice($statuses, 0, $endedIndex));
+    }
+
+    public function test_get_games_by_league_can_filter_by_date_range()
+    {
+        $this->auth();
+
+        $startDate = now()->addDays(5)->format('Y-m-d');
+        $endDate = now()->addDays(7)->format('Y-m-d');
+        $inRangeGame = $this->createGameForLeague([
+            'date' => now()->addDays(6)->format('Y-m-d') . ' 19:00:00',
+        ]);
+        $onStartBoundaryGame = $this->createGameForLeague([
+            'date' => $startDate . ' 10:00:00',
+        ]);
+        $beforeRangeGame = $this->createGameForLeague([
+            'date' => now()->addDays(4)->format('Y-m-d H:i:s'),
+        ]);
+        $afterRangeGame = $this->createGameForLeague([
+            'date' => now()->addDays(8)->format('Y-m-d H:i:s'),
+        ]);
+
+        $response = $this->getJson(
+            '/api/games/league/' . $this->league->id
+            . '?start_date=' . $startDate
+            . '&end_date=' . $endDate
+            . '&per_page=100'
+        );
+
+        $response->assertStatus(200);
+
+        $gameIds = collect($response->json('data'))->pluck('id')->all();
+        $this->assertContains($inRangeGame->id, $gameIds);
+        $this->assertContains($onStartBoundaryGame->id, $gameIds);
+        $this->assertNotContains($beforeRangeGame->id, $gameIds);
+        $this->assertNotContains($afterRangeGame->id, $gameIds);
+        $this->assertNotContains($this->game->id, $gameIds);
+    }
+
+    public function test_get_games_by_league_paginates_results()
+    {
+        $this->auth();
+
+        $this->createGameForLeague(['date' => now()->addDays(1)->format('Y-m-d H:i:s')]);
+        $this->createGameForLeague(['date' => now()->addDays(2)->format('Y-m-d H:i:s')]);
+
+        $response = $this->getJson(
+            '/api/games/league/' . $this->league->id
+            . '?start_date=' . now()->format('Y-m-d')
+            . '&page=1&per_page=1'
+        );
+
+        $response->assertStatus(200)
+            ->assertJsonPath('pagination.current_page', 1)
+            ->assertJsonPath('pagination.per_page', 1)
+            ->assertJsonPath('pagination.total', 3)
+            ->assertJsonPath('pagination.last_page', 3);
+
+        $this->assertCount(1, $response->json('data'));
+    }
+
+    public function test_get_games_by_league_default_feed_returns_upcoming_before_ended_with_limits()
+    {
+        if (! Schema::hasColumn('games', 'status')) {
+            $this->markTestSkipped('Games status column is not available.');
+        }
+
+        $this->auth();
+
+        for ($i = 1; $i <= 8; $i++) {
+            $this->createGameForLeague([
+                'status' => null,
+                'date' => now()->addDays($i)->format('Y-m-d H:i:s'),
+            ]);
+        }
+
+        for ($i = 1; $i <= 5; $i++) {
+            $this->createGameForLeague([
+                'status' => 'ended',
+                'date' => now()->subDays($i)->format('Y-m-d H:i:s'),
+            ]);
+        }
+
+        $response = $this->getJson('/api/games/league/' . $this->league->id . '?type=1&page=1&per_page=10');
+
+        $response->assertStatus(200);
+
+        $items = collect($response->json('data'));
+        $this->assertGreaterThanOrEqual(6, $items->where(fn ($game) => ($game['status'] ?? null) !== 'ended')->count());
+        $this->assertGreaterThanOrEqual(3, $items->where(fn ($game) => ($game['status'] ?? null) === 'ended')->count());
+        $this->assertLessThanOrEqual(9, $items->where(fn ($game) => ($game['status'] ?? null) !== 'ended')->count());
+        $this->assertLessThanOrEqual(6, $items->where(fn ($game) => ($game['status'] ?? null) === 'ended')->count());
+
+        $firstEndedIndex = $items->search(fn ($game) => ($game['status'] ?? null) === 'ended');
+        if ($firstEndedIndex !== false) {
+            $this->assertTrue(
+                $items->take($firstEndedIndex)->every(fn ($game) => ($game['status'] ?? null) !== 'ended')
+            );
+        }
+    }
+
+    public function test_get_games_by_league_supports_single_date_query_param()
+    {
+        $this->auth();
+
+        $targetDate = now()->addDays(9)->format('Y-m-d');
+        $matchingGame = $this->createGameForLeague(['date' => $targetDate . ' 12:00:00']);
+        $otherGame = $this->createGameForLeague(['date' => now()->addDays(10)->format('Y-m-d H:i:s')]);
+
+        $response = $this->getJson('/api/games/league/' . $this->league->id . '?date=' . $targetDate);
+
+        $response->assertStatus(200);
+
+        $gameIds = collect($response->json('data'))->pluck('id')->all();
+        $this->assertContains($matchingGame->id, $gameIds);
+        $this->assertNotContains($otherGame->id, $gameIds);
+    }
+
+    public function test_can_get_upcoming_real_matches_by_league_for_dashboard()
+    {
+        if (! Schema::hasTable('league_teams') || ! Schema::hasColumn('games', 'type')) {
+            $this->markTestSkipped('Required game/team schema is not available.');
+        }
+
+        $this->auth();
+
+        $myTeamId = DB::table('league_teams')->insertGetId([
+            'league_id' => $this->league->id,
+            'team_name' => 'Servicore Home',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $opponentTeamId = DB::table('league_teams')->insertGetId([
+            'league_id' => $this->league->id,
+            'team_name' => 'North Opponent',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $upcomingRealMatch = $this->createGameForLeague([
+            'my_team_id' => $myTeamId,
+            'oponent_team_id' => $opponentTeamId,
+            'date' => now()->addDay()->format('Y-m-d H:i:s'),
+            'type' => 1,
+            'status' => null,
+        ]);
+
+        $practiceMatch = $this->createGameForLeague([
+            'my_team_id' => $myTeamId,
+            'oponent_team_id' => $opponentTeamId,
+            'date' => now()->addDays(2)->format('Y-m-d H:i:s'),
+            'type' => 2,
+            'status' => null,
+        ]);
+
+        $endedMatch = $this->createGameForLeague([
+            'my_team_id' => $myTeamId,
+            'oponent_team_id' => $opponentTeamId,
+            'date' => now()->addDays(3)->format('Y-m-d H:i:s'),
+            'type' => 1,
+            'status' => 'ended',
+        ]);
+
+        $pastMatch = $this->createGameForLeague([
+            'my_team_id' => $myTeamId,
+            'oponent_team_id' => $opponentTeamId,
+            'date' => now()->subDay()->format('Y-m-d H:i:s'),
+            'type' => 1,
+            'status' => null,
+        ]);
+
+        $otherLeague = new League();
+        $otherLeague->user_id = $this->user->id;
+        $otherLeague->sport_id = $this->league->sport_id;
+        $otherLeague->league_rule_id = $this->league->league_rule_id;
+        $otherLeague->title = 'Other League';
+        $otherLeague->number_of_team = 2;
+        $otherLeague->save();
+
+        $otherLeagueMatch = $this->createGameForLeague([
+            'league_id' => $otherLeague->id,
+            'my_team_id' => $myTeamId,
+            'oponent_team_id' => $opponentTeamId,
+            'date' => now()->addDays(4)->format('Y-m-d H:i:s'),
+            'type' => 1,
+            'status' => null,
+        ]);
+
+        $response = $this->getJson('/api/leagues/' . $this->league->id . '/upcoming-matches');
+
+        $response->assertStatus(200)
+            ->assertJsonPath('message', 'Upcoming real matches list')
+            ->assertJsonPath('data.league_id', $this->league->id)
+            ->assertJsonPath('data.league_name', 'Test League')
+            ->assertJsonPath('data.matches_count', 1)
+            ->assertJsonPath('data.matches.0.id', $upcomingRealMatch->id)
+            ->assertJsonPath('data.matches.0.my_team_name', 'Servicore Home')
+            ->assertJsonPath('data.matches.0.opponent_team_name', 'North Opponent');
+
+        $matchIds = collect($response->json('data.matches'))->pluck('id')->all();
+        $this->assertNotContains($practiceMatch->id, $matchIds);
+        $this->assertNotContains($endedMatch->id, $matchIds);
+        $this->assertNotContains($pastMatch->id, $matchIds);
+        $this->assertNotContains($otherLeagueMatch->id, $matchIds);
+    }
+
+    public function test_can_get_future_regular_scheduled_dates_for_league()
+    {
+        if (! Schema::hasColumn('games', 'type')) {
+            $this->markTestSkipped('Games type column is not available.');
+        }
+
+        $this->auth();
+
+        $futureRegularDay1 = now()->addDay()->format('Y-m-d');
+        $futureRegularDay2 = now()->addDays(3)->format('Y-m-d');
+        $futureRegularDay3 = now()->addDays(5)->format('Y-m-d');
+        $futureRegularDay4 = now()->addDays(10)->format('Y-m-d');
+
+        $this->createGameForLeague([
+            'date' => $futureRegularDay1 . ' 19:00:00',
+            'type' => 1,
+        ]);
+
+        $this->createGameForLeague([
+            'date' => $futureRegularDay2 . ' 14:00:00',
+            'type' => 1,
+        ]);
+
+        $this->createGameForLeague([
+            'date' => $futureRegularDay3 . ' 10:00:00',
+            'type' => 2,
+        ]);
+
+        $this->createGameForLeague([
+            'date' => now()->subDay()->format('Y-m-d H:i:s'),
+            'type' => 1,
+        ]);
+
+        $this->createGameForLeague([
+            'date' => $futureRegularDay4 . ' 12:00:00',
+            'type' => 1,
+        ]);
+
+        $otherLeague = new League();
+        $otherLeague->user_id = $this->user->id;
+        $otherLeague->sport_id = $this->league->sport_id;
+        $otherLeague->league_rule_id = $this->league->league_rule_id;
+        $otherLeague->title = 'Other League';
+        $otherLeague->number_of_team = 2;
+        $otherLeague->save();
+
+        $this->createGameForLeague([
+            'league_id' => $otherLeague->id,
+            'date' => now()->addDays(2)->format('Y-m-d H:i:s'),
+            'type' => 1,
+        ]);
+
+        $response = $this->getJson('/api/leagues/' . $this->league->id . '/scheduled-dates');
+
+        $response->assertStatus(200)
+            ->assertJsonPath('message', 'League scheduled dates')
+            ->assertJsonPath('data.league_id', $this->league->id)
+            ->assertJsonPath('data.league_name', 'Test League');
+
+        $dates = collect($response->json('data.dates'));
+        $this->assertTrue($dates->contains($futureRegularDay1));
+        $this->assertTrue($dates->contains($futureRegularDay2));
+        $this->assertTrue($dates->contains($futureRegularDay4));
+        $this->assertFalse($dates->contains($futureRegularDay3));
+        $this->assertFalse($dates->contains(now()->subDay()->format('Y-m-d')));
+        $this->assertFalse($dates->contains(now()->addDays(2)->format('Y-m-d')));
+
+        $rangeStart = now()->addDays(2)->format('Y-m-d');
+        $rangeEnd = now()->addDays(6)->format('Y-m-d');
+
+        $rangeResponse = $this->getJson(
+            '/api/leagues/' . $this->league->id
+            . '/scheduled-dates?start_date=' . $rangeStart
+            . '&end_date=' . $rangeEnd
+        );
+
+        $rangeResponse->assertStatus(200);
+
+        $rangeDates = collect($rangeResponse->json('data.dates'));
+        $this->assertFalse($rangeDates->contains($futureRegularDay1));
+        $this->assertTrue($rangeDates->contains($futureRegularDay2));
+        $this->assertFalse($rangeDates->contains($futureRegularDay4));
+        $this->assertSame($rangeDates->count(), $rangeResponse->json('data.dates_count'));
+    }
+
+    public function test_can_get_searchable_non_practice_opponent_teams()
+    {
+        if (! Schema::hasTable('league_teams')) {
+            $this->markTestSkipped('League teams table is not available.');
+        }
+
+        $this->auth();
+
+        $normalTeam = [
+            'league_id' => $this->league->id,
+            'team_name' => 'CNDF Notre Dame',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        $practiceTeam = [
+            'league_id' => $this->league->id,
+            'team_name' => 'Practice offence',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        $otherTeam = [
+            'league_id' => $this->league->id,
+            'team_name' => 'Cougars Lennoxville',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        $myTeam = [
+            'league_id' => $this->league->id,
+            'team_name' => 'Giants St-Jean-sur-Le-Richelieu',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        if (Schema::hasColumn('league_teams', 'is_practice')) {
+            $normalTeam['is_practice'] = 0;
+            $practiceTeam['is_practice'] = 1;
+            $otherTeam['is_practice'] = 0;
+            $myTeam['is_practice'] = 0;
+        }
+
+        if (Schema::hasColumn('league_teams', 'type')) {
+            $normalTeam['type'] = null;
+            $practiceTeam['type'] = 1;
+            $otherTeam['type'] = null;
+            $myTeam['type'] = 1;
+        }
+
+        $normalTeamId = DB::table('league_teams')->insertGetId($normalTeam);
+        DB::table('league_teams')->insert($practiceTeam);
+        DB::table('league_teams')->insert($otherTeam);
+        $myTeamId = DB::table('league_teams')->insertGetId($myTeam);
+
+        $response = $this->getJson('/api/leagues/' . $this->league->id . '/opponent-teams?search=CNDF');
+
+        $response->assertStatus(200)
+            ->assertJsonPath('message', 'Opponent teams list')
+            ->assertJsonFragment([
+                'id' => $normalTeamId,
+                'team_name' => 'CNDF Notre Dame',
+            ])
+            ->assertJsonMissing([
+                'team_name' => 'Practice offence',
+            ])
+            ->assertJsonMissing([
+                'team_name' => 'Cougars Lennoxville',
+            ]);
+
+        if (Schema::hasColumn('league_teams', 'is_practice') && Schema::hasColumn('league_teams', 'type')) {
+            $allResponse = $this->getJson('/api/leagues/' . $this->league->id . '/opponent-teams');
+
+            $allResponse->assertStatus(200)
+                ->assertJsonMissing([
+                    'team_name' => 'Practice offence',
+                ])
+                ->assertJsonMissing([
+                    'team_name' => 'Giants St-Jean-sur-Le-Richelieu',
+                ]);
+        }
+    }
+
+    public function test_can_duplicate_game_with_match_setup_rows()
+    {
+        if (! Schema::hasTable('configured_playing_team_players') || ! Schema::hasTable('personal_groupings')) {
+            $this->markTestSkipped('Duplicate game setup tables are not available.');
+        }
+
+        $this->auth();
+
+        if (Schema::hasColumn('games', 'status')) {
+            $this->game->status = 'ended';
+        }
+
+        if (Schema::hasColumn('games', 'match_start_date')) {
+            $this->game->match_start_date = now()->subHour();
+        }
+
+        if (Schema::hasColumn('games', 'match_end_date')) {
+            $this->game->match_end_date = now();
+        }
+
+        $this->game->save();
+
+        $configuredPlayer = [
+            'match_id' => $this->game->id,
+            'team_id' => 1,
+            'player_id' => 10,
+            'type' => 'offensive',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        if (Schema::hasColumn('configured_playing_team_players', 'practice_player_id')) {
+            $configuredPlayer['practice_player_id'] = null;
+        }
+
+        if (Schema::hasColumn('configured_playing_team_players', 'team_type')) {
+            $configuredPlayer['team_type'] = 1;
+        }
+
+        if (Schema::hasColumn('configured_playing_team_players', 'game_type')) {
+            $configuredPlayer['game_type'] = 1;
+        }
+
+        DB::table('configured_playing_team_players')->insert($configuredPlayer);
+
+        $group = [
+            'game_id' => $this->game->id,
+            'league_id' => $this->league->id,
+            'team_id' => 1,
+            'group_name' => 'Test Group',
+            'type' => 'Offense',
+            'players' => json_encode([['id' => 10]]),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        if (Schema::hasColumn('personal_groupings', 'practice_players')) {
+            $group['practice_players'] = null;
+        }
+
+        if (Schema::hasColumn('personal_groupings', 'group_level')) {
+            $group['group_level'] = 1;
+        }
+
+        if (Schema::hasColumn('personal_groupings', 'status')) {
+            $group['status'] = 'inactive';
+        }
+
+        DB::table('personal_groupings')->insert($group);
+
+        if (Schema::hasTable('play_game_logs')) {
+            DB::table('play_game_logs')->insert([
+                'game_id' => $this->game->id,
+                'league_id' => $this->league->id,
+                'my_team_id' => 1,
+                'oponent_team_id' => 2,
+                'time' => '12:00',
+                'type_of_log' => 'event',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        if (Schema::hasTable('play_results')) {
+            DB::table('play_results')->insert([
+                'game_id' => $this->game->id,
+                'play_id' => 1,
+                'type' => 'offensive',
+                'result' => 'win',
+                'suggested_count' => 1,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        if (Schema::hasTable('penalities')) {
+            DB::table('penalities')->insert([
+                'league_id' => $this->league->id,
+                'game_id' => $this->game->id,
+                'penalty_type_id' => 1,
+                'yardage_penalty' => 5,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        $response = $this->postJson('/api/games/' . $this->game->id . '/duplicate', [
+            'date' => now()->addDays(10)->format('Y-m-d') . ' 16:45:00',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('message', 'Game duplicated successfully.');
+
+        $newGameId = $response->json('data.id');
+        $this->assertNotEquals($this->game->id, $newGameId);
+
+        $expectedGame = [
+            'id' => $newGameId,
+            'league_id' => $this->league->id,
+        ];
+
+        if (Schema::hasColumn('games', 'status')) {
+            $expectedGame['status'] = null;
+        }
+
+        $this->assertDatabaseHas('games', $expectedGame);
+
+        $this->assertDatabaseHas('configured_playing_team_players', [
+            'match_id' => $newGameId,
+            'team_id' => 1,
+            'player_id' => 10,
+            'type' => 'offensive',
+        ]);
+
+        $this->assertDatabaseHas('personal_groupings', [
+            'game_id' => $newGameId,
+            'league_id' => $this->league->id,
+            'team_id' => 1,
+            'group_name' => 'Test Group',
+        ]);
+
+        if (Schema::hasTable('play_game_logs')) {
+            $this->assertSame(0, DB::table('play_game_logs')->where('game_id', $newGameId)->count());
+        }
+
+        if (Schema::hasTable('play_results')) {
+            $this->assertSame(0, DB::table('play_results')->where('game_id', $newGameId)->count());
+        }
+
+        if (Schema::hasTable('penalities')) {
+            $this->assertSame(0, DB::table('penalities')->where('game_id', $newGameId)->count());
+        }
+    }
+
+    public function test_duplicate_game_with_new_opponent_keeps_my_team_setup_only()
+    {
+        if (
+            ! Schema::hasTable('league_teams') ||
+            ! Schema::hasTable('configured_playing_team_players') ||
+            ! Schema::hasTable('personal_groupings')
+        ) {
+            $this->markTestSkipped('Duplicate game setup tables are not available.');
+        }
+
+        $this->auth();
+
+        $teamRow = fn (string $name) => [
+            'league_id' => $this->league->id,
+            'team_name' => $name,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        $myTeam = $teamRow('My Team');
+        $oldOpponent = $teamRow('Old Opponent');
+        $newOpponent = $teamRow('New Opponent');
+
+        if (Schema::hasColumn('league_teams', 'is_practice')) {
+            $myTeam['is_practice'] = 0;
+            $oldOpponent['is_practice'] = 0;
+            $newOpponent['is_practice'] = 0;
+        }
+
+        $myTeamId = DB::table('league_teams')->insertGetId($myTeam);
+        $oldOpponentId = DB::table('league_teams')->insertGetId($oldOpponent);
+        $newOpponentId = DB::table('league_teams')->insertGetId($newOpponent);
+
+        $this->game->my_team_id = $myTeamId;
+        $this->game->oponent_team_id = $oldOpponentId;
+        $this->game->save();
+
+        $this->insertConfiguredPlayerForDuplicateTest($this->game->id, $myTeamId, 101, 1, 'offensive');
+        $this->insertConfiguredPlayerForDuplicateTest($this->game->id, $oldOpponentId, 202, 2, 'defensive');
+
+        DB::table('personal_groupings')->insert($this->personalGroupForDuplicateTest(
+            $this->game->id,
+            $myTeamId,
+            'My Team Group',
+            101
+        ));
+
+        DB::table('personal_groupings')->insert($this->personalGroupForDuplicateTest(
+            $this->game->id,
+            $oldOpponentId,
+            'Old Opponent Group',
+            202
+        ));
+
+        $response = $this->postJson('/api/games/' . $this->game->id . '/duplicate', [
+            'date' => '2026-08-20 19:30:00',
+            'opponent_team_id' => $newOpponentId,
+        ]);
+
+        $response->assertStatus(200);
+
+        $newGameId = $response->json('data.id');
+        $duplicatedGame = Game::find($newGameId);
+
+        $this->assertSame($newOpponentId, (int) $duplicatedGame->oponent_team_id);
+        $this->assertStringStartsWith('2026-08-20', (string) $duplicatedGame->date);
+
+        $this->assertDatabaseHas('configured_playing_team_players', [
+            'match_id' => $newGameId,
+            'team_id' => $myTeamId,
+            'player_id' => 101,
+        ]);
+
+        $this->assertDatabaseMissing('configured_playing_team_players', [
+            'match_id' => $newGameId,
+            'team_id' => $oldOpponentId,
+            'player_id' => 202,
+        ]);
+
+        $this->assertDatabaseHas('personal_groupings', [
+            'game_id' => $newGameId,
+            'team_id' => $myTeamId,
+            'group_name' => 'My Team Group',
+        ]);
+
+        $this->assertDatabaseMissing('personal_groupings', [
+            'game_id' => $newGameId,
+            'team_id' => $oldOpponentId,
+            'group_name' => 'Old Opponent Group',
+        ]);
+    }
+
+    private function insertConfiguredPlayerForDuplicateTest(
+        int $gameId,
+        int $teamId,
+        int $playerId,
+        int $teamType,
+        string $type
+    ): void {
+        $row = [
+            'match_id' => $gameId,
+            'team_id' => $teamId,
+            'player_id' => $playerId,
+            'type' => $type,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        if (Schema::hasColumn('configured_playing_team_players', 'practice_player_id')) {
+            $row['practice_player_id'] = null;
+        }
+
+        if (Schema::hasColumn('configured_playing_team_players', 'team_type')) {
+            $row['team_type'] = $teamType;
+        }
+
+        if (Schema::hasColumn('configured_playing_team_players', 'game_type')) {
+            $row['game_type'] = 1;
+        }
+
+        DB::table('configured_playing_team_players')->insert($row);
+    }
+
+    private function personalGroupForDuplicateTest(int $gameId, int $teamId, string $groupName, int $playerId): array
+    {
+        $row = [
+            'game_id' => $gameId,
+            'league_id' => $this->league->id,
+            'team_id' => $teamId,
+            'group_name' => $groupName,
+            'type' => 'Offense',
+            'players' => json_encode([['id' => $playerId]]),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        if (Schema::hasColumn('personal_groupings', 'practice_players')) {
+            $row['practice_players'] = null;
+        }
+
+        if (Schema::hasColumn('personal_groupings', 'group_level')) {
+            $row['group_level'] = 1;
+        }
+
+        if (Schema::hasColumn('personal_groupings', 'status')) {
+            $row['status'] = 'inactive';
+        }
+
+        return $row;
+    }
+
+    private function createGameForLeague(array $attributes = []): Game
+    {
+        $game = new Game();
+        $game->league_id = $attributes['league_id'] ?? $this->league->id;
+        $game->creator_id = $this->user->id;
+        $game->my_team_id = $attributes['my_team_id'] ?? $this->myTeamId;
+        $game->oponent_team_id = $attributes['oponent_team_id'] ?? $this->opponentTeamId;
+        $game->date = $attributes['date'] ?? now()->toDateString();
+        $game->location_type = $attributes['location_type'] ?? 'home';
+
+        if (array_key_exists('status', $attributes) && Schema::hasColumn('games', 'status')) {
+            $game->status = $attributes['status'];
+        }
+
+        if (array_key_exists('type', $attributes) && Schema::hasColumn('games', 'type')) {
+            $game->type = $attributes['type'];
+        }
+
+        $game->save();
+
+        return $game;
     }
 
     public function test_can_add_penalty()

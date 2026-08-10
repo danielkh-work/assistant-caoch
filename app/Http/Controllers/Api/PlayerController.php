@@ -8,10 +8,13 @@ use App\Models\Player;
 use App\Models\PracticeTeamPlayer;
 use App\Models\PracticeTeamPlayerPosition;
 use App\Models\PersionalGrouping;
+use App\Models\LeagueTeam;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use App\Models\TeamPlayer;
+use App\Services\LeaguePlayerTeamValidator;
+use App\Services\PlayerListPresenter;
 
 class PlayerController extends Controller
 {
@@ -118,6 +121,23 @@ class PlayerController extends Controller
             $player->load('playerPosition');
             //    if($type === 'team'){
                     $teamPlayerPositionValue = $resolvedPositionNames[0] ?? null;
+
+                    if ($request->filled('team_id')) {
+                        $targetTeam = LeagueTeam::findOrFail($request->team_id);
+
+                        $conflictMessage = app(LeaguePlayerTeamValidator::class)
+                            ->firstConflictMessage($targetTeam->league_id, $targetTeam->id, [$player->id]);
+
+                        if ($conflictMessage !== null) {
+                            DB::rollBack();
+
+                            return new BaseResponse(
+                                STATUS_CODE_UNPROCESSABLE,
+                                STATUS_CODE_UNPROCESSABLE,
+                                $conflictMessage
+                            );
+                        }
+                    }
 
                     $teamPlayerId = DB::table('team_players')->insertGetId([
                         'player_id' => $player->id,
@@ -245,11 +265,27 @@ class PlayerController extends Controller
     }
     public function list(Request $request)
     {
+        $presenter = app(PlayerListPresenter::class);
+        $validationError = $presenter->validateListFilters($request);
+
+        if ($validationError !== null) {
+            return new BaseResponse(
+                STATUS_CODE_UNPROCESSABLE,
+                STATUS_CODE_UNPROCESSABLE,
+                $validationError
+            );
+        }
+
         $userRoleIds = auth()->user()->roles->pluck('id');
 
-        $query = Player::with(['roles' => function ($query) use ($userRoleIds) {
-            $query->whereIn('roleables.role_id', $userRoleIds);
-        }, 'playerPosition'])->orderBy('name');
+        $query = Player::with([
+            'roles' => function ($query) use ($userRoleIds) {
+                $query->whereIn('roleables.role_id', $userRoleIds);
+            },
+            'playerPosition',
+            'league',
+            'teamPlayers.leagueTeam.league',
+        ])->orderBy('name');
 
         $searchTerm = trim((string) $request->input('search', ''));
         if ($searchTerm !== '') {
@@ -257,9 +293,13 @@ class PlayerController extends Controller
             $query->where('name', 'like', $needle);
         }
 
+        $presenter->applyFilters($query, $request);
+
         $paginateRequested = $request->has('page')
             || $request->has('per_page')
-            || $request->filled('search');
+            || $request->filled('search')
+            || $request->filled('filter')
+            || $request->has('not_assigned');
 
         if ($paginateRequested) {
             $page = max(1, (int) $request->input('page', 1));
@@ -278,7 +318,7 @@ class PlayerController extends Controller
                 STATUS_CODE_OK,
                 STATUS_CODE_OK,
                 'Player List  ',
-                $paginator->items(),
+                $presenter->formatPlayers($paginator->items(), $request),
                 null,
                 null,
                 $pagination,
@@ -287,7 +327,12 @@ class PlayerController extends Controller
 
         $players = $query->get();
 
-        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Player List  ', $players);
+        return new BaseResponse(
+            STATUS_CODE_OK,
+            STATUS_CODE_OK,
+            'Player List  ',
+            $presenter->formatPlayers($players, $request)
+        );
     }
     public function update(Request $request,$id)
     {

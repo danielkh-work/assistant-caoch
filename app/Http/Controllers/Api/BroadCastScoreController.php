@@ -15,9 +15,12 @@ use App\Events\HeadCoachSystemSuggestion;
 use App\Models\WebsocketScoreboard;
 use App\Models\WebsocketPracticeScoreboard;
 use App\Models\Game;
+use App\Models\League;
 use App\Http\Responses\BaseResponse;
+use App\Services\GameClockService;
 use App\Support\ActiveGameModeGuard;
 use App\Support\BroadcastLeagueResolver;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
@@ -310,6 +313,10 @@ class BroadCastScoreController extends Controller
      */
     private function resolvePersistedTimerRemaining($existing, Request $request, array $persistedFields): ?int
     {
+        if ($request->input('action') === 'SyncTime' && $request->has('sync_time') && is_numeric($request->input('sync_time'))) {
+            return (int) $request->input('sync_time');
+        }
+
         // Reject time=0: zero means the timer hit the quarter boundary and hasn't
         // been reset yet. Storing 0 causes session restore to see diffSeconds=quarterSeconds
         // and auto-advance the quarter on the next page refresh.
@@ -324,6 +331,335 @@ class BroadCastScoreController extends Controller
         return $existing?->timer_remaining !== null
             ? (int) $existing->timer_remaining
             : null;
+    }
+
+    private function clockService(): GameClockService
+    {
+        return app(GameClockService::class);
+    }
+
+    /**
+     * @param  WebsocketScoreboard|WebsocketPracticeScoreboard|null  $existing
+     */
+    private function leagueForScoreboard($existing, Request $request): ?League
+    {
+        $leagueId = $request->input('league_id') ?? $existing?->league_id;
+
+        return $leagueId ? League::find((int) $leagueId) : null;
+    }
+
+    /**
+     * Authoritative quarter + remaining for broadcast writes.
+     *
+     * @param  WebsocketScoreboard|WebsocketPracticeScoreboard|null  $existing
+     * @return array{quarter: int|string|null, timer_remaining: int|null, sys_time: string}
+     */
+    private function resolveClockFieldsForBroadcast(
+        $existing,
+        Request $request,
+        string $action,
+        bool $isRestoredStart
+    ): array {
+        $clock = $this->clockService();
+        $league = $this->leagueForScoreboard($existing, $request);
+        $quarterLength = $clock->quarterLengthSeconds($league);
+        $maxQuarters = $clock->maxQuarters($league);
+        $now = Carbon::now();
+        $nowString = $now->toDateTimeString();
+        $requestQuarter = $request->has('quarter') ? (int) $request->quarter : null;
+        $existingQuarter = $existing?->quarter !== null ? (int) $existing->quarter : null;
+        $clientTime = is_numeric($request->input('time')) ? (int) $request->input('time') : 0;
+
+        if ($action === 'Start' && ! $isRestoredStart) {
+            return [
+                'quarter' => $requestQuarter ?: 1,
+                'timer_remaining' => $clientTime > 0 ? $clientTime : $quarterLength,
+                'sys_time' => $nowString,
+            ];
+        }
+
+        if ($isRestoredStart) {
+            return [
+                'quarter' => $existingQuarter ?? ($requestQuarter ?: 1),
+                'timer_remaining' => $existing?->timer_remaining !== null
+                    ? (int) $existing->timer_remaining
+                    : $quarterLength,
+                'sys_time' => $nowString,
+            ];
+        }
+
+        if ($action === 'Stop') {
+            if ($clock->isPaused($existing?->action)) {
+                return [
+                    'quarter' => $existingQuarter ?? ($requestQuarter ?: 1),
+                    'timer_remaining' => (int) ($existing?->timer_remaining ?? 0),
+                    'sys_time' => $nowString,
+                ];
+            }
+
+            $resolved = $clock->resolve([
+                'quarter' => $existingQuarter ?? ($requestQuarter ?: 1),
+                'timer_remaining' => $existing?->timer_remaining,
+                'sys_time' => $existing?->sys_time,
+                'action' => $existing?->action ?? 'Start',
+            ], $quarterLength, $maxQuarters, $now);
+
+            return [
+                'quarter' => $resolved['quarter'],
+                'timer_remaining' => $resolved['timer_remaining'],
+                'sys_time' => $nowString,
+            ];
+        }
+
+        if ($action === 'Resume') {
+            return [
+                'quarter' => $requestQuarter ?? $existingQuarter ?? 1,
+                'timer_remaining' => $clientTime > 0
+                    ? $clientTime
+                    : (int) ($existing?->timer_remaining ?? $quarterLength),
+                'sys_time' => $nowString,
+            ];
+        }
+
+        if ($action === 'SyncTime') {
+            $syncTime = $request->has('sync_time') && is_numeric($request->input('sync_time'))
+                ? (int) $request->input('sync_time')
+                : null;
+
+            return [
+                'quarter' => $requestQuarter ?? $existingQuarter ?? 1,
+                'timer_remaining' => $syncTime !== null
+                    ? $syncTime
+                    : ($clientTime > 0
+                        ? $clientTime
+                        : (int) ($existing?->timer_remaining ?? $quarterLength)),
+                'sys_time' => $nowString,
+            ];
+        }
+
+        if (
+            $existing
+            && $requestQuarter !== null
+            && $existingQuarter !== null
+            && $requestQuarter !== $existingQuarter
+        ) {
+            $isAdvance = $requestQuarter > $existingQuarter;
+            $isIntentional = $clientTime > 0 || $isAdvance;
+            if ($isIntentional) {
+                return [
+                    'quarter' => $requestQuarter,
+                    'timer_remaining' => $clientTime > 0 ? $clientTime : $quarterLength,
+                    'sys_time' => $nowString,
+                ];
+            }
+        }
+
+        if ($existing && $existing->is_start && ! $clock->isPaused($existing->action)) {
+            $resolved = $clock->resolve([
+                'quarter' => $existingQuarter ?? 1,
+                'timer_remaining' => $existing->timer_remaining,
+                'sys_time' => $existing->sys_time,
+                'action' => $existing->action,
+            ], $quarterLength, $maxQuarters, $now);
+
+            return [
+                'quarter' => $existingQuarter ?? ($requestQuarter ?: $resolved['quarter']),
+                'timer_remaining' => $resolved['timer_remaining'],
+                'sys_time' => $nowString,
+            ];
+        }
+
+        $persisted = $this->mergeScoreboardPersistedFields($existing, $request);
+
+        return [
+            'quarter' => $requestQuarter ?? $existingQuarter ?? 1,
+            'timer_remaining' => $this->resolvePersistedTimerRemaining($existing, $request, $persisted),
+            'sys_time' => $nowString,
+        ];
+    }
+
+    /**
+     * Advance a live scoreboard row to wall-clock time and persist when needed.
+     *
+     * @param  WebsocketScoreboard|WebsocketPracticeScoreboard|null  $row
+     * @return WebsocketScoreboard|WebsocketPracticeScoreboard|null
+     */
+    private function applyLiveClockToScoreboardRow($row)
+    {
+        if (! $row || ! $row->is_start) {
+            return $row;
+        }
+
+        $table = $row instanceof WebsocketPracticeScoreboard
+            ? 'websocket_practice_scoreboards'
+            : 'websocket_scoreboards';
+
+        $clock = $this->clockService();
+        $league = $row->league_id ? League::find((int) $row->league_id) : null;
+
+        // Persist regulation end even when the clock is paused at 0:00 on the final quarter.
+        if (Schema::hasColumn($table, 'regulation_ended_at') && empty($row->regulation_ended_at)) {
+            $endedAt = ActiveGameModeGuard::resolveRegulationEndedAt($row, $league);
+            if ($endedAt) {
+                $row->regulation_ended_at = $endedAt->toDateTimeString();
+            }
+        }
+
+        if ($clock->isPaused($row->action)) {
+            if ($row->isDirty()) {
+                $row->save();
+
+                return $row->fresh();
+            }
+
+            return $row;
+        }
+
+        $resolved = $clock->resolveForLeague([
+            'quarter' => $row->quarter,
+            'timer_remaining' => $row->timer_remaining,
+            'sys_time' => $row->sys_time,
+            'action' => $row->action,
+        ], $league);
+
+        if ($resolved['exhausted']
+            && Schema::hasColumn($table, 'regulation_ended_at')
+            && empty($row->regulation_ended_at)
+        ) {
+            $row->regulation_ended_at = $resolved['exhausted_at'] ?? now()->toDateTimeString();
+        }
+
+        // After regulation ends, keep the parked clock snapshot stable. Polls must not
+        // rewrite sys_time (that used to make abandoned matches look freshly active).
+        if ($resolved['exhausted'] && ! empty($row->regulation_ended_at) && (int) $row->timer_remaining === 0) {
+            if ($row->isDirty()) {
+                $row->save();
+
+                return $row->fresh();
+            }
+
+            return $row;
+        }
+
+        if (! $resolved['advanced'] && ! $row->isDirty()) {
+            return $row;
+        }
+
+        if ($resolved['advanced']) {
+            $row->quarter = $resolved['quarter'];
+            $row->timer_remaining = $resolved['timer_remaining'];
+            $row->sys_time = $resolved['sys_time'];
+        }
+
+        $row->save();
+
+        return $row->fresh();
+    }
+
+    /**
+     * Timestamps used for auto-end. Broadcast writes count as meaningful activity;
+     * scoreboard polls must not call this.
+     *
+     * @param  WebsocketScoreboard|WebsocketPracticeScoreboard|null  $existing
+     * @param  array{quarter?: mixed, timer_remaining?: mixed}  $clockFields
+     * @return array{last_meaningful_activity_at?: string, regulation_ended_at?: string|null}
+     */
+    private function scoreboardActivityFields(
+        $existing,
+        string $action,
+        array $clockFields,
+        ?League $league,
+        string $table
+    ): array {
+        $fields = [];
+
+        if (Schema::hasColumn($table, 'last_meaningful_activity_at')) {
+            $fields['last_meaningful_activity_at'] = now()->toDateTimeString();
+        }
+
+        if (! Schema::hasColumn($table, 'regulation_ended_at')) {
+            return $fields;
+        }
+
+        if ($action === 'Start') {
+            $fields['regulation_ended_at'] = null;
+
+            return $fields;
+        }
+
+        if (! empty($existing?->regulation_ended_at)) {
+            $fields['regulation_ended_at'] = $existing->regulation_ended_at;
+
+            return $fields;
+        }
+
+        $clock = $this->clockService();
+        $maxQuarters = $clock->maxQuarters($league);
+        $quarter = max(1, (int) ($clockFields['quarter'] ?? $existing?->quarter ?? 1));
+        $remaining = array_key_exists('timer_remaining', $clockFields) && $clockFields['timer_remaining'] !== null
+            ? max(0, (int) $clockFields['timer_remaining'])
+            : null;
+
+        if ($remaining === 0 && $quarter >= $maxQuarters) {
+            $fields['regulation_ended_at'] = now()->toDateTimeString();
+        }
+
+        return $fields;
+    }
+
+    /**
+     * @param  WebsocketScoreboard|WebsocketPracticeScoreboard|null  $existing
+     * @return array{left: int, right: int}
+     */
+    private function resolveScoreTotals($existing, Request $request, string $action): array
+    {
+        $existingLeft = (int) ($existing?->left_score ?? 0);
+        $existingRight = (int) ($existing?->right_score ?? 0);
+
+        if ($this->isRestoredScoreboardStart($existing, $action)) {
+            return ['left' => $existingLeft, 'right' => $existingRight];
+        }
+
+        $isScoreChangingAction = (int) $request->input('points', 0) !== 0
+            || $request->input('team') !== 'both';
+
+        if ($existing && ! $isScoreChangingAction && $action !== 'EndMatch' && $action !== 'Start') {
+            return ['left' => $existingLeft, 'right' => $existingRight];
+        }
+
+        return [
+            'left' => (int) ($request->teamLeftScore ?? $existingLeft),
+            'right' => (int) ($request->teamRightScore ?? $existingRight),
+        ];
+    }
+
+    private function isRestoredScoreboardStart($existing, string $action): bool
+    {
+        return $existing && $action === 'Start' && $existing->action === 'EndMatch';
+    }
+
+    private function preserveRestoredStartFields(array $persistedFields, $existing): array
+    {
+        foreach ([
+            'league_id',
+            'down',
+            'distance',
+            'strategies',
+            'position_number',
+            'team_position',
+            'expected_yard_gain',
+            'pkg',
+            'possession',
+            'weather',
+            'coverage_category',
+            'sync_time',
+        ] as $field) {
+            if ($existing?->{$field} !== null) {
+                $persistedFields[$field] = $existing->{$field};
+            }
+        }
+
+        return $persistedFields;
     }
 
     private function completeSessionOnEndMatch(int $coachGroupId, string $action, Request $request, string $gameMode, $existingRow = null): void
@@ -406,33 +742,54 @@ class BroadCastScoreController extends Controller
 
         $sessionFields = $this->mergeScoreboardSessionFields($existingPractice, $request, $action);
         $persistedFields = $this->mergeScoreboardPersistedFields($existingPractice, $request);
+        $isRestoredStart = $this->isRestoredScoreboardStart($existingPractice, $action);
+
+        if ($isRestoredStart) {
+            $persistedFields = $this->preserveRestoredStartFields($persistedFields, $existingPractice);
+        }
 
         // On Start, never carry over per-play settings from the prior session on this fixture.
         // mergeScoreboardPersistedFields treats null/'' as "not provided" and falls back to the
         // DB row, so without this override a new match inherits the previous match's down,
         // strategies, pkg, etc. — causing AC to see old settings after refresh.
-        if ($action === 'Start') {
+        if ($action === 'Start' && ! $isRestoredStart) {
             foreach (['down', 'distance', 'strategies', 'pkg', 'expected_yard_gain', 'position_number', 'team_position', 'possession', 'coverage_category'] as $field) {
                 $persistedFields[$field] = null;
             }
         }
 
-        $timerRemaining = $this->resolvePersistedTimerRemaining($existingPractice, $request, $persistedFields);
+        $clockFields = $this->resolveClockFieldsForBroadcast(
+            $existingPractice,
+            $request,
+            $action,
+            $isRestoredStart
+        );
+        $timerRemaining = $clockFields['timer_remaining'];
 
-        $shouldRefreshTime = !$existingPractice
-            || ((int) $existingPractice->quarter != (int) $request->quarter);
+        $shouldRefreshTime = ! $existingPractice
+            || ((int) $existingPractice->quarter != (int) $clockFields['quarter']);
 
-        $hMarkPosition = $this->resolveHMarkForBroadcast($request, $coachGroupId, $request->game_id);
+        $hMarkPosition = $isRestoredStart && $existingPractice?->h_mark_position
+            ? $existingPractice->h_mark_position
+            : $this->resolveHMarkForBroadcast($request, $coachGroupId, $request->game_id);
 
-        // Populate scores from request (frontend sends already-computed totals as teamLeftScore/teamRightScore)
-        self::$scores['left']['total'] = (int) ($request->teamLeftScore ?? $existingPractice?->left_score ?? 0);
-        self::$scores['right']['total'] = (int) ($request->teamRightScore ?? $existingPractice?->right_score ?? 0);
+        $scoreTotals = $this->resolveScoreTotals($existingPractice, $request, $action);
+        self::$scores['left']['total'] = $scoreTotals['left'];
+        self::$scores['right']['total'] = $scoreTotals['right'];
+
+        $activityFields = $this->scoreboardActivityFields(
+            $existingPractice,
+            $action,
+            $clockFields,
+            $this->leagueForScoreboard($existingPractice, $request),
+            'websocket_practice_scoreboards'
+        );
 
         $practiceValues = [
             'left_score' => self::$scores['left']['total'],
             'right_score' => self::$scores['right']['total'],
             'action' => $action,
-            'quarter' => $request->quarter,
+            'quarter' => $clockFields['quarter'],
             'is_start' => $sessionFields['is_start'],
             'down' => $persistedFields['down'],
             'distance' => $persistedFields['distance'],
@@ -449,10 +806,11 @@ class BroadCastScoreController extends Controller
             'h_mark_position' => $hMarkPosition,
             'session_id' => $sessionFields['session_id'],
             'timer_remaining' => $timerRemaining,
-            'sys_time' => now()->toDateTimeString(),
+            'sys_time' => $clockFields['sys_time'],
+            ...$activityFields,
         ];
 
-        if ($shouldRefreshTime) {
+        if ($shouldRefreshTime && ! $isRestoredStart) {
             $practiceValues['time'] = now()->toDateTimeString();
         }
 
@@ -463,6 +821,8 @@ class BroadCastScoreController extends Controller
             ],
             $practiceValues
         );
+
+        $this->completeSessionOnEndMatch($coachGroupId, $action, $request, 'practice', $existingPractice);
 
         // Add team names to scores from request
         if ($request->leftTeamName) {
@@ -480,10 +840,10 @@ class BroadCastScoreController extends Controller
             'points' => $points,
             'action' => $action,
             'isStart' => $sessionFields['is_start'],
-            'time'=>$request->time,
+            'time' => $timerRemaining !== null ? $timerRemaining : $request->time,
             'sync_time' => $persistedFields['sync_time'],
-            'sys_time' => now()->toDateTimeString(),
-            'quarter' => $request->quarter,
+            'sys_time' => $clockFields['sys_time'],
+            'quarter' => $practiceValues['quarter'],
             'down' => $persistedFields['down'],
             'distance' => $persistedFields['distance'],
             'strategies' => $persistedFields['strategies'],
@@ -499,8 +859,8 @@ class BroadCastScoreController extends Controller
             'league_id' => $persistedFields['league_id'],
             'myteamId' => $request->myteamId,
             'oppteamId' => $request->oppteamId,
-            'teamRightScore' => $request->teamRightScore ?? self::$scores['right']['total'],
-            'teamLeftScore' => $request->teamLeftScore ?? self::$scores['left']['total'],
+            'teamRightScore' => $isRestoredStart ? self::$scores['right']['total'] : ($request->teamRightScore ?? self::$scores['right']['total']),
+            'teamLeftScore' => $isRestoredStart ? self::$scores['left']['total'] : ($request->teamLeftScore ?? self::$scores['left']['total']),
         ];
 
         try {
@@ -874,32 +1234,53 @@ class BroadCastScoreController extends Controller
 
         $sessionFields = $this->mergeScoreboardSessionFields($existingScoreboard, $request, $action);
         $persistedFields = $this->mergeScoreboardPersistedFields($existingScoreboard, $request);
+        $isRestoredStart = $this->isRestoredScoreboardStart($existingScoreboard, $action);
+
+        if ($isRestoredStart) {
+            $persistedFields = $this->preserveRestoredStartFields($persistedFields, $existingScoreboard);
+        }
 
         // On Start, never carry over per-play settings from the prior session on this fixture.
         // Same fix as practiceScoreBoardBroadCast — see that method for explanation.
-        if ($action === 'Start') {
+        if ($action === 'Start' && ! $isRestoredStart) {
             foreach (['down', 'distance', 'strategies', 'pkg', 'expected_yard_gain', 'position_number', 'team_position', 'possession', 'coverage_category'] as $field) {
                 $persistedFields[$field] = null;
             }
         }
 
-        $timerRemaining = $this->resolvePersistedTimerRemaining($existingScoreboard, $request, $persistedFields);
+        $clockFields = $this->resolveClockFieldsForBroadcast(
+            $existingScoreboard,
+            $request,
+            $action,
+            $isRestoredStart
+        );
+        $timerRemaining = $clockFields['timer_remaining'];
 
-        $shouldRefreshTime = !$existingScoreboard
-            || ((int) $existingScoreboard->quarter != (int) $request->quarter);
+        $shouldRefreshTime = ! $existingScoreboard
+            || ((int) $existingScoreboard->quarter != (int) $clockFields['quarter']);
 
-        $hMarkPosition = $this->resolveHMarkForBroadcast($request, $coachGroupId, $request->game_id);
+        $hMarkPosition = $isRestoredStart && $existingScoreboard?->h_mark_position
+            ? $existingScoreboard->h_mark_position
+            : $this->resolveHMarkForBroadcast($request, $coachGroupId, $request->game_id);
 
-        // Populate scores from request (frontend sends already-computed totals as teamLeftScore/teamRightScore)
-        self::$scores['left']['total'] = (int) ($request->teamLeftScore ?? $existingScoreboard?->left_score ?? 0);
-        self::$scores['right']['total'] = (int) ($request->teamRightScore ?? $existingScoreboard?->right_score ?? 0);
+        $scoreTotals = $this->resolveScoreTotals($existingScoreboard, $request, $action);
+        self::$scores['left']['total'] = $scoreTotals['left'];
+        self::$scores['right']['total'] = $scoreTotals['right'];
+
+        $activityFields = $this->scoreboardActivityFields(
+            $existingScoreboard,
+            $action,
+            $clockFields,
+            $this->leagueForScoreboard($existingScoreboard, $request),
+            'websocket_scoreboards'
+        );
 
         $scoreboardValues = [
             'left_score' => self::$scores['left']['total'],
             'right_score' => self::$scores['right']['total'],
             'action' => $action,
             'sync_time' => $persistedFields['sync_time'],
-            'quarter' => $request->quarter,
+            'quarter' => $clockFields['quarter'],
             'is_start' => $sessionFields['is_start'],
             'down' => $persistedFields['down'],
             'distance' => $persistedFields['distance'],
@@ -915,10 +1296,11 @@ class BroadCastScoreController extends Controller
             'league_id' => $persistedFields['league_id'],
             'session_id' => $sessionFields['session_id'],
             'timer_remaining' => $timerRemaining,
-            'sys_time' => now()->toDateTimeString(),
+            'sys_time' => $clockFields['sys_time'],
+            ...$activityFields,
         ];
 
-        if ($shouldRefreshTime) {
+        if ($shouldRefreshTime && ! $isRestoredStart) {
             $scoreboardValues['time'] = \Carbon\Carbon::now('America/New_York')->toDateTimeString();
         }
 
@@ -929,6 +1311,8 @@ class BroadCastScoreController extends Controller
             ],
             $scoreboardValues
         );
+
+        $this->completeSessionOnEndMatch($coachGroupId, $action, $request, 'play', $existingScoreboard);
 
         // Add team names to scores from request
         if ($request->leftTeamName) {
@@ -950,9 +1334,9 @@ class BroadCastScoreController extends Controller
             'action' => $action,
             'sync_time' => $persistedFields['sync_time'],
             'isStart' => $sessionFields['is_start'],
-            'time'=>$request->time,
-            'sys_time' => now()->toDateTimeString(),
-            'quarter' => $request->quarter,
+            'time' => $timerRemaining !== null ? $timerRemaining : $request->time,
+            'sys_time' => $clockFields['sys_time'],
+            'quarter' => $scoreboardValues['quarter'],
             'down' => $persistedFields['down'],
             'distance' => $persistedFields['distance'],
             'strategies' => $persistedFields['strategies'],
@@ -968,8 +1352,8 @@ class BroadCastScoreController extends Controller
             'league_id' => $persistedFields['league_id'],
             'myteamId' => $request->myteamId,
             'oppteamId' => $request->oppteamId,
-            'teamRightScore' => $request->teamRightScore ?? self::$scores['right']['total'],
-            'teamLeftScore' => $request->teamLeftScore ?? self::$scores['left']['total'],
+            'teamRightScore' => $isRestoredStart ? self::$scores['right']['total'] : ($request->teamRightScore ?? self::$scores['right']['total']),
+            'teamLeftScore' => $isRestoredStart ? self::$scores['left']['total'] : ($request->teamLeftScore ?? self::$scores['left']['total']),
         ];
 
         \Log::info(['play_mode'=>$request->is_play_mode]);
@@ -1034,6 +1418,10 @@ class BroadCastScoreController extends Controller
             return response()->noContent();
         }
 
+        ActiveGameModeGuard::touchLiveScoreboardRow($reconciled, 'websocket_scoreboards');
+
+        $reconciled = $this->applyLiveClockToScoreboardRow($reconciled);
+
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "scoreboardList", $reconciled);
     }
 
@@ -1075,6 +1463,10 @@ class BroadCastScoreController extends Controller
         if (! $reconciled) {
             return response()->noContent();
         }
+
+        ActiveGameModeGuard::touchLiveScoreboardRow($reconciled, 'websocket_practice_scoreboards');
+
+        $reconciled = $this->applyLiveClockToScoreboardRow($reconciled);
 
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "scoreboardList", $reconciled);
     }
