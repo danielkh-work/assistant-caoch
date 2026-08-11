@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\AssistantCoachBlocked;
 use App\Http\Controllers\Controller;
 use App\Http\Responses\BaseResponse;
 use App\Models\User;
@@ -151,6 +152,7 @@ class AssistantCoachController extends Controller
 
         if ($validated['status'] === 'inactive') {
             $assistant->tokens()->delete();
+            event(new AssistantCoachBlocked($assistant->id));
         }
 
         return new BaseResponse(

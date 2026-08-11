@@ -165,6 +165,11 @@ Broadcast::channel('qb-user', function ($user) {
 Broadcast::channel('mobile.{mobileUserId}', function ($user, $mobileUserId) {
     return (int)$user->id === (int)$mobileUserId;
 });
+// Personal channel a user's own browser session listens on (e.g. forced
+// logout the instant a head coach blocks them) - only that user may join.
+Broadcast::channel('user.{userId}', function ($user, $userId) {
+    return (int) $user->id === (int) $userId;
+});
 Broadcast::channel('coach-group.{headCoachId}.league.{leagueId}', function ($user, $headCoachId, $leagueId) {
     return true;
 });
