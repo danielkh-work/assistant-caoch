@@ -254,6 +254,9 @@ class PlayerListPresenter
     }
 
     /**
+     * Accepts `positions[]=A&positions[]=B`, repeated keys, or comma-separated
+     * values such as `positions=Quarterback,Wide receiver X`.
+     *
      * @return array<int, string>
      */
     private function normalizePositionNames(Request $request): array
@@ -271,9 +274,11 @@ class PlayerListPresenter
                 continue;
             }
 
-            $name = trim((string) $value);
-            if ($name !== '') {
-                $names[] = $name;
+            foreach (explode(',', (string) $value) as $part) {
+                $name = trim($part);
+                if ($name !== '') {
+                    $names[] = $name;
+                }
             }
         }
 
