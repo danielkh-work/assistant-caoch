@@ -191,13 +191,15 @@ class PlayController extends Controller
             $query->where('play_name', 'like', $needle);
         }
 
+
+        //TODO improve pagination logic by using laravel standard function
         $paginateRequested = $request->has('page')
             || $request->has('per_page')
             || $request->filled('search');
 
         if ($paginateRequested) {
             $page = max(1, (int) $request->input('page', 1));
-            $perPage = max(1, min(100, (int) $request->input('per_page', 4)));
+            $perPage = max(1, min(100, (int) $request->input('per_page', 6)));
 
             $paginator = $query->paginate($perPage, ['*'], 'page', $page);
 
