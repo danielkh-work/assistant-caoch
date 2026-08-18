@@ -46,8 +46,11 @@ class PlayerController extends Controller
     // }
     public  function store(Request $request)
     {
-
-
+        $request->validate([
+            'name' => 'required|string|max:191',
+            'team_id' => 'nullable|integer|exists:league_teams,id',
+            'league_id' => 'nullable|integer|exists:leagues,id',
+        ]);
 
         DB::beginTransaction();
         try {
@@ -119,56 +122,59 @@ class PlayerController extends Controller
             }
 
             $player->load('playerPosition');
-            //    if($type === 'team'){
-                    $teamPlayerPositionValue = $resolvedPositionNames[0] ?? null;
 
-                    if ($request->filled('team_id')) {
-                        $targetTeam = LeagueTeam::findOrFail($request->team_id);
+            // Only link to a team when one was actually picked — team_players.team_id
+            // is NOT NULL, so inserting unconditionally with no team_id throws a raw
+            // SQL error instead of the "no team" flow this branch is meant to allow.
+            if ($request->filled('team_id')) {
+                $teamPlayerPositionValue = $resolvedPositionNames[0] ?? null;
 
-                        $conflictMessage = app(LeaguePlayerTeamValidator::class)
-                            ->firstConflictMessage($targetTeam->league_id, $targetTeam->id, [$player->id]);
+                $targetTeam = LeagueTeam::findOrFail($request->team_id);
 
-                        if ($conflictMessage !== null) {
-                            DB::rollBack();
+                $conflictMessage = app(LeaguePlayerTeamValidator::class)
+                    ->firstConflictMessage($targetTeam->league_id, $targetTeam->id, [$player->id]);
 
-                            return new BaseResponse(
-                                STATUS_CODE_UNPROCESSABLE,
-                                STATUS_CODE_UNPROCESSABLE,
-                                $conflictMessage
-                            );
-                        }
-                    }
+                if ($conflictMessage !== null) {
+                    DB::rollBack();
 
-                    $teamPlayerId = DB::table('team_players')->insertGetId([
-                        'player_id' => $player->id,
-                        'team_id' => $request->team_id,
-                        'name' => $player->name,
-                        'number' => $player->number,
-                        'position' => $player->position,
-                        'size' => $player->size,
-                        'speed' => $player->speed,
-                        'strength' => $player->strength,
-                        'weight' => $player->weight,
-                        'height' => $player->height,
-                        'dob' => $player->dob,
-                        'image' => $player->image,
-                        'position_value' => $teamPlayerPositionValue,
-                        'rpp' => $player->rpp,
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
+                    return new BaseResponse(
+                        STATUS_CODE_UNPROCESSABLE,
+                        STATUS_CODE_UNPROCESSABLE,
+                        $conflictMessage
+                    );
+                }
 
-            foreach ($resolvedPositionNames as $index => $name) {
-                DB::table('team_player_positions')->insert([
-                    'teamplayer_id' => $teamPlayerId,
-                    'position_name' => $name,
-                    'meta' => null,
-                    'sort' => $index + 1,
+                $teamPlayerId = DB::table('team_players')->insertGetId([
+                    'player_id' => $player->id,
+                    'team_id' => $request->team_id,
+                    'name' => $player->name,
+                    'number' => $player->number,
+                    'position' => $player->position,
+                    'size' => $player->size,
+                    'speed' => $player->speed,
+                    'strength' => $player->strength,
+                    'weight' => $player->weight,
+                    'height' => $player->height,
+                    'dob' => $player->dob,
+                    'image' => $player->image,
+                    'position_value' => $teamPlayerPositionValue,
+                    'rpp' => $player->rpp,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
+
+                foreach ($resolvedPositionNames as $index => $name) {
+                    DB::table('team_player_positions')->insert([
+                        'teamplayer_id' => $teamPlayerId,
+                        'position_name' => $name,
+                        'meta' => null,
+                        'sort' => $index + 1,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
             }
-            // }
+
             DB::commit();
             return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Player Added SuccessFully ", $player);
         } catch (\Throwable $th) {
@@ -178,6 +184,12 @@ class PlayerController extends Controller
     }
     public  function addOpenPlayer(Request $request)
     {
+        $request->validate([
+            'name' => 'required|string|max:191',
+            'type' => 'nullable|string|in:player,league,team',
+            'team_id' => 'required_if:type,team|nullable|integer|exists:league_teams,id',
+            'league_id' => 'nullable|integer|exists:leagues,id',
+        ]);
 
         \Log::info(['team'=>$request->all()]);
         DB::beginTransaction();
