@@ -15,6 +15,8 @@ use App\Models\PlayTargetDefensivePlayer;
 use App\Models\OffensivePosition;
 use App\Models\DefensivePosition;
 use App\Models\PlayResult;
+use App\Events\PlayResultSubmitted;
+use App\Support\BroadcastLeagueResolver;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
@@ -531,6 +533,23 @@ class PlayController extends Controller
             'suggested_count' => $request->suggested_count ?? 0,
             'yardage_difference'=>$request->yardage_difference
         ]);
+
+        // Same channels as PlaySuggested — lets the mobile app close its
+        // "waiting for coach" popup as soon as the result form is submitted.
+        $user = auth()->user();
+        if ($user) {
+            $coachGroupId = $user->role === 'head_coach' ? $user->id : $user->head_coach_id;
+            $leagueId = BroadcastLeagueResolver::fromRequest($request);
+
+            if ($coachGroupId && $leagueId !== null) {
+                broadcast(new PlayResultSubmitted($playResult, $coachGroupId, $leagueId))->toOthers();
+            } else {
+                Log::warning('PlayResultSubmitted skipped: league_id or coach_group_id could not be resolved', [
+                    'coach_group_id' => $coachGroupId,
+                    'game_id' => $request->game_id,
+                ]);
+            }
+        }
 
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "suggestion plays wining ratio is added", $playResult);
     }
