@@ -5,8 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\League;
 use App\Models\LeagueRule;
 use App\Models\LeagueTeam;
+use App\Models\Player;
+use App\Models\PracticeTeamPlayer;
 use App\Models\Sport;
 use App\Models\Team;
+use App\Models\TeamPlayer;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
@@ -76,8 +80,66 @@ class LeagueController extends Controller
         $roles = Role::all();
         $league_rule = LeagueRule::all();
         $sports = Sport::all();
+        $headCoaches = User::where('role', 'head_coach')
+            ->where('id', '!=', $league->user_id)
+            ->orderBy('name')
+            ->get(['id', 'name', 'email']);
+        $currentOwner = User::find($league->user_id);
 
-        return view('league.edit', compact('league', 'roles', 'league_rule', 'sports'));
+        return view('league.edit', compact('league', 'roles', 'league_rule', 'sports', 'headCoaches', 'currentOwner'));
+    }
+
+    /**
+     * Transfer a league (and the players its owner created for it) to another head coach.
+     * League settings, teams, plays, games, and history (configure_plays, logs, etc.) are
+     * untouched — only ownership of the league row and the qualifying players moves.
+     */
+    public function transfer(Request $request, $id)
+    {
+        $request->validate([
+            'to_user_id' => 'required|integer|exists:users,id',
+        ]);
+
+        $league = League::findOrFail($id);
+        $fromUserId = $league->user_id;
+        $toUserId = (int) $request->to_user_id;
+
+        if ($fromUserId === $toUserId) {
+            return redirect()->route('league.edit', $id)->with('error', 'League already belongs to that coach.');
+        }
+
+        $toUser = User::find($toUserId);
+        if (!$toUser || $toUser->role !== 'head_coach') {
+            return redirect()->route('league.edit', $id)->with('error', 'Target user must be a head coach.');
+        }
+
+        DB::beginTransaction();
+        try {
+            $teamIds = LeagueTeam::where('league_id', $league->id)->pluck('id');
+
+            $playerIds = TeamPlayer::whereIn('team_id', $teamIds)->pluck('player_id')
+                ->merge(PracticeTeamPlayer::whereIn('team_id', $teamIds)->pluck('player_id'))
+                ->filter()
+                ->unique();
+
+            $transferredPlayers = Player::whereIn('id', $playerIds)
+                ->where('user_id', $fromUserId)
+                ->update(['user_id' => $toUserId]);
+
+            $league->user_id = $toUserId;
+            $league->save();
+
+            DB::commit();
+
+            return redirect()->route('league.index')->with(
+                'success',
+                "League \"{$league->title}\" transferred to {$toUser->name}. {$transferredPlayers} player(s) moved with it."
+            );
+        } catch (\Throwable $th) {
+            DB::rollBack();
+
+            return redirect()->route('league.edit', $id)->with('error', 'Transfer failed: ' . $th->getMessage());
+        }
     }
 
     public function store(Request $request)
