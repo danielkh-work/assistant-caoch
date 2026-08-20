@@ -24,7 +24,9 @@ class Player extends Model
     }
     public function user()
     {
-        return $this->belongsTo(User::class);
+        // withTrashed: creator may be a soft-deleted assistant/performance coach —
+        // this relation should still resolve their name instead of silently going null.
+        return $this->belongsTo(User::class)->withTrashed();
     }
 
     public function teamPlayers()
