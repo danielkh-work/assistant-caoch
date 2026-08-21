@@ -363,7 +363,7 @@ class AuthApiTest extends TestCase
         ]);
 
         $response = $this->actingAs($headCoach, 'sanctum')
-                         ->getJson('/api/get-assistant-coach');
+                         ->getJson('/api/assistant-coaches');
 
         $response->assertStatus(200)
                  ->assertJsonFragment(['role' => 'assistant_coach']);
@@ -490,6 +490,29 @@ public function login_fails_for_wrong_credentials()
 }
 
 /** @test */
+public function login_fails_for_inactive_user()
+{
+    User::create([
+        'name' => 'Inactive Assistant',
+        'email' => 'inactive-login@test.com',
+        'password' => Hash::make('12345678'),
+        'role' => 'assistant_coach',
+        'status' => 'inactive',
+    ]);
+
+    $response = $this->postJson('/api/login', [
+        'email' => 'inactive-login@test.com',
+        'password' => '12345678',
+    ]);
+
+    $response->assertStatus(422)
+        ->assertJsonValidationErrors(['email'])
+        ->assertJsonFragment([
+            'email' => ['you account access is blocked please contact your headcoach'],
+        ]);
+}
+
+/** @test */
 public function authenticated_user_can_view_profile()
 {
     Role::create(['name' => 'head_coach']);
@@ -519,7 +542,7 @@ public function head_coach_can_add_assistant_coach()
     ]);
 
     $response = $this->actingAs($headCoach, 'sanctum')
-                     ->postJson('/api/add-assistant-coach', [
+                     ->postJson('/api/assistant-coaches', [
                          'name' => 'Assistant User',
                          'email' => 'assistant@test.com',
                          'password' => '12345678',

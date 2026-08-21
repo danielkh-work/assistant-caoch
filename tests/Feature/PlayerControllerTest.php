@@ -311,6 +311,133 @@ class PlayerControllerTest extends TestCase
             ->assertJsonPath('message', 'league_id is required when filter is current_league.');
     }
 
+    public function test_player_list_filter_my_leagues_returns_players_from_owned_leagues()
+    {
+        if (!Schema::hasTable('league_teams')) {
+            $this->markTestSkipped('Backend schema issue: league_teams table not found');
+        }
+
+        $this->auth();
+
+        [$ownedLeague, $ownedTeam] = array_slice($this->createLeagueWithTeams('Owned League', 'Owned Team A'), 0, 2);
+        [$secondOwnedLeague] = $this->createLeagueWithTeams('Second Owned League', 'Owned Team B');
+
+        $otherCoach = User::factory()->create([
+            'role' => 'head_coach',
+            'status' => 'approved',
+        ]);
+        [$foreignLeague, $foreignTeam] = $this->createLeagueWithTeamsForUser(
+            $otherCoach,
+            'Foreign League',
+            'Foreign Team',
+        );
+
+        $poolPlayer = $this->createPlayer('Owned Pool Player');
+        $poolPlayer->league_id = $ownedLeague->id;
+        $poolPlayer->save();
+
+        $rosteredPlayer = $this->createPlayer('Owned Rostered Player');
+        $this->rosterPlayerOnTeam($rosteredPlayer, $ownedTeam);
+
+        $secondLeaguePoolPlayer = $this->createPlayer('Second Owned Pool Player');
+        $secondLeaguePoolPlayer->league_id = $secondOwnedLeague->id;
+        $secondLeaguePoolPlayer->save();
+
+        $foreignOnlyPlayer = $this->createPlayer('Foreign Only Player');
+        $foreignOnlyPlayer->league_id = $foreignLeague->id;
+        $foreignOnlyPlayer->save();
+        $this->rosterPlayerOnTeam($foreignOnlyPlayer, $foreignTeam);
+
+        $response = $this->getJson('/api/player-list?filter=my_leagues&page=1&per_page=20');
+
+        $response->assertStatus(200);
+
+        $names = collect($response->json('data'))->pluck('name')->all();
+
+        $this->assertContains('Owned Pool Player', $names);
+        $this->assertContains('Owned Rostered Player', $names);
+        $this->assertContains('Second Owned Pool Player', $names);
+        $this->assertNotContains('Foreign Only Player', $names);
+    }
+
+    public function test_player_list_filter_positions_returns_matching_players()
+    {
+        if (!Schema::hasTable('player_positions')) {
+            $this->markTestSkipped('Backend schema issue: player_positions table not found');
+        }
+
+        $this->auth();
+
+        $quarterback = $this->createPlayer('Quarterback Player');
+        $this->addPlayerPosition($quarterback, 'Quarterback');
+
+        $linebacker = $this->createPlayer('Linebacker Player');
+        $this->addPlayerPosition($linebacker, 'Middle Linebacker (Mike)');
+
+        $unmatched = $this->createPlayer('Unmatched Position Player');
+        $this->addPlayerPosition($unmatched, 'Wide receiver X');
+
+        $response = $this->getJson('/api/player-list?positions[]=Quarterback&positions[]=Middle%20Linebacker%20(Mike)&page=1&per_page=20');
+
+        $response->assertStatus(200);
+
+        $names = collect($response->json('data'))->pluck('name')->all();
+
+        $this->assertContains('Quarterback Player', $names);
+        $this->assertContains('Linebacker Player', $names);
+        $this->assertNotContains('Unmatched Position Player', $names);
+    }
+
+    public function test_player_list_filter_positions_combines_with_current_league()
+    {
+        if (!Schema::hasTable('league_teams') || !Schema::hasTable('player_positions')) {
+            $this->markTestSkipped('Backend schema issue: league_teams or player_positions table not found');
+        }
+
+        $this->auth();
+
+        [$league, $teamA] = array_slice($this->createLeagueWithTeams(), 0, 2);
+        [$otherLeague, $otherTeam] = $this->createLeagueWithTeams('Other League', 'Other Team');
+
+        $matching = $this->createPlayer('Matching League QB');
+        $matching->league_id = $league->id;
+        $matching->save();
+        $this->addPlayerPosition($matching, 'Quarterback');
+
+        $wrongPosition = $this->createPlayer('Matching League WR');
+        $wrongPosition->league_id = $league->id;
+        $wrongPosition->save();
+        $this->addPlayerPosition($wrongPosition, 'Wide receiver X');
+
+        $otherLeagueQuarterback = $this->createPlayer('Other League QB');
+        $this->rosterPlayerOnTeam($otherLeagueQuarterback, $otherTeam);
+        $this->addPlayerPosition($otherLeagueQuarterback, 'Quarterback');
+
+        $response = $this->getJson(
+            '/api/player-list?filter=current_league&league_id=' . $league->id . '&positions[]=Quarterback&page=1&per_page=20'
+        );
+
+        $response->assertStatus(200);
+
+        $names = collect($response->json('data'))->pluck('name')->all();
+
+        $this->assertContains('Matching League QB', $names);
+        $this->assertNotContains('Matching League WR', $names);
+        $this->assertNotContains('Other League QB', $names);
+    }
+
+    public function test_player_list_empty_positions_filter_does_not_error()
+    {
+        $this->auth();
+
+        $this->createPlayer('Any Player');
+
+        $response = $this->getJson('/api/player-list?positions[]=&page=1&per_page=20');
+
+        $response->assertStatus(200)
+            ->assertJsonFragment(['name' => 'Any Player']);
+    }
+
     public function test_can_update_player_profile()
     {
         $this->auth();
@@ -450,6 +577,17 @@ class PlayerControllerTest extends TestCase
         $teamPlayer->number = $player->number;
         $teamPlayer->position = $player->position;
         $teamPlayer->save();
+    }
+
+    protected function addPlayerPosition(Player $player, string $positionName): void
+    {
+        \Illuminate\Support\Facades\DB::table('player_positions')->insert([
+            'player_id' => $player->id,
+            'position_name' => $positionName,
+            'sort' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 
     public function test_add_player_rejects_when_player_already_on_another_team_in_league()

@@ -77,8 +77,9 @@ Route::middleware(['auth'])->group(function () {
     Route::controller(LeagueController::class)->group(function () {
         Route::get('league', 'index')->name('league.index');
         Route::get('league/create', 'create')->name('league.create'); // <- Move this above
-        Route::get('league/{id}/edit', 'edit')->name('league.edit'); 
+        Route::get('league/{id}/edit', 'edit')->name('league.edit');
         Route::put('league/{id}', 'update')->name('league.update');
+        Route::post('league/{id}/transfer', 'transfer')->name('league.transfer');
         Route::get('league/{id}', 'show')->name('league.show');
         Route::post('league', 'store')->name('league.store');
     });

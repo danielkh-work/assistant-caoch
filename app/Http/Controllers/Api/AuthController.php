@@ -165,6 +165,12 @@ class AuthController extends Controller
                 ]);
           }
 
+            if ($user->status === 'inactive') {
+                throw ValidationException::withMessages([
+                    'email' => ['you account access is blocked please contact your headcoach'],
+                ]);
+          }
+
         $token = $user->createToken('auth_token')->plainTextToken;
         $user['permissions'] = $user->getPermissionsViaRoles()->pluck('name');
         $user['pendingUser']=  $pendingUser;
@@ -352,36 +358,6 @@ class AuthController extends Controller
        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "User Updated Successfully",$user );
     }
 
-    public function addAssistantCoach(Request $request){
-
-
-            $request->validate([
-                'name'     => 'required|string',
-                'email'    => 'required|email|unique:users',
-                'password' => 'required|string|min:8',
-            ]);
-            $headCoach = auth()->user();
-            if ($headCoach->role !== 'head_coach') {
-                abort(403);
-            }
-
-            $assistant = User::create([
-                'name'          => $request->name,
-                'email'         => $request->email,
-                'password'      => $request->password,
-                'role'          => $request->role,
-                'head_coach_id' => $headCoach->id,
-                'sport_id' => $headCoach->sport_id,
-                'is_subscribe' => $headCoach->is_subscribe,
-                'subscription_id' => $headCoach->subscription_id,
-
-            ]);
-            $headCoachRoles = $headCoach->roles->pluck('name');
-            $assistant->assignRole($headCoachRoles);
-            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Add Assistant Coach Successfully",$assistant );
-
-    }
-
     public function addQB(Request $request){
 
             $request->validate([
@@ -433,17 +409,6 @@ class AuthController extends Controller
 
 
     }
-         public function getQAssistantCoach(Request $request)
-    {
-        $headCoachId = $request->user()->id; // auth user
-
-        $coach = User::where('head_coach_id', $headCoachId)->whereIn('role', ['assistant_coach', 'performance_coach'])->get();
-
-        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "assistant coach list",$coach );
-
-
-    }
-
 
     /**
      * Login device with pairing code (FOR APP)
