@@ -5,10 +5,11 @@ use Spatie\Permission\Models\Role;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Player extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
     public function teams()
     {
           return $this->belongsToMany(Team::class, 'team_players', 'player_id', 'team_id');
@@ -23,7 +24,9 @@ class Player extends Model
     }
     public function user()
     {
-        return $this->belongsTo(User::class);
+        // withTrashed: creator may be a soft-deleted assistant/performance coach —
+        // this relation should still resolve their name instead of silently going null.
+        return $this->belongsTo(User::class)->withTrashed();
     }
 
     public function teamPlayers()

@@ -15,6 +15,8 @@ use App\Models\PlayTargetDefensivePlayer;
 use App\Models\OffensivePosition;
 use App\Models\DefensivePosition;
 use App\Models\PlayResult;
+use App\Events\PlayResultSubmitted;
+use App\Support\BroadcastLeagueResolver;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
@@ -145,6 +147,8 @@ class PlayController extends Controller
 
     public function index(Request $request)
     {
+
+
         $userRoleIds = auth()->user()->roles->pluck('id');
         $id = ['1', $request->league_id];
 
@@ -175,8 +179,13 @@ class PlayController extends Controller
                     $q->where('is_practice', 1);
                 },
             ])
-            ->withAvg('playResults as yardage_difference', 'yardage_difference')
-            ->orderByDesc('win_result');
+            ->withAvg('playResults as yardage_difference', 'yardage_difference');
+
+        if($request->sort == "win_result"){
+            $query = $query->orderByDesc('win_result');
+        }else{
+            $query = $query->latest();
+        }
 
         $searchTerm = trim((string) $request->input('search', ''));
         if ($searchTerm !== '') {
@@ -184,13 +193,15 @@ class PlayController extends Controller
             $query->where('play_name', 'like', $needle);
         }
 
+
+        //TODO improve pagination logic by using laravel standard function
         $paginateRequested = $request->has('page')
             || $request->has('per_page')
             || $request->filled('search');
 
         if ($paginateRequested) {
             $page = max(1, (int) $request->input('page', 1));
-            $perPage = max(1, min(100, (int) $request->input('per_page', 4)));
+            $perPage = max(1, min(100, (int) $request->input('per_page', 6)));
 
             $paginator = $query->paginate($perPage, ['*'], 'page', $page);
 
@@ -219,7 +230,7 @@ class PlayController extends Controller
 
     public function deletePlayResults($id)
     {
-        
+
         $play = PlayResult::where('play_id', $id)
                 ->where('result', 'win');
             if ($play)
@@ -227,7 +238,7 @@ class PlayController extends Controller
 
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play success has been reset successfully");
 
-    
+
     }
 
 
@@ -253,7 +264,7 @@ class PlayController extends Controller
             // $play->opposing_defensive = $request->opposing_defensive;
             $play->pre_snap_motion = $request->pre_snap_motion;
             $play->play_action_fake = $request->play_action_fake;
-            
+
             if (is_array($request->preferred_down)) {
                 $play->preferred_down = implode(',', $request->preferred_down);
             } else {
@@ -267,7 +278,7 @@ class PlayController extends Controller
                 $play->strategies = $request->strategies;
             }
 
-            
+
 
             $play->possession = $request->possession;
             $play->description = $request->description;
@@ -283,7 +294,7 @@ class PlayController extends Controller
             $play->video_path = $videoPath;
         }
             $play->save();
-            
+
             $groups = $request->input('groups', []);
             if (!is_array($groups)) {
                 $groups = [];
@@ -293,7 +304,7 @@ class PlayController extends Controller
             if (!empty($groups)) {
                 $play->teamGroups()->sync($groups);
             }
-            
+
             if (is_array($request->offensive)) {
                 $offensivePositions = OffensivePosition::pluck('id', 'name')->toArray();
                 foreach ($request->offensive as $position => $value) {
@@ -308,12 +319,12 @@ class PlayController extends Controller
                 }
             }
 
-           
+
             if (is_array($request->defensive)) {
                 $defensivePositions = DefensivePosition::pluck('id', 'name')->toArray();
-             
+
                 foreach ($request->defensive as $position => $value) {
-                  
+
                     if ($value === null) {
                             continue; // Skip this entry if the value is null
                         }
@@ -337,11 +348,11 @@ class PlayController extends Controller
 
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play Uploaded Successfully", $play);
     }
-    
+
 
     public function duplicatePlay($id)
     {
-    
+
         $play = Play::findOrFail($id);
         $newPlay = $play->replicate();
         $newPlay->play_name = $play->play_name . ' (Copy)';
@@ -349,7 +360,7 @@ class PlayController extends Controller
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play cloned successfully", $newPlay);
     }
 
-    
+
    public function getTargetOffensePosition($playId)
 {
     $play = Play::with([
@@ -391,8 +402,8 @@ class PlayController extends Controller
 
         $play = Play::findOrFail($id);
         $this->validateHmarkImagesOnUpdate($request, $play);
-     
-      
+
+
         DB::beginTransaction();
 
         try {
@@ -439,7 +450,7 @@ class PlayController extends Controller
             }
 
             $play->save();
-            
+
 
             // Delete old offensive links and recreate
             PlayTargetOffensivePlayer::where('play_id', $play->id)->delete();
@@ -486,7 +497,7 @@ class PlayController extends Controller
         $play = Play::with(['offensivePositions','deffensivePositions'])->find($id);
         if ($play)
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play List", $play);
-       
+
     }
 
     public function delete(Request $request)
@@ -511,7 +522,7 @@ class PlayController extends Controller
 
     public function addPlayResult(Request $request)
     {
-       
+
         $playResult = PlayResult::create([
             'game_id' => $request->game_id,
             'play_id' => $request->play_id,
@@ -523,17 +534,34 @@ class PlayController extends Controller
             'yardage_difference'=>$request->yardage_difference
         ]);
 
+        // Same channels as PlaySuggested — lets the mobile app close its
+        // "waiting for coach" popup as soon as the result form is submitted.
+        $user = auth()->user();
+        if ($user) {
+            $coachGroupId = $user->role === 'head_coach' ? $user->id : $user->head_coach_id;
+            $leagueId = BroadcastLeagueResolver::fromRequest($request);
+
+            if ($coachGroupId && $leagueId !== null) {
+                broadcast(new PlayResultSubmitted($playResult, $coachGroupId, $leagueId))->toOthers();
+            } else {
+                Log::warning('PlayResultSubmitted skipped: league_id or coach_group_id could not be resolved', [
+                    'coach_group_id' => $coachGroupId,
+                    'game_id' => $request->game_id,
+                ]);
+            }
+        }
+
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "suggestion plays wining ratio is added", $playResult);
     }
         public function getPlayResult(Request $request)
         {
 
-           
+
             $gameId = $request->game_id;
             $playId = $request->play_id;
             $type = $request->type;
             $is_practice = $request->is_practice;
-            
+
 
             // You might want to validate these IDs before querying (optional)
 
@@ -603,6 +631,6 @@ public function playOffenseTargetStore(Request $request)
             ->where('play_id', $playId)
             ->get();
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "get target", $records);
-       
+
     }
 }

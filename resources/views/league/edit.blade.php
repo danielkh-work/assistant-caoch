@@ -165,6 +165,37 @@
                 </form>
             </div>
         </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h4 class="card-title">Transfer League Ownership</h4>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">
+                    Moves this league to another head coach. Any players the current owner
+                    ({{ $currentOwner->name ?? $league->user_id }}) created for this league's teams move with it.
+                    League settings, teams, plays, games, and history are not affected.
+                </p>
+                <form method="POST" action="{{ route('league.transfer', $league->id) }}"
+                      onsubmit="return confirm('Transfer this league and its owner-created players to the selected coach?');">
+                    @csrf
+                    <div class="row align-items-end">
+                        <div class="col-md-6">
+                            <label>Transfer to Head Coach</label>
+                            <select name="to_user_id" class="form-control" required>
+                                <option value="">Select a head coach</option>
+                                @foreach ($headCoaches as $coach)
+                                    <option value="{{ $coach->id }}">{{ $coach->name }} ({{ $coach->email }})</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <button type="submit" class="btn btn-danger">Transfer League</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 </section>
 <script>

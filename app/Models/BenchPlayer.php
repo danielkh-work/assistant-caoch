@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class BenchPlayer extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
      protected $table = 'offense_defense_players';
      protected $fillable = [
         'team_id',
