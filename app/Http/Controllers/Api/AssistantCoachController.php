@@ -167,6 +167,14 @@ class AssistantCoachController extends Controller
         $assistant = $this->findOwnedAssistant($headCoach, $id);
 
         $assistant->tokens()->delete();
+
+        // users.email has a hard DB-level unique index that a soft-delete does not
+        // release, so without this a new assistant coach could never be created with
+        // the same email as a previously deleted one. Prefixing with the id keeps it
+        // unique even if this same email gets deleted again later.
+        $assistant->email = 'deleted_'.$assistant->id.'_'.$assistant->email;
+        $assistant->save();
+
         $assistant->delete();
 
         return new BaseResponse(
