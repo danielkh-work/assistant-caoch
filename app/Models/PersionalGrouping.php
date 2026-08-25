@@ -7,10 +7,11 @@ use App\Models\PracticeTeamPlayer;
 use App\Models\TeamPlayer;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PersionalGrouping extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected static function boot(): void
     {

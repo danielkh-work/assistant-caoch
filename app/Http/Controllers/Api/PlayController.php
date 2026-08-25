@@ -503,8 +503,10 @@ class PlayController extends Controller
     public function delete(Request $request)
     {
         $play = Play::find($request->id);
-        if ($play)
+        if ($play) {
+            $play->cascadeDeleteChildren();
             $play->delete();
+        }
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play Delete Successfully ");
     }
 

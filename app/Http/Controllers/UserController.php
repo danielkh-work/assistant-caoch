@@ -200,8 +200,7 @@ class UserController extends Controller
 
     public function destroy(User $user)
     {
-
-       
+        $user->mangleEmailForDelete();
         $user->delete();
 
         return redirect()->route('users.index')

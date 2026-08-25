@@ -103,6 +103,7 @@ class AuthController extends Controller
             return response()->json(['message' => 'Invalid code or email'], 400);
         }
 
+        $pending->mangleEmailForDelete();
         $pending->delete();
 
         return response()->json(['message' => 'Account verified.']);

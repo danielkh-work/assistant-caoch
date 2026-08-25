@@ -5,10 +5,27 @@ use Spatie\Permission\Models\Role;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 
 class Play extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
+
+    /**
+     * These children have a DB-level cascade-on-delete FK pointing at plays, which
+     * only fires on a real DELETE. Now that plays soft-deletes (an UPDATE), that
+     * cascade never fires, so this replicates the exact same cleanup by hand -
+     * same end result as before, just triggered from code instead of the FK.
+     */
+    public function cascadeDeleteChildren(): void
+    {
+        PlayTargetOffensivePlayer::where('play_id', $this->id)->delete();
+        PlayTargetDefensivePlayer::where('play_id', $this->id)->delete();
+        OffensiveTargetStrength::where('play_id', $this->id)->delete();
+        ConfigurePlay::where('play_id', $this->id)->delete();
+        DB::table('personal_grouping_play')->where('play_id', $this->id)->delete();
+    }
     public function configuredLeagues()
     {
         return $this->belongsToMany(League::class, 'configure_plays', 'play_id', 'league_id');

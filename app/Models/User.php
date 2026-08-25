@@ -84,4 +84,19 @@ class User extends Authenticatable
 
         return $code;
     }
+
+    /**
+     * users.email has a hard DB-level unique index that a soft-delete does not
+     * release, so without this a new user could never be created with the same
+     * email as a previously deleted one. Reversible: prefixed with the row's own
+     * id, so a future "restore" can strip it back off.
+     */
+    public function mangleEmailForDelete(): void
+    {
+        $prefix = 'deleted_'.$this->id.'_';
+        if (! str_starts_with($this->email, $prefix)) {
+            $this->email = $prefix.$this->email;
+            $this->save();
+        }
+    }
 }

@@ -148,6 +148,7 @@ class PlayController extends Controller
     public function destroy($id)
     {
         $play = Play::findOrFail($id);
+        $play->cascadeDeleteChildren();
         $play->delete();
         return redirect()->route('play.index')->with('success', 'Play deleted successfully');
     }

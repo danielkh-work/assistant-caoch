@@ -141,6 +141,7 @@ class DefensivePlayController extends Controller
     public function delete($id)
     {
         $parameter = DefensivePlay::findOrFail($id);
+        $parameter->cascadeDeleteChildren();
         $parameter->delete();
 
         return response()->json(['message' => 'Deleted']);

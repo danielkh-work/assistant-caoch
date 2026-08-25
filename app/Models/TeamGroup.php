@@ -3,9 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class TeamGroup extends Model
 {
+    use SoftDeletes;
+
     protected $table = 'team_groups';
 
     protected $fillable = [

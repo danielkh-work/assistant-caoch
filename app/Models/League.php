@@ -5,11 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Permission\Models\Role;
 
 class League extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'sport_id',
@@ -42,6 +43,24 @@ class League extends Model
     public function accessGrants()
     {
         return $this->hasMany(LeagueAccess::class);
+    }
+
+    /**
+     * league_access.league_id and users.league_id both had a DB-level FK action
+     * (cascade delete / set null) tied to leagues, which only fires on a real
+     * DELETE. Now that leagues soft-deletes (an UPDATE), those actions never
+     * fire, so this replicates them by hand - same end result as before.
+     *
+     * Verified against the live database's actual FK constraints (information_schema),
+     * not just migration files - most of the cascades migration files describe for
+     * leagues' other "children" (plays, formations, configure_plays, team rosters,
+     * etc.) turned out to not exist as real DB constraints, so they are deliberately
+     * left untouched here rather than guessed at.
+     */
+    public function cascadeDeleteChildren(): void
+    {
+        LeagueAccess::where('league_id', $this->id)->delete();
+        User::where('league_id', $this->id)->update(['league_id' => null]);
     }
 
     public function sharedUsers()

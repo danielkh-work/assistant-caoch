@@ -70,9 +70,10 @@ class LeagueController extends Controller
     }
      public function destroy($id)
     {
-        $play = League::findOrFail($id);
-        $play->delete();
-        return redirect()->route('league.index')->with('success', 'Play deleted successfully');
+        $league = League::findOrFail($id);
+        $league->cascadeDeleteChildren();
+        $league->delete();
+        return redirect()->route('league.index')->with('success', 'League deleted successfully');
     }
     public function edit($id)
     {

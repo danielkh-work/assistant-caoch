@@ -89,7 +89,7 @@ class Device extends Model implements \Illuminate\Contracts\Auth\Authenticatable
     {
         do {
             $code = str_pad(rand(0, 9999), 4, '0', STR_PAD_LEFT);
-        } while (self::where('pairing_code', $code)->exists());
+        } while (self::withTrashed()->where('pairing_code', $code)->exists());
 
         return $code;
     }
@@ -101,7 +101,7 @@ class Device extends Model implements \Illuminate\Contracts\Auth\Authenticatable
     {
         do {
             $token = bin2hex(random_bytes(16));
-        } while (self::where('qr_token', $token)->exists());
+        } while (self::withTrashed()->where('qr_token', $token)->exists());
 
         return $token;
     }
