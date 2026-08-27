@@ -309,28 +309,17 @@ class BroadCastScoreController extends Controller
     }
 
     /**
-     * Distance to First Down is computed server-side, never taken from the request,
-     * and only re-evaluated when down actually changes (not on every position move):
-     *   - no down selected yet -> 0
-     *   - down changes and position < 10 -> 10 minus the current position
-     *   - down changes and position >= 10 -> leave whatever was already showing
-     *   - down unchanged -> leave whatever was already showing
+     * Distance to First Down is computed server-side, never taken from the request:
+     *   - down changes to 1 -> 10
+     *   - any other down change -> leave whatever was already showing
      */
-    private function resolveDistanceToFirstDown(?int $existingDown, ?int $newDown, ?int $positionNumber, ?int $existingDistance): int
+    private function resolveDistanceToFirstDown(?int $newDown, ?int $existingDistance): int
     {
-        if ($newDown === null) {
-            return 0;
+        if ($newDown === 1) {
+            return 10;
         }
 
-        if ($newDown === $existingDown) {
-            return $existingDistance ?? 0;
-        }
-
-        if (($positionNumber ?? 0) >= 10) {
-            return $existingDistance ?? 0;
-        }
-
-        return 10 - ($positionNumber ?? 0);
+        return $existingDistance ?? 0;
     }
 
     /**
@@ -786,9 +775,7 @@ class BroadCastScoreController extends Controller
         }
 
         $persistedFields['distance'] = $this->resolveDistanceToFirstDown(
-            $existingPractice?->down !== null ? (int) $existingPractice->down : null,
             $persistedFields['down'] !== null ? (int) $persistedFields['down'] : null,
-            $persistedFields['position_number'] !== null ? (int) $persistedFields['position_number'] : null,
             $existingPractice?->distance !== null ? (int) $existingPractice->distance : null,
         );
 
@@ -1286,9 +1273,7 @@ class BroadCastScoreController extends Controller
         }
 
         $persistedFields['distance'] = $this->resolveDistanceToFirstDown(
-            $existingScoreboard?->down !== null ? (int) $existingScoreboard->down : null,
             $persistedFields['down'] !== null ? (int) $persistedFields['down'] : null,
-            $persistedFields['position_number'] !== null ? (int) $persistedFields['position_number'] : null,
             $existingScoreboard?->distance !== null ? (int) $existingScoreboard->distance : null,
         );
 
