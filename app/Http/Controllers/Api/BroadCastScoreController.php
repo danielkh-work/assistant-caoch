@@ -309,6 +309,20 @@ class BroadCastScoreController extends Controller
     }
 
     /**
+     * Distance to First Down is computed server-side, never taken from the request:
+     *   - down changes to 1 -> 10
+     *   - any other down change -> leave whatever was already showing
+     */
+    private function resolveDistanceToFirstDown(?int $newDown, ?int $existingDistance): int
+    {
+        if ($newDown === 1) {
+            return 10;
+        }
+
+        return $existingDistance ?? 0;
+    }
+
+    /**
      * @param  WebsocketScoreboard|WebsocketPracticeScoreboard|null  $existing
      */
     private function resolvePersistedTimerRemaining($existing, Request $request, array $persistedFields): ?int
@@ -693,7 +707,9 @@ class BroadCastScoreController extends Controller
             'team' => 'required|in:left,right,both',
             'points' => 'required|integer',
             'action' => 'required|string',
-            'distance' => 'nullable|integer|min:1|max:100',
+            // No rule for `distance` - it's computed server-side (see
+            // resolveDistanceToFirstDown) and can legitimately be 0, so whatever
+            // the request sends for it is ignored entirely, not just unvalidated.
         ]);
 
         $team = $validated['team'];
@@ -757,6 +773,11 @@ class BroadCastScoreController extends Controller
                 $persistedFields[$field] = null;
             }
         }
+
+        $persistedFields['distance'] = $this->resolveDistanceToFirstDown(
+            $persistedFields['down'] !== null ? (int) $persistedFields['down'] : null,
+            $existingPractice?->distance !== null ? (int) $existingPractice->distance : null,
+        );
 
         $clockFields = $this->resolveClockFieldsForBroadcast(
             $existingPractice,
@@ -981,7 +1002,10 @@ class BroadCastScoreController extends Controller
 
         $validated = $request->validate([
             'down' => 'required|integer|min:1|max:4',
-            'distance' => 'required|integer|min:1|max:100',
+            // min:0, not min:1 - distance is computed server-side now (see
+            // resolveDistanceToFirstDown) and 0 is a real, valid situation
+            // (right at the sticks), not a missing/invalid value.
+            'distance' => 'required|integer|min:0|max:100',
             'weather' => 'required|string|in:Normal,Rain,Snow',
             'strategies' => ['required', 'string', Rule::in(['regular', 'red zone', 'hurry up', 'aggressive', 'chew clock'])],
             'expected_yardage_gain' => 'required|integer',
@@ -1247,6 +1271,11 @@ class BroadCastScoreController extends Controller
                 $persistedFields[$field] = null;
             }
         }
+
+        $persistedFields['distance'] = $this->resolveDistanceToFirstDown(
+            $persistedFields['down'] !== null ? (int) $persistedFields['down'] : null,
+            $existingScoreboard?->distance !== null ? (int) $existingScoreboard->distance : null,
+        );
 
         $clockFields = $this->resolveClockFieldsForBroadcast(
             $existingScoreboard,

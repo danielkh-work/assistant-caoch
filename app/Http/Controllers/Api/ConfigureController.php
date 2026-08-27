@@ -391,15 +391,60 @@ class ConfigureController extends Controller
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "configure formation List",$configure);
   
     }
+    /**
+     * Every play id the current user can see for this league, respecting the same
+     * league/role visibility and search filter as PlayController::index() - used by
+     * configurePlay()'s select_all path so "select all" never has to round-trip every
+     * play id through the frontend first.
+     *
+     * @return array<int, int>
+     */
+    private function matchingPlayIdsForSelectAll(Request $request): array
+    {
+        $userRoleIds = auth()->user()->roles->pluck('id');
+        $leagueScope = ['1', $request->league_id];
+
+        $query = \App\Models\Play::query()
+            ->where(function ($sub) use ($leagueScope, $userRoleIds) {
+                $sub->orWhereIn('league_id', $leagueScope)
+                    ->orWhereHas('roles', function ($q) use ($userRoleIds) {
+                        $q->whereIn('roleables.role_id', $userRoleIds);
+                    });
+            });
+
+        $searchTerm = trim((string) $request->input('search', ''));
+        if ($searchTerm !== '') {
+            $needle = '%' . addcslashes($searchTerm, '%_\\') . '%';
+            $query->where('play_name', 'like', $needle);
+        }
+
+        return $query->pluck('id')->map(fn ($id) => (int) $id)->all();
+    }
+
     public function configurePlay(Request $request)
     {
         DB::beginTransaction();
         try {
-            $playIds = $request->input('play_id', []);
-            if (!is_array($playIds)) {
-                $playIds = $playIds !== null && $playIds !== '' ? [$playIds] : [];
+            $selectAll = filter_var($request->input('select_all', false), FILTER_VALIDATE_BOOLEAN);
+
+            if ($selectAll) {
+                $playIds = $this->matchingPlayIdsForSelectAll($request);
+
+                $excludeIds = $request->input('exclude_play_id', []);
+                if (! is_array($excludeIds)) {
+                    $excludeIds = $excludeIds !== null && $excludeIds !== '' ? [$excludeIds] : [];
+                }
+                if (! empty($excludeIds)) {
+                    $excludeIds = array_map('intval', $excludeIds);
+                    $playIds = array_values(array_diff($playIds, $excludeIds));
+                }
+            } else {
+                $playIds = $request->input('play_id', []);
+                if (!is_array($playIds)) {
+                    $playIds = $playIds !== null && $playIds !== '' ? [$playIds] : [];
+                }
+                $playIds = array_values(array_unique(array_filter(array_map('intval', $playIds), fn ($id) => $id > 0)));
             }
-            $playIds = array_values(array_unique(array_filter(array_map('intval', $playIds), fn ($id) => $id > 0)));
 
             ConfigurePlay::where([
                 'user_id' => auth()->user()->id,
