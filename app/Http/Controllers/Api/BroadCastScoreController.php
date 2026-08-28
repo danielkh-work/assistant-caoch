@@ -311,7 +311,12 @@ class BroadCastScoreController extends Controller
     /**
      * Distance to First Down is computed server-side, never taken from the request,
      * and only ever recalculated on an actual DOWN TRANSITION - never on a pure
-     * position move (down unchanged), no matter what down it is:
+     * position move (down unchanged), no matter what down it is - EXCEPT when the HC
+     * manually typed a new value into the field (isManualOverride=true), which always
+     * wins and rebases the marker from the position at that moment:
+     *   - manual override -> distance = the typed value, marker rebases to
+     *     (current position + typed value), so later down/position changes count
+     *     down from what the user actually entered, not the auto-computed value
      *   - down transitions to 1 -> distance=10, first-down marker rebases to
      *     (current position + 10), persisted separately in
      *     `first_down_reference_position` so later position moves can't drift it
@@ -323,8 +328,14 @@ class BroadCastScoreController extends Controller
      *
      * @return array{distance:int, marker:?int}
      */
-    private function resolveDistanceToFirstDown(?int $existingDown, ?int $newDown, ?int $newPosition, ?int $existingDistance, ?int $existingMarker): array
+    private function resolveDistanceToFirstDown(?int $existingDown, ?int $newDown, ?int $newPosition, ?int $existingDistance, ?int $existingMarker, bool $isManualOverride = false, ?int $manualDistance = null): array
     {
+        if ($isManualOverride && $manualDistance !== null) {
+            $marker = ($newPosition ?? 0) + $manualDistance;
+
+            return ['distance' => $manualDistance, 'marker' => $marker];
+        }
+
         if ($newDown === $existingDown) {
             return ['distance' => $existingDistance ?? 0, 'marker' => $existingMarker];
         }
@@ -812,6 +823,8 @@ class BroadCastScoreController extends Controller
             $persistedFields['position_number'] !== null ? (int) $persistedFields['position_number'] : null,
             $existingPractice?->distance !== null ? (int) $existingPractice->distance : null,
             $existingMarker,
+            $request->boolean('distance_manual_override'),
+            $persistedFields['distance'] !== null ? (int) $persistedFields['distance'] : null,
         );
         $persistedFields['distance'] = $firstDownResolution['distance'];
         $persistedFields['first_down_reference_position'] = $firstDownResolution['marker'];
@@ -1326,6 +1339,8 @@ class BroadCastScoreController extends Controller
             $persistedFields['position_number'] !== null ? (int) $persistedFields['position_number'] : null,
             $existingScoreboard?->distance !== null ? (int) $existingScoreboard->distance : null,
             $existingMarker,
+            $request->boolean('distance_manual_override'),
+            $persistedFields['distance'] !== null ? (int) $persistedFields['distance'] : null,
         );
         $persistedFields['distance'] = $firstDownResolution['distance'];
         $persistedFields['first_down_reference_position'] = $firstDownResolution['marker'];
