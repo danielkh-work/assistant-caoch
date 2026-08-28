@@ -16,7 +16,6 @@ class WebsocketScoreboard extends Model
         'timer_remaining' => 'integer',
         'quarter' => 'integer',
         'distance' => 'integer',
-        'first_down_reference_position' => 'integer',
         'regulation_ended_at' => 'datetime',
         'last_meaningful_activity_at' => 'datetime',
     ];
