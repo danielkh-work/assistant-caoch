@@ -309,17 +309,39 @@ class BroadCastScoreController extends Controller
     }
 
     /**
-     * Distance to First Down is computed server-side, never taken from the request:
-     *   - down changes to 1 -> 10
-     *   - any other down change -> leave whatever was already showing
+     * Distance to First Down is computed server-side, never taken from the request,
+     * and only ever recalculated on an actual DOWN TRANSITION - never on a pure
+     * position move (down unchanged), no matter what down it is:
+     *   - down transitions to 1 -> distance=10, first-down marker rebases to
+     *     (current position + 10), persisted separately in
+     *     `first_down_reference_position` so later position moves can't drift it
+     *   - down transitions to 2/3/4 -> recalculated once, as marker minus the
+     *     position at the moment of that transition, using the frozen marker
+     *   - down unchanged (including staying at 1, or staying at 2/3/4) -> leave
+     *     distance and marker exactly as they were, regardless of position moves
+     *   - no down selected -> leave whatever was already showing
+     *
+     * @return array{distance:int, marker:?int}
      */
-    private function resolveDistanceToFirstDown(?int $newDown, ?int $existingDistance): int
+    private function resolveDistanceToFirstDown(?int $existingDown, ?int $newDown, ?int $newPosition, ?int $existingDistance, ?int $existingMarker): array
     {
-        if ($newDown === 1) {
-            return 10;
+        if ($newDown === $existingDown) {
+            return ['distance' => $existingDistance ?? 0, 'marker' => $existingMarker];
         }
 
-        return $existingDistance ?? 0;
+        if ($newDown === 1) {
+            $marker = ($newPosition ?? 0) + 10;
+
+            return ['distance' => 10, 'marker' => $marker];
+        }
+
+        if (! in_array($newDown, [2, 3, 4], true) || $existingMarker === null) {
+            return ['distance' => $existingDistance ?? 0, 'marker' => $existingMarker];
+        }
+
+        $position = $newPosition ?? 0;
+
+        return ['distance' => $existingMarker - $position, 'marker' => $existingMarker];
     }
 
     /**
@@ -769,15 +791,30 @@ class BroadCastScoreController extends Controller
         // DB row, so without this override a new match inherits the previous match's down,
         // strategies, pkg, etc. — causing AC to see old settings after refresh.
         if ($action === 'Start' && ! $isRestoredStart) {
-            foreach (['down', 'distance', 'strategies', 'pkg', 'expected_yard_gain', 'position_number', 'team_position', 'possession', 'coverage_category'] as $field) {
+            foreach (['down', 'distance', 'strategies', 'pkg', 'expected_yard_gain', 'position_number', 'team_position', 'possession', 'coverage_category', 'first_down_reference_position'] as $field) {
                 $persistedFields[$field] = null;
             }
         }
 
-        $persistedFields['distance'] = $this->resolveDistanceToFirstDown(
+        // A true fresh Start (not a restore) must not inherit the previous session's
+        // down/marker on this fixture, even though $existingPractice still points at that row.
+        $isFreshStart = $action === 'Start' && ! $isRestoredStart;
+        $existingDownForDistance = $isFreshStart
+            ? null
+            : ($existingPractice?->down !== null ? (int) $existingPractice->down : null);
+        $existingMarker = $isFreshStart
+            ? null
+            : ($existingPractice?->first_down_reference_position !== null ? (int) $existingPractice->first_down_reference_position : null);
+
+        $firstDownResolution = $this->resolveDistanceToFirstDown(
+            $existingDownForDistance,
             $persistedFields['down'] !== null ? (int) $persistedFields['down'] : null,
+            $persistedFields['position_number'] !== null ? (int) $persistedFields['position_number'] : null,
             $existingPractice?->distance !== null ? (int) $existingPractice->distance : null,
+            $existingMarker,
         );
+        $persistedFields['distance'] = $firstDownResolution['distance'];
+        $persistedFields['first_down_reference_position'] = $firstDownResolution['marker'];
 
         $clockFields = $this->resolveClockFieldsForBroadcast(
             $existingPractice,
@@ -814,6 +851,7 @@ class BroadCastScoreController extends Controller
             'is_start' => $sessionFields['is_start'],
             'down' => $persistedFields['down'],
             'distance' => $persistedFields['distance'],
+            'first_down_reference_position' => $persistedFields['first_down_reference_position'],
             'team_position' => $persistedFields['team_position'],
             'expected_yard_gain' => $persistedFields['expected_yard_gain'],
             'position_number' => $persistedFields['position_number'],
@@ -1267,15 +1305,30 @@ class BroadCastScoreController extends Controller
         // On Start, never carry over per-play settings from the prior session on this fixture.
         // Same fix as practiceScoreBoardBroadCast — see that method for explanation.
         if ($action === 'Start' && ! $isRestoredStart) {
-            foreach (['down', 'distance', 'strategies', 'pkg', 'expected_yard_gain', 'position_number', 'team_position', 'possession', 'coverage_category'] as $field) {
+            foreach (['down', 'distance', 'strategies', 'pkg', 'expected_yard_gain', 'position_number', 'team_position', 'possession', 'coverage_category', 'first_down_reference_position'] as $field) {
                 $persistedFields[$field] = null;
             }
         }
 
-        $persistedFields['distance'] = $this->resolveDistanceToFirstDown(
+        // A true fresh Start (not a restore) must not inherit the previous session's
+        // down/marker on this fixture, even though $existingScoreboard still points at that row.
+        $isFreshStart = $action === 'Start' && ! $isRestoredStart;
+        $existingDownForDistance = $isFreshStart
+            ? null
+            : ($existingScoreboard?->down !== null ? (int) $existingScoreboard->down : null);
+        $existingMarker = $isFreshStart
+            ? null
+            : ($existingScoreboard?->first_down_reference_position !== null ? (int) $existingScoreboard->first_down_reference_position : null);
+
+        $firstDownResolution = $this->resolveDistanceToFirstDown(
+            $existingDownForDistance,
             $persistedFields['down'] !== null ? (int) $persistedFields['down'] : null,
+            $persistedFields['position_number'] !== null ? (int) $persistedFields['position_number'] : null,
             $existingScoreboard?->distance !== null ? (int) $existingScoreboard->distance : null,
+            $existingMarker,
         );
+        $persistedFields['distance'] = $firstDownResolution['distance'];
+        $persistedFields['first_down_reference_position'] = $firstDownResolution['marker'];
 
         $clockFields = $this->resolveClockFieldsForBroadcast(
             $existingScoreboard,
@@ -1313,6 +1366,7 @@ class BroadCastScoreController extends Controller
             'is_start' => $sessionFields['is_start'],
             'down' => $persistedFields['down'],
             'distance' => $persistedFields['distance'],
+            'first_down_reference_position' => $persistedFields['first_down_reference_position'],
             'team_position' => $persistedFields['team_position'],
             'expected_yard_gain' => $persistedFields['expected_yard_gain'],
             'position_number' => $persistedFields['position_number'],
