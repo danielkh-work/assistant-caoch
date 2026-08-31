@@ -309,17 +309,18 @@ class BroadCastScoreController extends Controller
     }
 
     /**
-     * Distance to First Down is computed server-side, never taken from the request:
-     *   - down changes to 1 -> 10
-     *   - any other down change -> leave whatever was already showing
+     * Distance to First Down is server-controlled only for the one case that matters:
+     *   - down transitions to 1 (was not already 1) -> forced to 10
+     *   - anything else (down stays 1, down is 2/3/4, no down selected) -> left
+     *     exactly as sent, so a manual HC edit is never overwritten
      */
-    private function resolveDistanceToFirstDown(?int $newDown, ?int $existingDistance): int
+    private function resolveDistanceToFirstDown(?int $existingDown, ?int $newDown, ?int $incomingDistance): int
     {
-        if ($newDown === 1) {
+        if ($newDown === 1 && $existingDown !== 1) {
             return 10;
         }
 
-        return $existingDistance ?? 0;
+        return $incomingDistance ?? 0;
     }
 
     /**
@@ -774,9 +775,16 @@ class BroadCastScoreController extends Controller
             }
         }
 
+        // A true fresh Start (not a restore) must not inherit the previous session's
+        // down on this fixture, even though $existingPractice still points at that row.
+        $existingDownForDistance = ($action === 'Start' && ! $isRestoredStart)
+            ? null
+            : ($existingPractice?->down !== null ? (int) $existingPractice->down : null);
+
         $persistedFields['distance'] = $this->resolveDistanceToFirstDown(
+            $existingDownForDistance,
             $persistedFields['down'] !== null ? (int) $persistedFields['down'] : null,
-            $existingPractice?->distance !== null ? (int) $existingPractice->distance : null,
+            $persistedFields['distance'] !== null ? (int) $persistedFields['distance'] : null,
         );
 
         $clockFields = $this->resolveClockFieldsForBroadcast(
@@ -1272,9 +1280,16 @@ class BroadCastScoreController extends Controller
             }
         }
 
+        // A true fresh Start (not a restore) must not inherit the previous session's
+        // down on this fixture, even though $existingScoreboard still points at that row.
+        $existingDownForDistance = ($action === 'Start' && ! $isRestoredStart)
+            ? null
+            : ($existingScoreboard?->down !== null ? (int) $existingScoreboard->down : null);
+
         $persistedFields['distance'] = $this->resolveDistanceToFirstDown(
+            $existingDownForDistance,
             $persistedFields['down'] !== null ? (int) $persistedFields['down'] : null,
-            $existingScoreboard?->distance !== null ? (int) $existingScoreboard->distance : null,
+            $persistedFields['distance'] !== null ? (int) $persistedFields['distance'] : null,
         );
 
         $clockFields = $this->resolveClockFieldsForBroadcast(
