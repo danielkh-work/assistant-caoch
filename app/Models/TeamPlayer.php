@@ -14,6 +14,16 @@ class TeamPlayer extends Model
     protected $guarded = [];
     public function getPlayerNameAttribute()
     {
+        // Use the already-loaded relation when available - this accessor runs
+        // on every serialization (it's in $appends), so a bare Player::find()
+        // here means one extra query per TeamPlayer row, every time a list of
+        // them gets serialized (e.g. player-list, ~2000 extra queries for
+        // ~1200 players). Only fall back to a fresh query if it's genuinely
+        // not loaded.
+        if ($this->relationLoaded('player')) {
+            return $this->player?->name;
+        }
+
         return optional(Player::find($this->player_id))->name;
     }
 
