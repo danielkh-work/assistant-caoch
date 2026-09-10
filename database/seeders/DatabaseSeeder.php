@@ -21,7 +21,8 @@ class DatabaseSeeder extends Seeder
             DefensivePositionsTableSeeder::class,
             SubscriptionPlanSeeder::class,
             PlaysSeeder::class,
-            RolesAndPermissionsSeeder::class
+            RolesAndPermissionsSeeder::class,
+            UserTypeRolesSeeder::class,
         ]);
         
         // \App\Models\User::factory(10)->create();

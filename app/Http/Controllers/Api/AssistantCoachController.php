@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Responses\BaseResponse;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\Request;
 
@@ -13,7 +14,7 @@ class AssistantCoachController extends Controller
 
     public function index(Request $request): BaseResponse
     {
-        $headCoach = $this->assertHeadCoach();
+        $headCoach = auth()->user();
 
         $query = User::query()
             ->where('head_coach_id', $headCoach->id)
@@ -54,7 +55,7 @@ class AssistantCoachController extends Controller
 
     public function store(Request $request): BaseResponse
     {
-        $headCoach = $this->assertHeadCoach();
+        $headCoach = auth()->user();
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -75,8 +76,11 @@ class AssistantCoachController extends Controller
             'status' => 'approved',
         ]);
 
-        $headCoachRoles = $headCoach->roles->pluck('name');
-        $assistant->assignRole($headCoachRoles);
+        // Only copy the head coach's subscription-tier role - NOT their
+        // head_coach user-type role, which would otherwise get pulled in too
+        // now that both live in the same roles table.
+        $headCoachTierRoles = $headCoach->roles()->where('category', Role::CATEGORY_FEATURE_TIER)->pluck('name');
+        $assistant->assignRole($headCoachTierRoles);
 
         return new BaseResponse(
             STATUS_CODE_OK,
@@ -88,7 +92,7 @@ class AssistantCoachController extends Controller
 
     public function show(Request $request, int $id): BaseResponse
     {
-        $headCoach = $this->assertHeadCoach();
+        $headCoach = auth()->user();
         $assistant = $this->findOwnedAssistant($headCoach, $id);
 
         return new BaseResponse(
@@ -101,7 +105,7 @@ class AssistantCoachController extends Controller
 
     public function update(Request $request, int $id): BaseResponse
     {
-        $headCoach = $this->assertHeadCoach();
+        $headCoach = auth()->user();
         $assistant = $this->findOwnedAssistant($headCoach, $id);
 
         $validated = $request->validate([
@@ -139,7 +143,7 @@ class AssistantCoachController extends Controller
 
     public function updateStatus(Request $request, int $id): BaseResponse
     {
-        $headCoach = $this->assertHeadCoach();
+        $headCoach = auth()->user();
         $assistant = $this->findOwnedAssistant($headCoach, $id);
 
         $validated = $request->validate([
@@ -163,7 +167,7 @@ class AssistantCoachController extends Controller
 
     public function destroy(Request $request, int $id): BaseResponse
     {
-        $headCoach = $this->assertHeadCoach();
+        $headCoach = auth()->user();
         $assistant = $this->findOwnedAssistant($headCoach, $id);
 
         $assistant->tokens()->delete();
@@ -182,18 +186,6 @@ class AssistantCoachController extends Controller
             STATUS_CODE_OK,
             'Assistant coach deleted successfully'
         );
-    }
-
-    private function assertHeadCoach(): User
-    {
-        /** @var User $headCoach */
-        $headCoach = auth()->user();
-
-        if ($headCoach->role !== 'head_coach') {
-            abort(403);
-        }
-
-        return $headCoach;
     }
 
     private function findOwnedAssistant(User $headCoach, int $id): User

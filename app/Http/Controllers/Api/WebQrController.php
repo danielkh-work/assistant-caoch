@@ -97,12 +97,6 @@ class WebQrController extends Controller
         ]);
 
         $coach = $request->user();
-        if ($coach->role !== 'head_coach') {
-            return response()->json([
-                'status' => 403,
-                'message' => 'Forbidden',
-            ], 403);
-        }
 
         $user = User::query()
             ->whereKey($request->integer('id'))
