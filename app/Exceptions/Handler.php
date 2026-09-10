@@ -37,6 +37,7 @@ class Handler extends ExceptionHandler
                      "AuthorizationException" => 401,
                     "QueryException" => 500,
                     "HttpResponseException" => 403,
+                    "UnauthorizedException" => 403,
                     default => 500
                 };
 
@@ -47,6 +48,7 @@ class Handler extends ExceptionHandler
                     "AuthorizationException" => "Access Denied",
                     "QueryException" => "SQL Error",
                     "HttpResponseException" => "You are not authorized to perform this operation",
+                    "UnauthorizedException" => $e->getMessage() ?: "You do not have permission to perform this action",
                     default => "Internal Server Error",
                 };
 

@@ -13,7 +13,7 @@ use App\Models\TeamPlayer;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Spatie\Permission\Models\Role;
+use App\Models\Role;
 use Yajra\DataTables\DataTables;
 class LeagueController extends Controller
 {
@@ -65,7 +65,7 @@ class LeagueController extends Controller
         $league_rule =  LeagueRule::all();
         $sports =  Sport::all();
         // $teams =  Team::all();
-        $roles =  Role::all();
+        $roles =  Role::featureTier()->get();
         return view('league.create',compact('league_rule','sports','roles'));
     }
      public function destroy($id)

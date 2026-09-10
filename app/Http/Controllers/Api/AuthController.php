@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Responses\BaseResponse;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\Request;
 use App\Events\QbSessionUpdated;
@@ -45,6 +46,7 @@ class AuthController extends Controller
             'name' => $request->name,
             'email' => $request->email,
             'password' => $password,
+            'role' => 'head_coach',
         ]);
         $token = $user->createToken('auth_token')->plainTextToken;
 
@@ -122,6 +124,7 @@ class AuthController extends Controller
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'status' => 'pending',
+            'role' => 'head_coach',
         ]);
 
         $token = $user->createToken('auth_token')->plainTextToken;
@@ -172,7 +175,7 @@ class AuthController extends Controller
           }
 
         $token = $user->createToken('auth_token')->plainTextToken;
-        $user['permissions'] = $user->getPermissionsViaRoles()->pluck('name');
+        $user['permissions'] = $user->effectivePermissionNames();
         $user['pendingUser']=  $pendingUser;
         $count = $user->assistants()->count();
         $user['assistant_count']=  $count;
@@ -244,7 +247,7 @@ class AuthController extends Controller
             $user->image = $path;
         }
         $user->save();
-        $user['permissions'] = $user->getPermissionsViaRoles()->pluck('name');
+        $user['permissions'] = $user->effectivePermissionNames();
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "User Updated successfully", $user);
     }
 
@@ -328,8 +331,12 @@ class AuthController extends Controller
 
     public function viewProfile(Request $request)
     {
-        $user  = auth('api')->user();
-        $user['permissions'] = $user->getPermissionsViaRoles()->pluck('name');
+        // Not auth('api')->user() - the 'api' guard's provider also maps to
+        // App\Models\User, so Spatie resolves permissions against guard_name
+        // 'api' instead of 'web' (what every role/permission is actually
+        // seeded with), silently returning an empty permissions array.
+        $user  = $request->user();
+        $user['permissions'] = $user->effectivePermissionNames();
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "User List",$user );
     }
 
@@ -383,8 +390,11 @@ class AuthController extends Controller
                 'is_loggin' => false,
             ]);
 
-            $headCoachRoles = $headCoach->roles->pluck('name');
-            $assistant->assignRole($headCoachRoles);
+            // Only copy the head coach's subscription-tier role - NOT their
+            // head_coach user-type role, which would otherwise get pulled in too
+            // now that both live in the same roles table.
+            $headCoachTierRoles = $headCoach->roles()->where('category', Role::CATEGORY_FEATURE_TIER)->pluck('name');
+            $assistant->assignRole($headCoachTierRoles);
 
             return new BaseResponse(
                 STATUS_CODE_OK,

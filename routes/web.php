@@ -5,6 +5,9 @@ use App\Http\Controllers\PlayController;
 use App\Http\Controllers\PlayerController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\RoleController;
+use App\Http\Controllers\PermissionController;
+use App\Http\Controllers\UserPermissionController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Http\Request;
@@ -99,11 +102,31 @@ Route::middleware(['auth'])->group(function () {
         Route::get('users/reset-all-passwords', [UserController::class, 'resetAllUserPasswords'])
           ->name('users.reset-all-passwords');
 
-          
-       
+
+
     });
 
+    Route::controller(RoleController::class)->group(function () {
+        Route::get('roles', 'index')->name('roles.index');
+        Route::get('roles/create', 'create')->name('roles.create');
+        Route::post('roles', 'store')->name('roles.store');
+        Route::get('roles/{id}/edit', 'edit')->name('roles.edit');
+        Route::put('roles/{id}', 'update')->name('roles.update');
+        Route::delete('roles/{id}', 'destroy')->name('roles.destroy');
+    });
 
-    
+    Route::controller(PermissionController::class)->group(function () {
+        Route::get('permissions', 'index')->name('permissions.index');
+        Route::get('permissions/create', 'create')->name('permissions.create');
+        Route::post('permissions', 'store')->name('permissions.store');
+        Route::get('permissions/{id}/edit', 'edit')->name('permissions.edit');
+        Route::put('permissions/{id}', 'update')->name('permissions.update');
+        Route::delete('permissions/{id}', 'destroy')->name('permissions.destroy');
+    });
+
+    Route::controller(UserPermissionController::class)->group(function () {
+        Route::get('users/{user}/permissions', 'edit')->name('users.permissions.edit');
+        Route::put('users/{user}/permissions', 'update')->name('users.permissions.update');
+    });
 
 });
