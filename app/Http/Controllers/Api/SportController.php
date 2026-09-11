@@ -263,11 +263,6 @@ class SportController extends Controller
           ->where('status', 4)
           ->where('game_mode', 'play')
           ->get();
-      $matches = PlayGameMode::query()
-          ->where('league_id', $leauqe->id)
-          ->where('status', 4)
-          ->where('game_mode', 'play')
-          ->get();
  
       $pointsTable = [];
  
@@ -329,9 +324,24 @@ class SportController extends Controller
           }
       }
 
+      // Only write rows whose standings actually changed - this endpoint is hit on
+      // every page/tab that shows the league (Scoreboard, Events, Position,
+      // SystemSuggestion, etc. all call it on mount), but standings only change
+      // when a match result changes, so most calls were previously doing N
+      // no-op UPDATE queries (N = teams in the league) for nothing.
       foreach ($pointsTable as $entry) {
-   
         if (!isset($entry['team_id'], $entry['leauqe_id'])) {
+            continue;
+        }
+
+        $team = $teams->firstWhere('id', $entry['team_id']);
+        $unchanged = $team
+            && (int) $team->won === $entry['won']
+            && (int) $team->drawn === $entry['drawn']
+            && (int) $team->lost === $entry['lost']
+            && (int) $team->points === $entry['points'];
+
+        if ($unchanged) {
             continue;
         }
 
@@ -343,15 +353,20 @@ class SportController extends Controller
                 'lost'   => $entry['lost'],
                 'points' => $entry['points'],
             ]);
-      }  
+      }
 
-      $updatedPoints = LeagueTeam::where('league_id', $leauqe->id)
-        ->where(function ($q) {
-            $q->where('type', 1)->orWhereNull('type');
-        })
-        ->where('is_practice', 0)
-        ->get(['id', 'team_name', 'type', 'won', 'drawn', 'lost', 'points']);
-        \Log::info(['updatedPoints',$updatedPoints]);
+      // Built from the already-computed $pointsTable instead of re-querying -
+      // same values, since every row was either just written above or already
+      // matched what's in $pointsTable.
+      $updatedPoints = collect($pointsTable)->map(fn ($entry) => [
+          'id' => $entry['team_id'],
+          'team_name' => $entry['team_name'],
+          'type' => $entry['type'],
+          'won' => $entry['won'],
+          'drawn' => $entry['drawn'],
+          'lost' => $entry['lost'],
+          'points' => $entry['points'],
+      ])->values();
 
       return response()->json([
           'status' => STATUS_CODE_OK,
