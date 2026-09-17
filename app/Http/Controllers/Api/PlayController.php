@@ -551,6 +551,57 @@ class PlayController extends Controller
             }
         }
 
+        // Optional: the yardage-modal Save step used to fire two more requests
+        // right after this one - the QB "endplay" broadcast and the live
+        // scoreboard "INFO" broadcast - always paired with saving the result.
+        // Reusing the exact same controller methods here (same validation, same
+        // payload shape) instead of duplicating their logic, so one request
+        // covers what used to take three, with identical behavior. Absent
+        // fields mean a plain result save, unaffected.
+        if ($request->filled('qb_broadcast')) {
+            try {
+                $qbRequest = \Illuminate\Http\Request::create('', 'POST', $request->input('qb_broadcast'));
+                app(BroadCastScoreController::class)->scoreBoardBroadCastQB($qbRequest);
+            } catch (\Throwable $e) {
+                Log::error('scoreBoardBroadCastQB (via play-results-add) failed: ' . $e->getMessage());
+            }
+        }
+
+        if ($request->filled('scoreboard_broadcast')) {
+            try {
+                $sbData = $request->input('scoreboard_broadcast');
+                $sbRequest = \Illuminate\Http\Request::create('', 'POST', $sbData);
+                if ($request->boolean('is_practice')) {
+                    app(BroadCastScoreController::class)->practiceScoreBoardBroadCast($sbRequest);
+                } else {
+                    app(BroadCastScoreController::class)->scoreBoardBroadCast($sbRequest);
+                }
+            } catch (\Throwable $e) {
+                Log::error('scoreboard broadcast (via play-results-add) failed: ' . $e->getMessage());
+            }
+        }
+
+        // Optional: the same Save also used to fire matchEvents() separately -
+        // a plain "position changed" log entry (add-play-game-log) with no
+        // broadcast of its own - and the result-confirm step right after this
+        // one fired its own add-play-game-log too. Both log entries are real,
+        // separate rows the Events tab reads back (PositionNumber vs the
+        // Successful/Failed/point entry), so log_data accepts either a single
+        // object (one row) or an array of them (one row each), and this fires
+        // addPointsObject once per entry - same reuse pattern, still one request.
+        if ($request->filled('log_data')) {
+            $logEntries = $request->input('log_data');
+            $logEntries = array_is_list($logEntries) ? $logEntries : [$logEntries];
+            foreach ($logEntries as $logEntry) {
+                try {
+                    $logRequest = \Illuminate\Http\Request::create('', 'POST', $logEntry);
+                    app(PlayGameModeController::class)->addPointsObject($logRequest);
+                } catch (\Throwable $e) {
+                    Log::error('addPointsObject (via play-results-add) failed: ' . $e->getMessage());
+                }
+            }
+        }
+
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "suggestion plays wining ratio is added", $playResult);
     }
         public function getPlayResult(Request $request)
