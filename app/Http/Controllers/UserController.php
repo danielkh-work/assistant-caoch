@@ -53,7 +53,8 @@ class UserController extends Controller
     $rejectUrl  = route('users.reject', ['id' => $row->id]);
     $resetUrl   = route('users.reset_password', ['id' => $row->id]);
     $deleteUrl  = route('users.destroy', $row->id);
-    $buttons = '';
+    $permissionsUrl = route('users.permissions.edit', $row->id);
+    $buttons = '<a href="' . $permissionsUrl . '" class="btn btn-info btn-sm me-1">Permissions</a>';
 
     // Pending user → show Approve & Reject only
      if ($row->status == 'pending') {

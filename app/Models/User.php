@@ -9,9 +9,12 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
+use Spatie\Permission\Models\Permission;
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable, HasRoles, SoftDeletes;
+    use HasApiTokens, HasFactory, Notifiable, HasRoles, SoftDeletes {
+        HasRoles::hasPermissionTo as roleHasPermissionTo;
+    }
 
     /**
      * The attributes that are mass assignable.
@@ -83,5 +86,51 @@ class User extends Authenticatable
         } while (self::where('code', $code)->exists());
 
         return $code;
+    }
+
+    /**
+     * Permissions explicitly revoked for this one user, overriding whatever
+     * their role(s) would otherwise grant. Spatie has no native "deny" concept -
+     * this table is how a per-user decrease from the role default is represented.
+     */
+    public function deniedPermissions()
+    {
+        return $this->belongsToMany(Permission::class, 'user_denied_permissions')->withTimestamps();
+    }
+
+    /**
+     * Overrides Spatie's HasPermissions::hasPermissionTo() so an explicit deny
+     * always wins, even if a role would otherwise grant the same permission.
+     */
+    public function hasPermissionTo($permission, $guardName = null): bool
+    {
+        $name = $permission instanceof Permission ? $permission->name : $permission;
+
+        if (is_string($name) && $this->deniedPermissions()->where('name', $name)->exists()) {
+            return false;
+        }
+
+        return $this->roleHasPermissionTo($permission, $guardName);
+    }
+
+    /**
+     * Single source of truth for "what can this user actually do": role-granted
+     * permissions plus direct grants, minus explicit per-user denials.
+     */
+    public function effectivePermissionNames()
+    {
+        $names = $this->getAllPermissions()->pluck('name')
+            ->diff($this->deniedPermissions()->pluck('name'))
+            ->values();
+
+        // getAllPermissions() lazily loads Spatie's own `permissions` relation
+        // (direct grants only, usually empty for role-based users) onto this
+        // model. Callers commonly do $user['permissions'] = effectivePermissionNames();
+        // then serialize $user - Eloquent's toArray() merges relations AFTER
+        // attributes, so that now-cached empty relation silently overwrites
+        // the attribute we just set. Clear it so serialization isn't shadowed.
+        $this->unsetRelation('permissions');
+
+        return $names;
     }
 }

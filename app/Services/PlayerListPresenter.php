@@ -120,11 +120,20 @@ class PlayerListPresenter
      */
     public function formatPlayer(Player $player, array $scope = []): array
     {
-        $data = $player->toArray();
-        unset($data['team_players'], $data['league']);
+        // Compute these from the loaded relation first, then drop the
+        // relation before toArray() - team_players/league get discarded
+        // from $data below anyway, but toArray() would otherwise cascade
+        // into serializing every TeamPlayer (each firing TeamPlayer's
+        // player_name accessor) purely to build a value nothing uses.
+        $teams = $this->buildTeams($player, $scope);
+        $leagues = $this->buildLeagues($player, $scope);
 
-        $data['teams'] = $this->buildTeams($player, $scope);
-        $data['leagues'] = $this->buildLeagues($player, $scope);
+        $player->unsetRelation('teamPlayers');
+        $data = $player->toArray();
+        unset($data['league']);
+
+        $data['teams'] = $teams;
+        $data['leagues'] = $leagues;
 
         return $data;
     }
