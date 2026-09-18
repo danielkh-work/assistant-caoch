@@ -22,22 +22,48 @@ class RoleController extends Controller
             return DataTables::of($data)
                 ->addIndexColumn()
                 ->addColumn('permissions', function ($row) {
-                    return $row->permissions->pluck('name')->implode(', ');
+                    $names = $row->permissions->pluck('name');
+
+                    if ($names->contains('*')) {
+                        return '<span class="perm-badge perm-badge--all"><i class="fas fa-unlock"></i> Full access</span>';
+                    }
+
+                    if ($names->isEmpty()) {
+                        return '<span class="text-muted small">No permissions</span>';
+                    }
+
+                    // A flat comma list of 10+ dotted names is unreadable - group by
+                    // entity (same mental model as the role editor) so a row reads
+                    // as "which areas, how much" instead of a wall of text.
+                    $counts = $names
+                        ->groupBy(fn ($name) => str_contains($name, '.') ? explode('.', $name)[0] : 'legacy')
+                        ->map->count()
+                        ->sortKeys();
+
+                    return $counts->map(function ($count, $entity) {
+                        $label = e(ucwords(str_replace('_', ' ', $entity)));
+                        return "<span class=\"perm-badge\">{$label} <b>{$count}</b></span>";
+                    })->implode(' ');
                 })
                 ->addColumn('action', function ($row) {
                     $editUrl = route('roles.edit', ['id' => $row->id]);
                     $deleteUrl = route('roles.destroy', ['id' => $row->id]);
 
                     return '
-                        <a href="' . $editUrl . '" class="btn btn-warning btn-sm me-1">Edit</a>
-                        <form action="' . $deleteUrl . '" method="POST" style="display:inline;" onsubmit="return confirm(\'Are you sure?\')">
+                        <div class="btn-group btn-group-sm" role="group">
+                            <a href="' . $editUrl . '" class="btn btn-outline-primary" title="Edit"><i class="fas fa-pen"></i> Edit</a>
+                            <button type="button" class="btn btn-outline-danger role-delete-btn" title="Delete"
+                                data-form="delete-form-' . $row->id . '" data-name="' . e($row->name) . '">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                        </div>
+                        <form id="delete-form-' . $row->id . '" action="' . $deleteUrl . '" method="POST" class="d-none">
                             ' . csrf_field() . '
                             ' . method_field('DELETE') . '
-                            <button type="submit" class="btn btn-danger btn-sm">Delete</button>
                         </form>
                     ';
                 })
-                ->rawColumns(['action'])
+                ->rawColumns(['permissions', 'action'])
                 ->make(true);
         }
 

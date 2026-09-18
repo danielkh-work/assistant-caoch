@@ -101,7 +101,7 @@
                     </a>
                 </li>
 
-                <li class="nav-item">
+                {{-- <li class="nav-item">
                     <a
                     href="{{ route('permissions.index') }}"
                         class="{{ Request::is('permissions') || Request::is('permissions/*') ? 'nav-link active' : 'nav-link' }}"
@@ -111,7 +111,7 @@
                             Permissions
                         </p>
                     </a>
-                </li>
+                </li> --}}
 
 
                 {{-- <li class="nav-item">
