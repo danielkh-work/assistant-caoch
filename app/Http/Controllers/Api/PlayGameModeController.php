@@ -320,6 +320,43 @@ class PlayGameModeController extends Controller
             \Log::error('MatchLogCreated broadcast failed: ' . $e->getMessage());
         }
 
+        // Optional: when this call is the "Run Play" step of the suggestion
+        // flow, the frontend also needs the QB device notified - it used to
+        // be a second request to scoreBoardBroadCastPlay() right after this
+        // one, always paired with it. Reusing that exact method here (same
+        // validation, same h-mark/league resolution) instead of duplicating
+        // its logic means one round-trip instead of two, with identical
+        // behavior. Detected by the presence of its required fields, so a
+        // plain log-only call is unaffected.
+        if ($request->filled('title') && $request->filled('image') && $request->filled('type')) {
+            try {
+                app(\App\Http\Controllers\Api\BroadCastScoreController::class)
+                    ->scoreBoardBroadCastPlay($request);
+            } catch (\Throwable $e) {
+                \Log::error('scoreBoardBroadCastPlay (via add-play-game-log) failed: ' . $e->getMessage());
+            }
+        }
+
+        // Optional: the result-confirm step (Play was Successful/Failed modal's
+        // Save/Apply) used to fire a second request right after this one - the
+        // "PlayCompleted" scoreboard broadcast that puts the dot on both
+        // coaches' screens. Same reuse pattern as above: one request instead
+        // of two, identical behavior. Absent field means a plain log-only call.
+        if ($request->filled('scoreboard_broadcast')) {
+            try {
+                $sbRequest = \Illuminate\Http\Request::create('', 'POST', $request->input('scoreboard_broadcast'));
+                if ($value['is_practice']) {
+                    app(\App\Http\Controllers\Api\BroadCastScoreController::class)
+                        ->practiceScoreBoardBroadCast($sbRequest);
+                } else {
+                    app(\App\Http\Controllers\Api\BroadCastScoreController::class)
+                        ->scoreBoardBroadCast($sbRequest);
+                }
+            } catch (\Throwable $e) {
+                \Log::error('scoreboard broadcast (via add-play-game-log) failed: ' . $e->getMessage());
+            }
+        }
+
         return new BaseResponse(
             STATUS_CODE_OK,
             STATUS_CODE_OK,

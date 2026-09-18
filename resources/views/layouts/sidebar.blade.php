@@ -78,9 +78,9 @@
                 </li>
 
                     <li class="nav-item">
-                    <a 
+                    <a
                     href="{{ route('users.index') }}"
-                        class="{{ Request::is('play') || Request::is('users/*') ? 'nav-link active' : 'nav-link' }}" 
+                        class="{{ Request::is('play') || Request::is('users/*') ? 'nav-link active' : 'nav-link' }}"
                         >
                         <i class="nav-icon fas fa-video"></i>
                         <p>
@@ -88,8 +88,32 @@
                         </p>
                     </a>
                 </li>
-                
-             
+
+                <li class="nav-item">
+                    <a
+                    href="{{ route('roles.index') }}"
+                        class="{{ Request::is('roles') || Request::is('roles/*') ? 'nav-link active' : 'nav-link' }}"
+                        >
+                        <i class="nav-icon fas fa-user-shield"></i>
+                        <p>
+                            Roles
+                        </p>
+                    </a>
+                </li>
+
+                {{-- <li class="nav-item">
+                    <a
+                    href="{{ route('permissions.index') }}"
+                        class="{{ Request::is('permissions') || Request::is('permissions/*') ? 'nav-link active' : 'nav-link' }}"
+                        >
+                        <i class="nav-icon fas fa-key"></i>
+                        <p>
+                            Permissions
+                        </p>
+                    </a>
+                </li> --}}
+
+
                 {{-- <li class="nav-item">
                     <a
                     href="{{ route('withdraw.index') }}"

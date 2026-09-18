@@ -991,11 +991,7 @@ class BroadCastScoreController extends Controller
     {
         $user = auth()->user();
 
-        if ($user->role !== 'assistant_coach') {
-            return response()->json(['message' => 'Forbidden'], 403);
-        }
-
-        $headCoachId = $user->head_coach_id;
+        $headCoachId = $user->role === 'head_coach' ? $user->id : $user->head_coach_id;
         if (!$headCoachId) {
             return response()->json(['message' => 'Head coach is not linked to this assistant.'], 422);
         }
