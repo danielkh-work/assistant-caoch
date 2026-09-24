@@ -303,6 +303,7 @@ Route::middleware(['auth:sanctum', 'ensure.active'])->group(function () {
             Route::put('/{match}/', [MatchController::class, 'update'])->middleware('permission:game.edit');
             Route::prefix('/{match}/logs')->group(function () {
                 Route::get('/', [LogController::class, 'index'])->middleware('permission:game.view');
+                Route::patch('/{log}/players', [LogController::class, 'updatePlayers'])->middleware('permission:game.edit');
             });
         });
     });
