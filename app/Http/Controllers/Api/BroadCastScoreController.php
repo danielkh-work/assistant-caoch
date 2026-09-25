@@ -851,6 +851,8 @@ class BroadCastScoreController extends Controller
             $practiceValues
         );
 
+        $this->logAutoScoreboardEvents($request, $existingPractice, $practiceValues);
+
         $this->completeSessionOnEndMatch($coachGroupId, $action, $request, 'practice', $existingPractice);
 
         // Add team names to scores from request
@@ -1199,9 +1201,219 @@ class BroadCastScoreController extends Controller
 
          broadcast(new PlaySuggested($payload, $coachGroupId, $leagueId))->toOthers();
 
+        $this->logPlayRunEvent($request, $user, $coachGroupId, $leagueId);
 
     }
 
+    /**
+     * The frontend used to hit a dedicated /add-play-game-log request right
+     * before this broadcast, purely to write the 'play run' PlayGameLog row -
+     * a second request for data this call already carries. This endpoint is
+     * the one genuinely necessary request here (the QB device must be told
+     * in real time that a play just ran); the log row is now written as a
+     * side effect of it instead, the same pattern used for scoreboard
+     * broadcasts in logAutoScoreboardEvents().
+     */
+    private function logPlayRunEvent(Request $request, $user, $coachGroupId, $leagueId): void
+    {
+        try {
+            $gameId = $request->input('game_id');
+            if (!$gameId) {
+                $hcId = $user->role === 'head_coach' ? $user->id : $user->head_coach_id;
+                $isPractice = filter_var($request->input('is_practice', false), FILTER_VALIDATE_BOOLEAN);
+                $mode = $isPractice ? 'practice' : 'play';
+                $activeGame = \App\Models\PlayGameMode::where('user_id', $hcId)
+                    ->where('game_mode', $mode)
+                    ->where('status', 2)
+                    ->latest('updated_at')
+                    ->first();
+                $gameId = $activeGame?->id;
+            }
+            if (!$gameId) {
+                return;
+            }
+
+            $isPractice = filter_var($request->input('is_practice', false), FILTER_VALIDATE_BOOLEAN);
+
+            $log = new \App\Models\PlayGameLog();
+            $log->game_id = $gameId;
+            $log->sport_id = $user->sport_id;
+            $log->league_id = $request->input('league_id') ?? $leagueId;
+            $log->confirmed = false;
+            $log->my_team_id = $request->input('my_team_id');
+            $log->oponent_team_id = $request->input('oponent_team_id');
+            $log->quater = $request->input('quater');
+            $log->play_id = $request->input('play_id');
+            $log->downs = $request->input('downs');
+            $log->note = $request->input('note');
+            $log->weather_status = $request->input('weather_status');
+            $log->current_position = $request->input('current_position');
+            $log->target = $request->input('target');
+            $log->my_points = $request->input('my_points');
+            $log->oponent_points = $request->input('oponent_points');
+            $log->time = (string) $request->input('time', '');
+            $log->reasons = '';
+            $log->type_of_log = 'play run';
+            $log->actor_id = $user->id;
+            $log->actor_role = $user->role;
+            $log->actor_name = $user->name;
+            $log->save();
+
+            if (!$coachGroupId) {
+                return;
+            }
+
+            $log->load('myTeam', 'opponentTeam');
+            if ($log->target == $log->my_team_id) {
+                $targetData = $log->myTeam;
+            } elseif ($log->target == $log->oponent_team_id) {
+                $targetData = $log->opponentTeam;
+            } else {
+                $targetData = null;
+            }
+
+            $logData = [
+                'id'               => $log->id,
+                'players'          => $isPractice ? $log->practice_players : $log->players,
+                'weather_status'   => $log->weather_status,
+                'play_yardage_gain'=> $log->play_yardage_gain,
+                'quater'           => $log->quater,
+                'time'             => $log->time,
+                'current_position' => $log->current_position,
+                'my_points'        => $log->my_points,
+                'target'           => $log->target,
+                'oponent_points'   => $log->oponent_points,
+                'downs'            => $log->downs,
+                'my_team'          => $log->myTeam,
+                'opponent_team'    => $log->opponentTeam,
+                'targetdata'       => $targetData,
+                'play'             => $log->target_team,
+                'type_of_log'      => $log->type_of_log,
+                'reasons'          => $log->reasons,
+                'confirmed'        => $log->confirmed,
+                'actor_id'         => $log->actor_id,
+                'actor_role'       => $log->actor_role,
+                'actor_name'       => $log->actor_name,
+                'players_out'      => $log->players_out,
+                'players_in'       => $log->players_in,
+            ];
+
+            $game = \App\Models\PlayGameMode::find($gameId);
+            $deviceId = $game?->device_id;
+
+            broadcast(new \App\Events\MatchLogCreated($logData, (int) $coachGroupId, (int) $gameId, $deviceId));
+        } catch (\Throwable $e) {
+            \Log::error('logPlayRunEvent (via scoreBoardBroadCastPlay) failed: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * The frontend used to fire a second request per state change (down,
+     * strategy, quarter, target/possession, expected yardage gain, hash-mark,
+     * score adjustment) purely to write a PlayGameLog row alongside the
+     * scoreboard broadcast it was already sending for that same change -
+     * doubling the request count during a live, time-sensitive match. Every
+     * field this diffs against is already in $scoreboardValues (the fully
+     * resolved values this same request is about to persist), so the log
+     * row is written here instead: one request now covers both.
+     *
+     * $existingScoreboard is the row as it was *before* this request's
+     * updateOrCreate - already fetched earlier in the calling method, so
+     * this costs no extra query. Compares against $scoreboardValues (not
+     * raw $request input) because several fields get resolved/overridden by
+     * the calling method's own helpers (e.g. a fresh Start clears down)
+     * before they're persisted.
+     */
+    private function logAutoScoreboardEvents(Request $request, $existingScoreboard, array $scoreboardValues): void
+    {
+        try {
+            $gameId = $request->game_id;
+            if (!$gameId) {
+                return;
+            }
+
+            $changed = fn ($old, $new) => $new !== null && (string) $old !== (string) $new;
+
+            $changes = [];
+            if ($changed($existingScoreboard?->down, $scoreboardValues['down'] ?? null)) {
+                $changes[] = 'down';
+            }
+            if ($changed($existingScoreboard?->strategies, $scoreboardValues['strategies'] ?? null)) {
+                $changes[] = 'strategy ' . $scoreboardValues['strategies'];
+            }
+            if ($changed($existingScoreboard?->quarter, $scoreboardValues['quarter'] ?? null)) {
+                $changes[] = 'quarter';
+            }
+            if ($changed($existingScoreboard?->possession, $scoreboardValues['possession'] ?? null)) {
+                $changes[] = 'target';
+            }
+            if ($changed($existingScoreboard?->h_mark_position, $scoreboardValues['h_mark_position'] ?? null)) {
+                $changes[] = 'HashMark ' . $scoreboardValues['h_mark_position'];
+            }
+            if ($changed($existingScoreboard?->expected_yard_gain, $scoreboardValues['expected_yard_gain'] ?? null)) {
+                $changes[] = (string) $scoreboardValues['expected_yard_gain'];
+            }
+            if ($changed($existingScoreboard?->position_number, $scoreboardValues['position_number'] ?? null)) {
+                $changes[] = 'PositionNumber';
+            }
+            // Start has no single field diff of its own (quarter/down going from
+            // stale/empty to fresh initial values is what the diffs above already
+            // catch) - the old frontend logged it as an explicit marker regardless,
+            // so match that rather than silently dropping the match-start log.
+            if ($request->input('action') === 'Start') {
+                $changes[] = 'start';
+            }
+
+            $oldLeft = $existingScoreboard?->left_score;
+            $oldRight = $existingScoreboard?->right_score;
+            $newLeft = $scoreboardValues['left_score'] ?? null;
+            $newRight = $scoreboardValues['right_score'] ?? null;
+            if ((string) $oldLeft !== (string) $newLeft || (string) $oldRight !== (string) $newRight) {
+                // actionType (TD/SAFETY/FIELD GOAL/...) has no equivalent in any
+                // other field on this request - can't be derived from the score
+                // delta alone (a +2 could be SAFETY or PAT2). The frontend sends
+                // it as one extra field on the same broadcast call it was already
+                // making for the score change, not a new request.
+                $team = ((string) $oldLeft !== (string) $newLeft) ? 'left' : 'right';
+                $actionType = $request->input('actionType', 'UNKNOWN');
+                $operation = $request->input('operation', 'add');
+                $changes[] = "{$team}{$actionType}{$operation}";
+            }
+
+            if (empty($changes)) {
+                return;
+            }
+
+            $user = auth()->user();
+            $game = \App\Models\Game::find($gameId);
+
+            foreach ($changes as $typeOfLog) {
+                $log = new \App\Models\PlayGameLog();
+                $log->game_id = $gameId;
+                $log->sport_id = $user?->sport_id;
+                $log->league_id = $scoreboardValues['league_id'] ?? $request->league_id;
+                $log->player_id = 1;
+                $log->weather_status = $scoreboardValues['weather'] ?? null;
+                $log->my_team_id = $game?->my_team_id;
+                $log->oponent_team_id = $game?->oponent_team_id;
+                $log->quater = $scoreboardValues['quarter'] ?? null;
+                $log->downs = $scoreboardValues['down'] ?? null;
+                $log->current_position = $scoreboardValues['position_number'] ?? null;
+                $log->target = $scoreboardValues['possession'] ?? null;
+                $log->my_points = $scoreboardValues['right_score'] ?? null;
+                $log->oponent_points = $scoreboardValues['left_score'] ?? null;
+                $log->time = (string) ($scoreboardValues['timer_remaining'] ?? $request->time ?? '');
+                $log->type_of_log = $typeOfLog;
+                $log->reasons = '';
+                $log->actor_id = $user?->id;
+                $log->actor_role = $user?->role;
+                $log->actor_name = $user?->name;
+                $log->save();
+            }
+        } catch (\Throwable $e) {
+            \Log::error('Auto-log from scoreboard broadcast failed: ' . $e->getMessage());
+        }
+    }
 
     public function scoreBoardBroadCast(Request $request)
     {
@@ -1351,6 +1563,8 @@ class BroadCastScoreController extends Controller
             ],
             $scoreboardValues
         );
+
+        $this->logAutoScoreboardEvents($request, $existingScoreboard, $scoreboardValues);
 
         $this->completeSessionOnEndMatch($coachGroupId, $action, $request, 'play', $existingScoreboard);
 
