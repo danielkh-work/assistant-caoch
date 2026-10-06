@@ -36,7 +36,13 @@ class Play extends Model
     {
         return $this->hasMany(PlayResult::class);
     }
-   
+
+    /** Rows in league_play_overrides where THIS play is the global original being hidden/customized. */
+    public function overrides()
+    {
+        return $this->hasMany(LeaguePlayOverride::class, 'global_play_id');
+    }
+
     public function roles()
     {
         return $this->morphToMany(Role::class, 'roleable');
