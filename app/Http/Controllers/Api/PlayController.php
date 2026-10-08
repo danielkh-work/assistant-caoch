@@ -263,6 +263,7 @@ class PlayController extends Controller
             $play->offensive_play_type = $request->playType;
             $play->play_name = $request->play_name;
             $play->league_id = $request->league_id;
+            $play->created_by_user_id = auth()->id();
             $play->play_type = $request->play_type;
             $play->quarter = $request->quarter;
             $play->zone_selection = $request->zone_selection;

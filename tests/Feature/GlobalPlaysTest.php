@@ -159,4 +159,31 @@ class GlobalPlaysTest extends TestCase
         $names = collect($response->json('data'))->pluck('play_name');
         $this->assertFalse($names->contains('Belongs To League B'));
     }
+
+    /** @test */
+    public function assistant_coach_created_play_is_visible_to_head_coach_and_sibling_assistant()
+    {
+        $hc = User::factory()->create(['role' => 'head_coach', 'status' => 'approved']);
+        $this->givePlayPermissions($hc);
+        $league = $this->makeLeague($hc);
+        $ac1 = User::factory()->create(['role' => 'assistant_coach', 'head_coach_id' => $hc->id, 'status' => 'approved']);
+        $ac2 = User::factory()->create(['role' => 'assistant_coach', 'head_coach_id' => $hc->id, 'status' => 'approved']);
+        $this->givePlayPermissions($ac1);
+        $this->givePlayPermissions($ac2);
+
+        Storage::fake('public');
+        Sanctum::actingAs($ac1);
+        $this->postJson('/api/uplaod-play', $this->basePlayPayload($league->id, 'AC Created Play'))
+            ->assertStatus(200);
+
+        $created = \App\Models\Play::where('play_name', 'AC Created Play')->first();
+        $this->assertEquals($ac1->id, $created->created_by_user_id);
+
+        foreach ([$hc, $ac2] as $viewer) {
+            Sanctum::actingAs($viewer);
+            $response = $this->getJson('/api/upload-play-list?league_id=' . $league->id);
+            $names = collect($response->json('data'))->pluck('play_name');
+            $this->assertTrue($names->contains('AC Created Play'));
+        }
+    }
 }
