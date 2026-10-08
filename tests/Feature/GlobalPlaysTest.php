@@ -1,0 +1,105 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\League;
+use App\Models\Play;
+use App\Models\User;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Laravel\Sanctum\Sanctum;
+use Tests\TestCase;
+
+class GlobalPlaysTest extends TestCase
+{
+    use DatabaseTransactions;
+
+    protected function givePlayPermissions(User $user): void
+    {
+        $user->syncPermissions(['play.view', 'play.create', 'play.edit']);
+        if ($user->role === 'head_coach') {
+            $user->givePermissionTo('play.delete');
+        }
+    }
+
+    protected function makeLeague(User $owner): League
+    {
+        $sportId = DB::table('sports')->insertGetId(['title' => 'Test Sport']);
+        $league = new League();
+        $league->user_id = $owner->id;
+        $league->sport_id = $sportId;
+        $league->league_rule_id = DB::table('league_rules')->value('id') ?? 1;
+        $league->title = 'Global Plays Test League';
+        $league->number_of_team = 2;
+        $league->save();
+        return $league;
+    }
+
+    protected function basePlayPayload(int $leagueId, string $name): array
+    {
+        return [
+            'play_name' => $name,
+            'playType' => 'Pass',
+            'league_id' => $leagueId,
+            'play_type' => 1,
+            'zone_selection' => 1,
+            'min_expected_yard' => '0',
+            'max_expected_yard' => '0',
+            'target_offensive' => 1,
+            'opposing_defensive' => 1,
+            'pre_snap_motion' => 1,
+            'play_action_fake' => 1,
+            'possession' => 'offensive',
+            'hmark_left' => UploadedFile::fake()->image('play-left.jpg'),
+            'hmark_center' => UploadedFile::fake()->image('play-center.jpg'),
+            'hmark_right' => UploadedFile::fake()->image('play-right.jpg'),
+        ];
+    }
+
+    protected function makeGlobalPlay(string $name): Play
+    {
+        return Play::create(array_merge($this->playColumns($name), [
+            'league_id' => null, 'is_global' => true, 'created_by' => 'admin',
+        ]));
+    }
+
+    protected function makeLeaguePlay(int $leagueId, string $name, ?int $createdByUserId = null): Play
+    {
+        return Play::create(array_merge($this->playColumns($name), [
+            'league_id' => $leagueId, 'is_global' => false, 'created_by_user_id' => $createdByUserId,
+        ]));
+    }
+
+    private function playColumns(string $name): array
+    {
+        return [
+            'play_name' => $name, 'play_type' => 1, 'zone_selection' => 1,
+            'min_expected_yard' => '0', 'max_expected_yard' => '0',
+            'pre_snap_motion' => 1, 'play_action_fake' => 1,
+            'possession' => 'offensive', 'video_path' => '',
+        ];
+    }
+
+    /** @test */
+    public function scaffolding_helpers_work()
+    {
+        $hc = User::factory()->create(['role' => 'head_coach', 'status' => 'approved']);
+        $this->givePlayPermissions($hc);
+        $league = $this->makeLeague($hc);
+        $global = $this->makeGlobalPlay('Scaffold Global');
+        $owned = $this->makeLeaguePlay($league->id, 'Scaffold Owned');
+
+        $this->assertTrue($global->is_global);
+        $this->assertNull($global->league_id);
+        $this->assertFalse($owned->is_global);
+        $this->assertSame($league->id, $owned->league_id);
+        $this->assertTrue($hc->can('play.delete'));
+
+        Storage::fake('public');
+        Sanctum::actingAs($hc);
+        $response = $this->postJson('/api/uplaod-play', $this->basePlayPayload($league->id, 'Scaffold Via API'));
+        $response->assertStatus(200);
+    }
+}
