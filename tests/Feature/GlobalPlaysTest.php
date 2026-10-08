@@ -348,4 +348,159 @@ class GlobalPlaysTest extends TestCase
         $this->assertSame((int) $leagueA->id, (int) $playInA->league_id);
         $this->assertSame('Renamed But Not Moved', $playInA->play_name); // the edit itself still applies
     }
+
+    /** @test */
+    public function head_coach_deleting_a_global_play_only_hides_it_for_their_league()
+    {
+        $hc = User::factory()->create(['role' => 'head_coach', 'status' => 'approved']);
+        $this->givePlayPermissions($hc);
+        $league = $this->makeLeague($hc);
+        $global = $this->makeGlobalPlay('Shared Dive');
+
+        Sanctum::actingAs($hc);
+        $response = $this->getJson('/api/delete-play/' . $global->id . '?league_id=' . $league->id);
+
+        $response->assertStatus(200);
+        $this->assertNotNull(Play::find($global->id)); // never actually deleted
+        $this->assertDatabaseHas('league_play_overrides', [
+            'league_id' => $league->id, 'global_play_id' => $global->id, 'status' => 'hidden',
+        ]);
+    }
+
+    /** @test */
+    public function hiding_a_global_play_does_not_affect_a_different_head_coach()
+    {
+        $hcA = User::factory()->create(['role' => 'head_coach', 'status' => 'approved']);
+        $hcB = User::factory()->create(['role' => 'head_coach', 'status' => 'approved']);
+        $this->givePlayPermissions($hcA);
+        $this->givePlayPermissions($hcB);
+        $leagueA = $this->makeLeague($hcA);
+        $leagueB = $this->makeLeague($hcB);
+        $global = $this->makeGlobalPlay('Shared Across Two HCs');
+
+        Sanctum::actingAs($hcA);
+        $this->getJson('/api/delete-play/' . $global->id . '?league_id=' . $leagueA->id)->assertStatus(200);
+
+        Sanctum::actingAs($hcB);
+        $response = $this->getJson('/api/upload-play-list?league_id=' . $leagueB->id);
+        $names = collect($response->json('data'))->pluck('play_name');
+        $this->assertTrue($names->contains('Shared Across Two HCs'));
+    }
+
+    /** @test */
+    public function assistant_coach_cannot_delete_any_play_including_their_own()
+    {
+        $hc = User::factory()->create(['role' => 'head_coach', 'status' => 'approved']);
+        $ac = User::factory()->create(['role' => 'assistant_coach', 'head_coach_id' => $hc->id, 'status' => 'approved']);
+        $this->givePlayPermissions($ac);
+        $league = $this->makeLeague($hc);
+        $ownPlay = $this->makeLeaguePlay($league->id, 'AC Own Play', $ac->id);
+
+        Sanctum::actingAs($ac);
+        $response = $this->getJson('/api/delete-play/' . $ownPlay->id . '?league_id=' . $league->id);
+
+        $response->assertStatus(403);
+        $this->assertNotNull(Play::find($ownPlay->id));
+    }
+
+    /** @test */
+    public function head_coach_cannot_delete_another_leagues_play_by_id()
+    {
+        $hcA = User::factory()->create(['role' => 'head_coach', 'status' => 'approved']);
+        $hcB = User::factory()->create(['role' => 'head_coach', 'status' => 'approved']);
+        $this->givePlayPermissions($hcA);
+        $leagueB = $this->makeLeague($hcB);
+        $playInB = $this->makeLeaguePlay($leagueB->id, 'League B Only');
+
+        Sanctum::actingAs($hcA);
+        $response = $this->getJson('/api/delete-play/' . $playInB->id . '?league_id=' . $leagueB->id);
+
+        $response->assertStatus(403);
+        $this->assertNotNull(Play::find($playInB->id));
+    }
+
+    /** @test */
+    public function head_coach_can_restore_a_hidden_global_play()
+    {
+        $hc = User::factory()->create(['role' => 'head_coach', 'status' => 'approved']);
+        $this->givePlayPermissions($hc);
+        $league = $this->makeLeague($hc);
+        $global = $this->makeGlobalPlay('Restorable Play');
+        \App\Models\LeaguePlayOverride::create([
+            'league_id' => $league->id, 'global_play_id' => $global->id, 'status' => 'hidden',
+        ]);
+
+        Sanctum::actingAs($hc);
+        $response = $this->postJson('/api/restore-global-play/' . $global->id, ['league_id' => $league->id]);
+
+        $response->assertStatus(200);
+        $this->assertDatabaseMissing('league_play_overrides', [
+            'league_id' => $league->id, 'global_play_id' => $global->id,
+        ]);
+
+        $listResponse = $this->getJson('/api/upload-play-list?league_id=' . $league->id);
+        $names = collect($listResponse->json('data'))->pluck('play_name');
+        $this->assertTrue($names->contains('Restorable Play'));
+    }
+
+    /** @test */
+    public function assistant_coach_cannot_restore_a_hidden_global_play()
+    {
+        $hc = User::factory()->create(['role' => 'head_coach', 'status' => 'approved']);
+        $ac = User::factory()->create(['role' => 'assistant_coach', 'head_coach_id' => $hc->id, 'status' => 'approved']);
+        $this->givePlayPermissions($ac);
+        $league = $this->makeLeague($hc);
+        $global = $this->makeGlobalPlay('Stays Hidden');
+        \App\Models\LeaguePlayOverride::create([
+            'league_id' => $league->id, 'global_play_id' => $global->id, 'status' => 'hidden',
+        ]);
+
+        Sanctum::actingAs($ac);
+        $response = $this->postJson('/api/restore-global-play/' . $global->id, ['league_id' => $league->id]);
+
+        $response->assertStatus(403);
+        $this->assertDatabaseHas('league_play_overrides', [
+            'league_id' => $league->id, 'global_play_id' => $global->id, 'status' => 'hidden',
+        ]);
+    }
+
+    /** @test */
+    public function hidden_global_plays_endpoint_lists_what_this_league_has_hidden()
+    {
+        $hc = User::factory()->create(['role' => 'head_coach', 'status' => 'approved']);
+        $this->givePlayPermissions($hc);
+        $league = $this->makeLeague($hc);
+        $global = $this->makeGlobalPlay('Hidden One');
+        \App\Models\LeaguePlayOverride::create([
+            'league_id' => $league->id, 'global_play_id' => $global->id, 'status' => 'hidden',
+        ]);
+
+        Sanctum::actingAs($hc);
+        $response = $this->getJson('/api/hidden-global-plays?league_id=' . $league->id);
+
+        $response->assertStatus(200);
+        $names = collect($response->json('data'))->pluck('play_name');
+        $this->assertTrue($names->contains('Hidden One'));
+    }
+
+    /** @test */
+    public function head_coach_cannot_restore_a_global_play_for_a_league_they_do_not_act_in()
+    {
+        $hcA = User::factory()->create(['role' => 'head_coach', 'status' => 'approved']);
+        $hcB = User::factory()->create(['role' => 'head_coach', 'status' => 'approved']);
+        $this->givePlayPermissions($hcA);
+        $leagueB = $this->makeLeague($hcB);
+        $global = $this->makeGlobalPlay('Cross League Restore Target');
+        \App\Models\LeaguePlayOverride::create([
+            'league_id' => $leagueB->id, 'global_play_id' => $global->id, 'status' => 'hidden',
+        ]);
+
+        Sanctum::actingAs($hcA);
+        $response = $this->postJson('/api/restore-global-play/' . $global->id, ['league_id' => $leagueB->id]);
+
+        $response->assertStatus(403);
+        $this->assertDatabaseHas('league_play_overrides', [
+            'league_id' => $leagueB->id, 'global_play_id' => $global->id, 'status' => 'hidden',
+        ]);
+    }
 }

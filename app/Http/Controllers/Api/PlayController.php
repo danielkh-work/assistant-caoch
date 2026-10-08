@@ -594,12 +594,68 @@ class PlayController extends Controller
 
     }
 
-    public function delete(Request $request)
+    public function delete(Request $request, $id)
     {
-        $play = Play::find($request->id);
-        if ($play)
-            $play->delete();
-        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play Delete Successfully ");
+        $play = Play::findOrFail($id);
+        $user = auth()->user();
+        $authz = app(\App\Services\PlayAuthorizationService::class);
+
+        $leagueId = $play->is_global ? (int) $request->league_id : (int) $play->league_id;
+
+        if ($play->is_global && !$leagueId) {
+            return response()->json(['message' => 'league_id is required to hide a Global Play.'], 422);
+        }
+
+        if (!$authz->canDelete($user, $play, $leagueId ?: null)) {
+            return response()->json(['message' => 'You are not allowed to delete this play.'], 403);
+        }
+
+        if ($play->is_global) {
+            \App\Models\LeaguePlayOverride::updateOrCreate(
+                ['league_id' => $leagueId, 'global_play_id' => $play->id],
+                ['status' => 'hidden', 'customized_play_id' => null, 'created_by_user_id' => $user->id],
+            );
+            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Play removed from this league\'s playbook');
+        }
+
+        $play->delete();
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Play Delete Successfully ');
+    }
+
+    public function restore(Request $request, $id)
+    {
+        $play = Play::findOrFail($id);
+        $user = auth()->user();
+        $leagueId = (int) $request->league_id;
+        $authz = app(\App\Services\PlayAuthorizationService::class);
+
+        if (!$play->is_global || !$leagueId || !$authz->canRestore($user, $leagueId)) {
+            return response()->json(['message' => 'You are not allowed to restore this play.'], 403);
+        }
+
+        \App\Models\LeaguePlayOverride::where([
+            'league_id' => $leagueId, 'global_play_id' => $play->id, 'status' => 'hidden',
+        ])->delete();
+
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Play restored to this league\'s playbook');
+    }
+
+    public function hiddenGlobalPlays(Request $request)
+    {
+        $user = auth()->user();
+        $leagueId = (int) $request->league_id;
+        $authz = app(\App\Services\PlayAuthorizationService::class);
+
+        if (!$leagueId || !$authz->userCanActInLeague($user, $leagueId)) {
+            return response()->json(['message' => 'You are not allowed to view this league.'], 403);
+        }
+
+        $hiddenIds = \App\Models\LeaguePlayOverride::where(['league_id' => $leagueId, 'status' => 'hidden'])
+            ->pluck('global_play_id');
+
+        $plays = Play::whereIn('id', $hiddenIds)->get();
+
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Hidden global plays', $plays);
     }
 
      public function getOffensivePositions()
