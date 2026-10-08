@@ -186,4 +186,166 @@ class GlobalPlaysTest extends TestCase
             $this->assertTrue($names->contains('AC Created Play'));
         }
     }
+
+    /** @test */
+    public function head_coach_editing_a_global_play_clones_it_and_leaves_the_original_untouched()
+    {
+        $hc = User::factory()->create(['role' => 'head_coach', 'status' => 'approved']);
+        $this->givePlayPermissions($hc);
+        $league = $this->makeLeague($hc);
+        $global = $this->makeGlobalPlay('Original Sweep');
+
+        Storage::fake('public');
+        Sanctum::actingAs($hc);
+        $response = $this->postJson('/api/update-play/' . $global->id, $this->basePlayPayload($league->id, 'My Customized Sweep'));
+
+        $response->assertStatus(200);
+
+        $global->refresh();
+        $this->assertSame('Original Sweep', $global->play_name); // untouched
+
+        $override = \App\Models\LeaguePlayOverride::where([
+            'league_id' => $league->id, 'global_play_id' => $global->id,
+        ])->first();
+        $this->assertNotNull($override);
+        $this->assertSame('customized', $override->status);
+
+        $clone = Play::find($override->customized_play_id);
+        $this->assertSame('My Customized Sweep', $clone->play_name);
+        $this->assertSame($league->id, $clone->league_id);
+        $this->assertFalse((bool) $clone->is_global);
+    }
+
+    /** @test */
+    public function assistant_coach_cannot_edit_a_global_play_via_the_endpoint()
+    {
+        $hc = User::factory()->create(['role' => 'head_coach', 'status' => 'approved']);
+        $ac = User::factory()->create(['role' => 'assistant_coach', 'head_coach_id' => $hc->id, 'status' => 'approved']);
+        $this->givePlayPermissions($ac);
+        $league = $this->makeLeague($hc);
+        $global = $this->makeGlobalPlay('Protected Global');
+
+        Storage::fake('public');
+        Sanctum::actingAs($ac);
+        $response = $this->postJson('/api/update-play/' . $global->id, $this->basePlayPayload($league->id, 'Hacked Name'));
+
+        $response->assertStatus(403);
+        $global->refresh();
+        $this->assertSame('Protected Global', $global->play_name);
+    }
+
+    /** @test */
+    public function head_coach_cannot_edit_another_leagues_play_by_id()
+    {
+        $hcA = User::factory()->create(['role' => 'head_coach', 'status' => 'approved']);
+        $hcB = User::factory()->create(['role' => 'head_coach', 'status' => 'approved']);
+        $this->givePlayPermissions($hcA);
+        $leagueB = $this->makeLeague($hcB);
+        $playInB = $this->makeLeaguePlay($leagueB->id, 'League B Play');
+
+        Storage::fake('public');
+        Sanctum::actingAs($hcA);
+        $response = $this->postJson('/api/update-play/' . $playInB->id, $this->basePlayPayload($leagueB->id, 'Stolen'));
+
+        $response->assertStatus(403);
+        $playInB->refresh();
+        $this->assertSame('League B Play', $playInB->play_name);
+    }
+
+    /** @test */
+    public function editing_the_same_global_play_twice_from_the_same_league_reuses_the_clone()
+    {
+        $hc = User::factory()->create(['role' => 'head_coach', 'status' => 'approved']);
+        $this->givePlayPermissions($hc);
+        $league = $this->makeLeague($hc);
+        $global = $this->makeGlobalPlay('Reusable Global');
+
+        Storage::fake('public');
+        Sanctum::actingAs($hc);
+        $this->postJson('/api/update-play/' . $global->id, $this->basePlayPayload($league->id, 'First Edit'))
+            ->assertStatus(200);
+        $firstOverride = \App\Models\LeaguePlayOverride::where([
+            'league_id' => $league->id, 'global_play_id' => $global->id,
+        ])->first();
+        $firstCloneId = $firstOverride->customized_play_id;
+
+        $this->postJson('/api/update-play/' . $firstCloneId, $this->basePlayPayload($league->id, 'Second Edit'))
+            ->assertStatus(200);
+
+        $this->assertSame(1, \App\Models\LeaguePlayOverride::where([
+            'league_id' => $league->id, 'global_play_id' => $global->id,
+        ])->count());
+        $clone = Play::find($firstCloneId);
+        $this->assertSame('Second Edit', $clone->play_name);
+    }
+
+    /** @test */
+    public function customizing_a_global_play_with_a_hmark_image_does_not_delete_the_original_global_images()
+    {
+        // uploadImage() (app/Helpers/GeneralHelper.php) decides whether to replace
+        // an "old" hmark file by checking File::exists(public_path($oldPath)) and,
+        // if so, File::delete()'ing it - a real filesystem path reached via the
+        // File facade, not the Storage disk abstraction. Storage::fake('public')
+        // (used elsewhere in this file to stop leaking real upload files) does NOT
+        // intercept this path, so proving the deletion-avoidance guard actually
+        // works requires planting a real file at the exact path uploadImage()
+        // checks, then confirming it survives the clone-creation edit.
+        $originalPath = public_path('uploads/public/original-' . uniqid() . '.jpg');
+        \Illuminate\Support\Facades\File::ensureDirectoryExists(dirname($originalPath));
+        \Illuminate\Support\Facades\File::put($originalPath, 'fake-image-bytes');
+        $relativeOriginalPath = 'uploads/public/' . basename($originalPath);
+
+        try {
+            $hc = User::factory()->create(['role' => 'head_coach', 'status' => 'approved']);
+            $this->givePlayPermissions($hc);
+            $league = $this->makeLeague($hc);
+
+            $global = $this->makeGlobalPlay('Imaged Global');
+            $global->hmark_left = $relativeOriginalPath;
+            $global->hmark_center = $relativeOriginalPath;
+            $global->hmark_right = $relativeOriginalPath;
+            $global->save();
+
+            Storage::fake('public');
+            Sanctum::actingAs($hc);
+            // basePlayPayload() already attaches fresh fake hmark_left/center/right
+            // uploads, which is exactly what triggers the old-path delete check.
+            $response = $this->postJson('/api/update-play/' . $global->id, $this->basePlayPayload($league->id, 'Customized With New Image'));
+
+            $response->assertStatus(200);
+
+            // The original Global Play row and its backing file must be completely untouched.
+            $global->refresh();
+            $this->assertSame($relativeOriginalPath, $global->hmark_left);
+            $this->assertTrue(\Illuminate\Support\Facades\File::exists($originalPath));
+
+            // The clone got its own new image, not the shared original path.
+            $override = \App\Models\LeaguePlayOverride::where([
+                'league_id' => $league->id, 'global_play_id' => $global->id,
+            ])->first();
+            $clone = Play::find($override->customized_play_id);
+            $this->assertNotSame($relativeOriginalPath, $clone->hmark_left);
+        } finally {
+            \Illuminate\Support\Facades\File::delete($originalPath);
+        }
+    }
+
+    /** @test */
+    public function editing_a_play_cannot_migrate_it_to_a_different_league_the_coach_also_owns()
+    {
+        $hc = User::factory()->create(['role' => 'head_coach', 'status' => 'approved']);
+        $this->givePlayPermissions($hc);
+        $leagueA = $this->makeLeague($hc);
+        $leagueB = $this->makeLeague($hc);
+        $playInA = $this->makeLeaguePlay($leagueA->id, 'Stays In A');
+
+        Storage::fake('public');
+        Sanctum::actingAs($hc);
+        $response = $this->postJson('/api/update-play/' . $playInA->id, $this->basePlayPayload($leagueB->id, 'Renamed But Not Moved'));
+
+        $response->assertStatus(200);
+        $playInA->refresh();
+        $this->assertSame((int) $leagueA->id, (int) $playInA->league_id);
+        $this->assertSame('Renamed But Not Moved', $playInA->play_name); // the edit itself still applies
+    }
 }
