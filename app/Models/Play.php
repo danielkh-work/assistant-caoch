@@ -9,6 +9,24 @@ use Illuminate\Database\Eloquent\Model;
 class Play extends Model
 {
     use HasFactory;
+
+    /**
+     * Mass-assignable attributes - needed for Play::create([...]) call sites
+     * (e.g. PlayAuthorizationServiceTest, and Tasks 5-8's test fixtures).
+     * Historically this model was only ever populated via
+     * `new Play(); $play->field = ...; $play->save();` (see PlayController),
+     * so no $fillable/$guarded was ever declared; listing the specific
+     * columns here is additive and doesn't change any existing create/update
+     * behavior - nothing in the codebase used Play::create() before this.
+     */
+    protected $fillable = [
+        'league_id', 'is_global', 'created_by', 'created_by_user_id',
+        'play_name', 'play_type', 'zone_selection',
+        'min_expected_yard', 'max_expected_yard',
+        'pre_snap_motion', 'play_action_fake',
+        'possession', 'video_path',
+    ];
+
     public function configuredLeagues()
     {
         return $this->belongsToMany(League::class, 'configure_plays', 'play_id', 'league_id');
