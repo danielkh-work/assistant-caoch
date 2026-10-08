@@ -611,12 +611,33 @@ class PlayController extends Controller
         }
 
         if ($play->is_global) {
+            // If this league already customized this global play, the slot's real
+            // in-use row is the clone, not this original (reachable via a stale
+            // cached id) - remove the clone too, so "delete" actually clears what
+            // the league is using, not just hides a copy nobody sees anymore.
+            $existing = \App\Models\LeaguePlayOverride::where([
+                'league_id' => $leagueId, 'global_play_id' => $play->id,
+            ])->first();
+            if ($existing && $existing->status === 'customized' && $existing->customized_play_id) {
+                Play::where('id', $existing->customized_play_id)->delete();
+            }
+
+            // A true simultaneous double-click race (two requests for the same
+            // league+global-play landing at the same instant) could collide on the
+            // table's unique(league_id, global_play_id) constraint and throw instead
+            // of succeeding - same accepted v1 edge case as cloneGlobalPlayForLeague()
+            // in update(). Sequential double-clicks (the realistic case) are fine.
             \App\Models\LeaguePlayOverride::updateOrCreate(
                 ['league_id' => $leagueId, 'global_play_id' => $play->id],
                 ['status' => 'hidden', 'customized_play_id' => null, 'created_by_user_id' => $user->id],
             );
             return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Play removed from this league\'s playbook');
         }
+
+        // If this play IS a customized clone of some Global Play, clear the override
+        // that points at it so the league falls back to seeing the original Global
+        // Play again, instead of being left with a dangling reference to a deleted id.
+        \App\Models\LeaguePlayOverride::where('customized_play_id', $play->id)->delete();
 
         $play->delete();
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Play Delete Successfully ');

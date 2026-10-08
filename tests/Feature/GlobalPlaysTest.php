@@ -503,4 +503,63 @@ class GlobalPlaysTest extends TestCase
             'league_id' => $leagueB->id, 'global_play_id' => $global->id, 'status' => 'hidden',
         ]);
     }
+
+    /** @test */
+    public function deleting_a_global_play_by_its_original_id_after_it_was_customized_also_removes_the_clone()
+    {
+        $hc = User::factory()->create(['role' => 'head_coach', 'status' => 'approved']);
+        $this->givePlayPermissions($hc);
+        $league = $this->makeLeague($hc);
+        $global = $this->makeGlobalPlay('To Be Customized Then Deleted');
+
+        Sanctum::actingAs($hc);
+        $this->postJson('/api/update-play/' . $global->id, $this->basePlayPayload($league->id, 'Customized Version'))
+            ->assertStatus(200);
+        $override = \App\Models\LeaguePlayOverride::where([
+            'league_id' => $league->id, 'global_play_id' => $global->id,
+        ])->first();
+        $cloneId = $override->customized_play_id;
+        $this->assertNotNull(Play::find($cloneId));
+
+        // Delete using the ORIGINAL global play's id, not the clone's.
+        $response = $this->getJson('/api/delete-play/' . $global->id . '?league_id=' . $league->id);
+        $response->assertStatus(200);
+
+        $this->assertNull(Play::find($cloneId)); // the clone is gone, not orphaned
+        $this->assertNotNull(Play::find($global->id)); // the global original is still safe
+        $this->assertDatabaseHas('league_play_overrides', [
+            'league_id' => $league->id, 'global_play_id' => $global->id, 'status' => 'hidden',
+        ]);
+    }
+
+    /** @test */
+    public function deleting_a_customized_clone_directly_restores_access_to_the_original_global_play()
+    {
+        $hc = User::factory()->create(['role' => 'head_coach', 'status' => 'approved']);
+        $this->givePlayPermissions($hc);
+        $league = $this->makeLeague($hc);
+        $global = $this->makeGlobalPlay('Will Be Customized Then Clone Deleted');
+
+        Sanctum::actingAs($hc);
+        $this->postJson('/api/update-play/' . $global->id, $this->basePlayPayload($league->id, 'Customized Version 2'))
+            ->assertStatus(200);
+        $override = \App\Models\LeaguePlayOverride::where([
+            'league_id' => $league->id, 'global_play_id' => $global->id,
+        ])->first();
+        $cloneId = $override->customized_play_id;
+
+        // Delete using the CLONE's own id directly (the normal path once customized).
+        $response = $this->getJson('/api/delete-play/' . $cloneId . '?league_id=' . $league->id);
+        $response->assertStatus(200);
+
+        $this->assertNull(Play::find($cloneId));
+        $this->assertDatabaseMissing('league_play_overrides', [
+            'league_id' => $league->id, 'global_play_id' => $global->id,
+        ]);
+
+        // The global original should be visible to this league again.
+        $listResponse = $this->getJson('/api/upload-play-list?league_id=' . $league->id);
+        $names = collect($listResponse->json('data'))->pluck('play_name');
+        $this->assertTrue($names->contains('Will Be Customized Then Clone Deleted'));
+    }
 }
