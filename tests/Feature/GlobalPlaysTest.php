@@ -102,4 +102,61 @@ class GlobalPlaysTest extends TestCase
         $response = $this->postJson('/api/uplaod-play', $this->basePlayPayload($league->id, 'Scaffold Via API'));
         $response->assertStatus(200);
     }
+
+    /** @test */
+    public function head_coach_sees_global_plays_plus_their_own_league_plays()
+    {
+        $hc = User::factory()->create(['role' => 'head_coach', 'status' => 'approved']);
+        $this->givePlayPermissions($hc);
+        $league = $this->makeLeague($hc);
+
+        $global = $this->makeGlobalPlay('Global Sweep');
+        $own = $this->makeLeaguePlay($league->id, 'My Own Play');
+
+        Sanctum::actingAs($hc);
+        $response = $this->getJson('/api/upload-play-list?league_id=' . $league->id);
+
+        $response->assertStatus(200);
+        $names = collect($response->json('data'))->pluck('play_name');
+        $this->assertTrue($names->contains('Global Sweep'));
+        $this->assertTrue($names->contains('My Own Play'));
+    }
+
+    /** @test */
+    public function hidden_global_play_does_not_appear_for_that_league()
+    {
+        $hc = User::factory()->create(['role' => 'head_coach', 'status' => 'approved']);
+        $this->givePlayPermissions($hc);
+        $league = $this->makeLeague($hc);
+        $global = $this->makeGlobalPlay('Hideable Play');
+
+        \App\Models\LeaguePlayOverride::create([
+            'league_id' => $league->id,
+            'global_play_id' => $global->id,
+            'status' => 'hidden',
+        ]);
+
+        Sanctum::actingAs($hc);
+        $response = $this->getJson('/api/upload-play-list?league_id=' . $league->id);
+
+        $names = collect($response->json('data'))->pluck('play_name');
+        $this->assertFalse($names->contains('Hideable Play'));
+    }
+
+    /** @test */
+    public function a_different_leagues_plays_are_never_shown()
+    {
+        $hcA = User::factory()->create(['role' => 'head_coach', 'status' => 'approved']);
+        $hcB = User::factory()->create(['role' => 'head_coach', 'status' => 'approved']);
+        $this->givePlayPermissions($hcA);
+        $leagueA = $this->makeLeague($hcA);
+        $leagueB = $this->makeLeague($hcB);
+        $this->makeLeaguePlay($leagueB->id, 'Belongs To League B');
+
+        Sanctum::actingAs($hcA);
+        $response = $this->getJson('/api/upload-play-list?league_id=' . $leagueA->id);
+
+        $names = collect($response->json('data'))->pluck('play_name');
+        $this->assertFalse($names->contains('Belongs To League B'));
+    }
 }

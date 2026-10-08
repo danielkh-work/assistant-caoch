@@ -149,16 +149,24 @@ class PlayController extends Controller
     {
 
 
-        $userRoleIds = auth()->user()->roles->pluck('id');
-        $id = ['1', $request->league_id];
+        $leagueId = (int) $request->league_id;
 
         $query = Play::with(['roles', 'playResults', 'offensiveTargets'])
-            ->where(function ($sub) use ($id, $userRoleIds) {
-                $sub->orWhereIn('league_id', $id)
-                    ->orWhereHas('roles', function ($q) use ($userRoleIds) {
-                        $q->whereIn('roleables.role_id', $userRoleIds);
-                    });
+            ->leftJoin('league_play_overrides', function ($join) use ($leagueId) {
+                $join->on('league_play_overrides.global_play_id', '=', 'plays.id')
+                    ->where('league_play_overrides.league_id', '=', $leagueId);
             })
+            ->where(function ($sub) use ($leagueId) {
+                // A Global Play this league has no override row for (not hidden,
+                // not customized - customized ones are already covered by the
+                // branch below, since the clone itself carries this league_id).
+                $sub->where(function ($q) {
+                    $q->where('plays.is_global', true)
+                        ->whereNull('league_play_overrides.id');
+                })
+                ->orWhere('plays.league_id', $leagueId);
+            })
+            ->select('plays.*')
             ->withCount([
                 'playResults as win_result' => function ($q) {
                     $q->where('result', 'win')->where('is_practice', 0);
@@ -184,7 +192,7 @@ class PlayController extends Controller
         if($request->sort == "win_result"){
             $query = $query->orderByDesc('win_result');
         }else{
-            $query = $query->latest();
+            $query = $query->latest('plays.created_at');
         }
 
         $searchTerm = trim((string) $request->input('search', ''));
