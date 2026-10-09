@@ -87,7 +87,13 @@ class PlayController extends Controller
       
             $play = Play::findOrFail($id);
             $play->play_name = $request->play_name;
-            $play->league_id = $request->league_id;
+            if ($request->filled('league_id')) {
+                $play->league_id = $request->league_id;
+                $play->is_global = false;
+            } else {
+                $play->league_id = null;
+                $play->is_global = true;
+            }
             $play->min_expected_yard = $request->min_expected_yard;
             $play->preferred_down = is_array($request->preferred_down)
                 ? implode(',', $request->preferred_down)
@@ -157,10 +163,12 @@ class PlayController extends Controller
         try {
             $play = new Play();
             $play->play_name = $request->play_name;
-            $play->league_id = $request->league_id;
+            $play->league_id = null;
+            $play->is_global = true;
             $play->play_type = 1;
             $play->quarter = 1;
             $play->created_by = 'admin';
+            $play->created_by_user_id = auth()->id();
             $play->zone_selection = 1;
             $play->min_expected_yard = $request->min_expected_yard;
             $play->max_expected_yard = 1;

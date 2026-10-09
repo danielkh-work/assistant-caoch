@@ -12,6 +12,7 @@ use Illuminate\Support\Str;
 use ZipArchive;
 use App\Models\PlayTargetOffensivePlayer;
 use App\Models\PlayTargetDefensivePlayer;
+use App\Models\LeaguePlayOverride;
 use App\Models\OffensivePosition;
 use App\Models\DefensivePosition;
 use App\Models\PlayResult;
@@ -149,16 +150,24 @@ class PlayController extends Controller
     {
 
 
-        $userRoleIds = auth()->user()->roles->pluck('id');
-        $id = ['1', $request->league_id];
+        $leagueId = (int) $request->league_id;
 
         $query = Play::with(['roles', 'playResults', 'offensiveTargets'])
-            ->where(function ($sub) use ($id, $userRoleIds) {
-                $sub->orWhereIn('league_id', $id)
-                    ->orWhereHas('roles', function ($q) use ($userRoleIds) {
-                        $q->whereIn('roleables.role_id', $userRoleIds);
-                    });
+            ->leftJoin('league_play_overrides', function ($join) use ($leagueId) {
+                $join->on('league_play_overrides.global_play_id', '=', 'plays.id')
+                    ->where('league_play_overrides.league_id', '=', $leagueId);
             })
+            ->where(function ($sub) use ($leagueId) {
+                // A Global Play this league has no override row for (not hidden,
+                // not customized - customized ones are already covered by the
+                // branch below, since the clone itself carries this league_id).
+                $sub->where(function ($q) {
+                    $q->where('plays.is_global', true)
+                        ->whereNull('league_play_overrides.id');
+                })
+                ->orWhere('plays.league_id', $leagueId);
+            })
+            ->select('plays.*')
             ->withCount([
                 'playResults as win_result' => function ($q) {
                     $q->where('result', 'win')->where('is_practice', 0);
@@ -184,7 +193,7 @@ class PlayController extends Controller
         if($request->sort == "win_result"){
             $query = $query->orderByDesc('win_result');
         }else{
-            $query = $query->latest();
+            $query = $query->latest('plays.created_at');
         }
 
         $searchTerm = trim((string) $request->input('search', ''));
@@ -255,6 +264,7 @@ class PlayController extends Controller
             $play->offensive_play_type = $request->playType;
             $play->play_name = $request->play_name;
             $play->league_id = $request->league_id;
+            $play->created_by_user_id = auth()->id();
             $play->play_type = $request->play_type;
             $play->quarter = $request->quarter;
             $play->zone_selection = $request->zone_selection;
@@ -397,70 +407,105 @@ class PlayController extends Controller
 
     public function update(Request $request, $id)
     {
+        $play = Play::findOrFail($id);
+        $user = auth()->user();
+        $authz = app(\App\Services\PlayAuthorizationService::class);
+
+        // The league this edit is happening in. For a league-owned play this IS
+        // $play->league_id; for a Global Play (copy-on-write path) the request
+        // must say which league is doing the customizing.
+        $targetLeagueId = $play->is_global ? (int) $request->league_id : (int) $play->league_id;
+
+        if (!$authz->canModify($user, $play, $targetLeagueId ?: null)) {
+            return response()->json(['message' => 'You are not allowed to modify this play.'], 403);
+        }
+
         $this->normalizePlayTypeRequest($request);
         $request->validate($this->playUpdateValidationRules());
-
-        $play = Play::findOrFail($id);
         $this->validateHmarkImagesOnUpdate($request, $play);
 
+        // Captured before the clone swap below: drives both which row gets
+        // edited and the hmark-replace decision further down.
+        $wasGlobal = $play->is_global;
 
         DB::beginTransaction();
 
         try {
-            $play->play_name = $request->play_name;
-            $play->league_id = $request->league_id;
-            $play->play_type = $request->play_type;
-
-            if ($request->filled('playType')) {
-                $play->offensive_play_type = $request->playType;
+            if ($wasGlobal) {
+                $target = $this->cloneGlobalPlayForLeague($play, $targetLeagueId, $user);
+            } else {
+                $target = $play;
             }
 
-            $play->quarter = $request->quarter;
-            $play->zone_selection = $request->zone_selection;
-            $play->min_expected_yard = $request->min_expected_yard;
-            $play->max_expected_yard = $request->max_expected_yard;
-            $play->pre_snap_motion = $request->pre_snap_motion;
-            $play->play_action_fake = $request->play_action_fake;
+            // Deliberately never reassigns $target->league_id from $request->league_id here.
+            // canModify() already authorized this edit against $play's OWN league_id - if a
+            // head coach owns two leagues, honoring a different league_id from the request
+            // would silently move this play into the other league's playbook.
+            $target->play_type = $request->play_type;
 
-            $play->preferred_down = is_array($request->preferred_down)
+            if ($request->filled('playType')) {
+                $target->offensive_play_type = $request->playType;
+            }
+
+            $target->quarter = $request->quarter;
+            $target->zone_selection = $request->zone_selection;
+            $target->min_expected_yard = $request->min_expected_yard;
+            $target->max_expected_yard = $request->max_expected_yard;
+            $target->pre_snap_motion = $request->pre_snap_motion;
+            $target->play_action_fake = $request->play_action_fake;
+
+            $target->play_name = $request->play_name;
+
+            $target->preferred_down = is_array($request->preferred_down)
                 ? implode(',', $request->preferred_down)
                 : $request->preferred_down;
 
-            $play->strategies = is_array($request->strategies)
+            $target->strategies = is_array($request->strategies)
                 ? implode(',', $request->strategies)
                 : $request->strategies;
 
-            $play->possession = $request->possession;
-            $play->description = $request->description;
+            $target->possession = $request->possession;
+            $target->description = $request->description;
 
             if ($this->requestHasMeaningfulValue($request, 'read_2')) {
-                $play->read_1 = $request->read_2;
+                $target->read_1 = $request->read_2;
             }
 
             if ($this->requestHasMeaningfulValue($request, 'read_3')) {
-                $play->read_2 = $request->read_3;
+                $target->read_2 = $request->read_3;
             }
 
-            $this->assignHmarkImagesFromRequest($request, $play, true);
+            // A freshly-created clone's hmark_* attributes still point at the
+            // Global Play's own shared image files (replicate() copied the
+            // paths verbatim). uploadImage() physically deletes whatever "old
+            // path" it's handed when a new file replaces it, so treating this
+            // like a normal in-place replace on the very request that creates
+            // the clone would delete the Global Play's image out from under
+            // every other league that still shares it. Only pass
+            // replaceExisting=true (i.e. actually delete the old file) once
+            // the row being edited is genuinely league-owned - either because
+            // it was already a league play, or because it's a clone being
+            // edited again on a later request (its hmark_* already belongs to
+            // it alone by then).
+            $this->assignHmarkImagesFromRequest($request, $target, !$wasGlobal);
 
             // Replace video if uploaded
             if ($request->hasFile('video')) {
-                $videoPath = uploadImage($request->file('video'), 'public/uploads/videos');
-                $play->video_path = $videoPath;
+                $target->video_path = uploadImage($request->file('video'), 'public/uploads/videos');
             }
 
-            $play->save();
+            $target->save();
 
 
             // Delete old offensive links and recreate
-            PlayTargetOffensivePlayer::where('play_id', $play->id)->delete();
+            PlayTargetOffensivePlayer::where('play_id', $target->id)->delete();
             if (is_array($request->offensive)) {
                 foreach ($request->offensive as $position => $value) {
                     if ($value === null) {
                         continue; // Skip this entry if the value is null
                     }
                     PlayTargetOffensivePlayer::create([
-                        'play_id' => $play->id,
+                        'play_id' => $target->id,
                         'offensive_position_id' => $position,
                         'strength' => $value,
                     ]);
@@ -468,14 +513,14 @@ class PlayController extends Controller
             }
 
             // Delete old defensive links and recreate
-            PlayTargetDefensivePlayer::where('play_id', $play->id)->delete();
+            PlayTargetDefensivePlayer::where('play_id', $target->id)->delete();
             if (is_array($request->defensive)) {
                 foreach ($request->defensive as $position => $value) {
                      if ($value === null) {
                         continue; // Skip this entry if the value is null
                     }
                     PlayTargetDefensivePlayer::create([
-                        'play_id' => $play->id,
+                        'play_id' => $target->id,
                         'defensive_position_id' => $position,
                         'strength' => $value,
                     ]);
@@ -483,7 +528,7 @@ class PlayController extends Controller
             }
 
             DB::commit();
-            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play updated successfully", $play);
+            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play updated successfully", $target);
         } catch (ValidationException $e) {
             DB::rollBack();
             throw $e;
@@ -491,6 +536,55 @@ class PlayController extends Controller
             DB::rollBack();
             return $this->playWriteFailedResponse($e);
         }
+    }
+
+    /**
+     * Copy-on-write: the first time $leagueId's coach edits a Global Play,
+     * clone it (including its offensive/defensive target rows) into a real
+     * league-owned play, record the override, and return the clone. A second
+     * edit from the same league finds the existing override and just returns
+     * the already-owned clone - no second clone, no second override row
+     * (updateOrCreate against the table's unique(league_id, global_play_id)
+     * constraint handles the common case; a true simultaneous double-click
+     * race is a known, accepted minor edge case for v1).
+     */
+    private function cloneGlobalPlayForLeague(Play $global, int $leagueId, $user): Play
+    {
+        $existing = LeaguePlayOverride::where([
+            'league_id' => $leagueId, 'global_play_id' => $global->id, 'status' => 'customized',
+        ])->first();
+        if ($existing && $existing->customized_play_id) {
+            return Play::findOrFail($existing->customized_play_id);
+        }
+
+        $clone = $global->replicate(['created_at', 'updated_at']);
+        $clone->league_id = $leagueId;
+        $clone->is_global = false;
+        $clone->created_by_user_id = $user->id;
+        $clone->created_by = null;
+        $clone->save();
+
+        foreach ($global->targetOffensivePlayers as $row) {
+            PlayTargetOffensivePlayer::create([
+                'play_id' => $clone->id,
+                'offensive_position_id' => $row->offensive_position_id,
+                'strength' => $row->strength,
+            ]);
+        }
+        foreach (PlayTargetDefensivePlayer::where('play_id', $global->id)->get() as $row) {
+            PlayTargetDefensivePlayer::create([
+                'play_id' => $clone->id,
+                'defensive_position_id' => $row->defensive_position_id,
+                'strength' => $row->strength,
+            ]);
+        }
+
+        LeaguePlayOverride::updateOrCreate(
+            ['league_id' => $leagueId, 'global_play_id' => $global->id],
+            ['status' => 'customized', 'customized_play_id' => $clone->id, 'created_by_user_id' => $user->id],
+        );
+
+        return $clone;
     }
     public function editPlay($id)
     {
@@ -500,12 +594,89 @@ class PlayController extends Controller
 
     }
 
-    public function delete(Request $request)
+    public function delete(Request $request, $id)
     {
-        $play = Play::find($request->id);
-        if ($play)
-            $play->delete();
-        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Play Delete Successfully ");
+        $play = Play::findOrFail($id);
+        $user = auth()->user();
+        $authz = app(\App\Services\PlayAuthorizationService::class);
+
+        $leagueId = $play->is_global ? (int) $request->league_id : (int) $play->league_id;
+
+        if ($play->is_global && !$leagueId) {
+            return response()->json(['message' => 'league_id is required to hide a Global Play.'], 422);
+        }
+
+        if (!$authz->canDelete($user, $play, $leagueId ?: null)) {
+            return response()->json(['message' => 'You are not allowed to delete this play.'], 403);
+        }
+
+        if ($play->is_global) {
+            // If this league already customized this global play, the slot's real
+            // in-use row is the clone, not this original (reachable via a stale
+            // cached id) - remove the clone too, so "delete" actually clears what
+            // the league is using, not just hides a copy nobody sees anymore.
+            $existing = \App\Models\LeaguePlayOverride::where([
+                'league_id' => $leagueId, 'global_play_id' => $play->id,
+            ])->first();
+            if ($existing && $existing->status === 'customized' && $existing->customized_play_id) {
+                Play::where('id', $existing->customized_play_id)->delete();
+            }
+
+            // A true simultaneous double-click race (two requests for the same
+            // league+global-play landing at the same instant) could collide on the
+            // table's unique(league_id, global_play_id) constraint and throw instead
+            // of succeeding - same accepted v1 edge case as cloneGlobalPlayForLeague()
+            // in update(). Sequential double-clicks (the realistic case) are fine.
+            \App\Models\LeaguePlayOverride::updateOrCreate(
+                ['league_id' => $leagueId, 'global_play_id' => $play->id],
+                ['status' => 'hidden', 'customized_play_id' => null, 'created_by_user_id' => $user->id],
+            );
+            return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Play removed from this league\'s playbook');
+        }
+
+        // If this play IS a customized clone of some Global Play, clear the override
+        // that points at it so the league falls back to seeing the original Global
+        // Play again, instead of being left with a dangling reference to a deleted id.
+        \App\Models\LeaguePlayOverride::where('customized_play_id', $play->id)->delete();
+
+        $play->delete();
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Play Delete Successfully ');
+    }
+
+    public function restore(Request $request, $id)
+    {
+        $play = Play::findOrFail($id);
+        $user = auth()->user();
+        $leagueId = (int) $request->league_id;
+        $authz = app(\App\Services\PlayAuthorizationService::class);
+
+        if (!$play->is_global || !$leagueId || !$authz->canRestore($user, $leagueId)) {
+            return response()->json(['message' => 'You are not allowed to restore this play.'], 403);
+        }
+
+        \App\Models\LeaguePlayOverride::where([
+            'league_id' => $leagueId, 'global_play_id' => $play->id, 'status' => 'hidden',
+        ])->delete();
+
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Play restored to this league\'s playbook');
+    }
+
+    public function hiddenGlobalPlays(Request $request)
+    {
+        $user = auth()->user();
+        $leagueId = (int) $request->league_id;
+        $authz = app(\App\Services\PlayAuthorizationService::class);
+
+        if (!$leagueId || !$authz->userCanActInLeague($user, $leagueId)) {
+            return response()->json(['message' => 'You are not allowed to view this league.'], 403);
+        }
+
+        $hiddenIds = \App\Models\LeaguePlayOverride::where(['league_id' => $leagueId, 'status' => 'hidden'])
+            ->pluck('global_play_id');
+
+        $plays = Play::whereIn('id', $hiddenIds)->get();
+
+        return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Hidden global plays', $plays);
     }
 
      public function getOffensivePositions()

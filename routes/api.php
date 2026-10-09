@@ -183,6 +183,8 @@ Route::middleware(['auth:sanctum', 'ensure.active'])->group(function () {
     Route::get('/upload-play-list',[PlayController::class,'index'])->name('upload-play-list')->middleware('permission:play.view');
     Route::get('/match-plays', [MatchPlaysController::class, 'index'])->middleware('permission:play.view');
     Route::get('/delete-play/{id}',[PlayController::class,'delete'])->name('delete-play')->middleware('permission:play.delete');
+    Route::post('/restore-global-play/{id}',[PlayController::class,'restore'])->middleware('permission:play.delete');
+    Route::get('/hidden-global-plays',[PlayController::class,'hiddenGlobalPlays'])->middleware('permission:play.view');
     Route::get('/get-offense-target-play/{id}',[PlayController::class,'getTargetOffensePosition'])->name('delete-play')->middleware('permission:play.view');
     Route::get('/edit-play/{id}',[PlayController::class,'editPlay'])->name('edit-play')->middleware('permission:play.view');
     Route::get('/duplicate-play/{id}',[PlayController::class,'duplicatePlay'])->name('edit-play')->middleware('permission:play.duplicate');
