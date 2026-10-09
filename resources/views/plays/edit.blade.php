@@ -31,7 +31,8 @@
                     <div class="row">
                         <div class="col-md-3">
                             <label for="">League</label>
-                            <select required name="league_id" class="form-control">
+                            <select name="league_id" class="form-control">
+                                <option value="" {{ $play->league_id === null ? 'selected' : '' }}>— Global (no league) —</option>
                                 @foreach ($league as $leagu)
                                     <option value="{{ $leagu->id }}" {{ $play->league_id == $leagu->id ? 'selected' : '' }}>
                                         {{ $leagu->title }}
