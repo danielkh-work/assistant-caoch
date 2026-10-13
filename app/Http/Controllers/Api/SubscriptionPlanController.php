@@ -25,6 +25,29 @@ class SubscriptionPlanController extends Controller
     }
 
     /**
+     * Swap the user's subscription-tier role and leave every other role alone.
+     *
+     * syncRoles() on its own takes the user-type role with it - head_coach and
+     * the rest - and that is the role carrying '*'. A coach who chose a plan
+     * came out of it holding a tier and nothing else, so league.create went with
+     * it and Create League could not even load its own rules.
+     *
+     * Tier roles are named after the plans themselves, so they can be picked out
+     * without trusting roles.category, which a fresh install does not set
+     * correctly on the five tier rows.
+     */
+    private function swapTierRole(User $user, string $tierRole): void
+    {
+        $tierRoleNames = SubscriptionPlan::query()
+            ->selectRaw("CONCAT(title, ' ', type) AS role_name")
+            ->pluck('role_name');
+
+        $keep = $user->roles()->pluck('name')->diff($tierRoleNames);
+
+        $user->syncRoles($keep->push($tierRole)->unique()->all());
+    }
+
+    /**
      * Display a listing of the resource.
      */
     public function subscriptionPlan()
@@ -95,7 +118,7 @@ class SubscriptionPlanController extends Controller
                     'is_expire' => 0
                 ]);
 
-                $user->syncRoles([$packages->title. ' ' . $packages->type]);
+                $this->swapTierRole($user, $packages->title . ' ' . $packages->type);
 
                 $user->is_subscribe = 1;
                 $user->subscription_id = $id;
@@ -162,7 +185,7 @@ class SubscriptionPlanController extends Controller
                     'is_expire' => 0
                 ]);
                 
-                $user->syncRoles([$packages->title. ' ' . $packages->type]);
+                $this->swapTierRole($user, $packages->title . ' ' . $packages->type);
 
                 $user->is_subscribe = 1;
                 $user->subscription_id = $id;
