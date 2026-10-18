@@ -233,11 +233,11 @@ class PlayGameModeController extends Controller
 
         if ($value['is_practice']) {
             $log->practice_players = !empty($value['players'])
-                ? json_encode($value['players'])
+                ? $value['players']
                 : null;
         } else {
             $log->players = !empty($value['players'])
-                ? json_encode($value['players'])
+                ? $value['players']
                 : null;
         }
 

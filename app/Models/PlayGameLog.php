@@ -10,10 +10,11 @@ class PlayGameLog extends Model
     use HasFactory;
 
     protected $casts = [
-        'players'      => 'array',
-        'players_out'  => 'array',
-        'players_in'   => 'array',
-        'actor_id'     => 'integer',
+        'players'          => 'array',
+        'practice_players' => 'array',
+        'players_out'      => 'array',
+        'players_in'       => 'array',
+        'actor_id'         => 'integer',
     ];
 
     public function myTeam()

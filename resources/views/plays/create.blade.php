@@ -37,14 +37,6 @@
                                         </select>
                                     </div>
                             <div class="col-md-3">
-                                <label for="">league</label>
-                               <select required name="league_id" id="" class="form-control">
-                                    @foreach ($league as $leagu)
-                                        <option value="{{ $leagu->id }}">{{ $leagu->title }}</option>
-                                    @endforeach
-                               </select>
-                            </div>
-                            <div class="col-md-3">
                                 <label for="">Name</label>
                                 <input required type="text" name="play_name" class="form-control">
                             </div>

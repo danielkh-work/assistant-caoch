@@ -45,7 +45,8 @@
                                                 <td>{{ $row->permission->name }}</td>
                                                 <td class="text-center">
                                                     <input type="radio" name="permission_state[{{ $row->permission->id }}]"
-                                                        value="inherited" {{ $row->state === 'inherited' || $row->state === 'none' ? 'checked' : '' }}>
+                                                        value="inherited" {{ $row->state === 'inherited' ?
+                                                        'checked' : '' }}>
                                                 </td>
                                                 <td class="text-center">
                                                     <input type="radio" name="permission_state[{{ $row->permission->id }}]"
@@ -53,7 +54,7 @@
                                                 </td>
                                                 <td class="text-center">
                                                     <input type="radio" name="permission_state[{{ $row->permission->id }}]"
-                                                        value="denied" {{ $row->state === 'denied' ? 'checked' : '' }}>
+                                                        value="denied" {{ $row->state === 'denied' || $row->state === 'none' ? 'checked' : '' }}>
                                                 </td>
                                             </tr>
                                         @endforeach
@@ -67,4 +68,5 @@
             </div>
         </div>
     </section>
+
 @endsection
