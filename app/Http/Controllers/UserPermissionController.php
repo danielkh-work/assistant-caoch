@@ -21,6 +21,7 @@ class UserPermissionController extends Controller
         $directNames = $user->getDirectPermissions()->pluck('name');
         $deniedNames = $user->deniedPermissions()->pluck('name');
 
+
         // Per-permission state for the tri-state selector: 'denied' always wins
         // display-wise, then 'direct' (granted beyond role), then 'inherited'
         // (role gives it, no override), then 'none' (nothing grants it at all).
@@ -36,7 +37,6 @@ class UserPermissionController extends Controller
 
             return (object) ['permission' => $permission, 'state' => $state];
         });
-
         return view('users.permissions', compact('user', 'rows'));
     }
 
