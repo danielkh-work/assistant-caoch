@@ -109,6 +109,40 @@ class AuthController extends Controller
 
         return response()->json(['message' => 'Account verified.']);
     }
+    /**
+     * Which match-board tabs this user's screen may offer.
+     *
+     * Lived only inside login(), so a coach who had just signed up - and is
+     * logged straight in on the register response - reached the match board
+     * with no ui_permissions at all, and StartMatch.vue hides SCOREBOARD and
+     * PLAYERS PERFORMANCE when it is missing. They came back only after a
+     * logout and a fresh login.
+     */
+    private function uiPermissionsFor(User $user): array
+    {
+        if ($user->role === 'head_coach') {
+            return ['show_scoreboard' => true, 'show_performance' => true];
+        }
+
+        $groupHeadCoachId = $user->head_coach_id;
+
+        $rolesUnderHeadCoach = User::where('head_coach_id', $groupHeadCoachId)
+            ->pluck('role')
+            ->unique();
+
+        $hasAssistant = $rolesUnderHeadCoach->contains('assistant_coach');
+        $hasPerformance = $rolesUnderHeadCoach->contains('performance_coach');
+
+        if (! ($hasAssistant && $hasPerformance)) {
+            return ['show_scoreboard' => true, 'show_performance' => true];
+        }
+
+        return [
+            'show_scoreboard' => $user->role === 'assistant_coach',
+            'show_performance' => $user->role === 'performance_coach',
+        ];
+    }
+
     public function register(Request $request)
     {
 
@@ -135,6 +169,8 @@ class AuthController extends Controller
         broadcast(new UserQrGenerated($user));
         $user->loadCount('assistants');
         $user['role']=  'head_coach';
+        $user['permissions'] = $user->effectivePermissionNames();
+        $user['ui_permissions'] = $this->uiPermissionsFor($user);
         $expiresIn = now()->addMinutes(config('sanctum.expiration', 60))->timestamp;
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "You have Register SuccessFully", $user,$token);
 
@@ -190,35 +226,9 @@ class AuthController extends Controller
             ->pluck('role')
             ->unique();
 
-        $hasAssistant = $rolesUnderHeadCoach->contains('assistant_coach');
-        $hasPerformance = $rolesUnderHeadCoach->contains('performance_coach');
 
-        $uiPermissions = [
-            'show_scoreboard' => false,
-            'show_performance' => false,
-        ];
-      if($user->role === 'head_coach'){
-                $uiPermissions['show_scoreboard'] = true;
-                $uiPermissions['show_performance'] = true;
-      }else{
+        $user['ui_permissions'] = $this->uiPermissionsFor($user);
 
-            if ($hasAssistant && $hasPerformance) {
-                if ($user->role === 'assistant_coach') {
-                    $uiPermissions['show_scoreboard'] = true;
-                }
-                if ($user->role === 'performance_coach') {
-                    $uiPermissions['show_performance'] = true;
-                }
-            }
-            else {
-                    $uiPermissions['show_scoreboard'] = true;
-                    $uiPermissions['show_performance'] = true;
-            }
-
-      }
-
-
-        $user['ui_permissions'] = $uiPermissions;
         $user['roles_under_head_coach'] = $rolesUnderHeadCoach->values();
 
         \Log::info(['data_with_per'=>$user]);
