@@ -323,18 +323,63 @@ class TeamController extends Controller
 
             $existingPlayerIds = [];
 
+            // Which side of the ball each position belongs to.
+            //
+            // team_players.type is what the group builder splits Offense from
+            // Defense by (TeamGroups.vue looks for "off" in it). The frontend
+            // stopped sending `playertype`, so the old fallback put whatever
+            // `target` held into it - and `target` is not the same thing in
+            // every install. Older rows carry a side there ("offence"), newer
+            // ones carry a position name ("Quarterback"), and a position name
+            // in that column means an offence group matches nobody at all.
+            //
+            // So: look the position up in the two positions tables first, and
+            // only if it is not one of them treat the value as a side already.
+            $sideByPosition = DB::table('offensive_positions')->pluck('name')
+                ->mapWithKeys(fn ($name) => [mb_strtolower($name) => 'offense'])
+                ->merge(
+                    DB::table('defensive_positions')->pluck('name')
+                        ->mapWithKeys(fn ($name) => [mb_strtolower($name) => 'defense'])
+                );
+
+            $sideOf = function ($position, $playerType) use ($sideByPosition) {
+                $known = $sideByPosition[mb_strtolower((string) $position)] ?? null;
+
+                if ($known !== null) {
+                    return $known;
+                }
+
+                // Not a position name - so it is either already a side
+                // ("offence"/"offense"/"deffence"/"defense") or nothing useful.
+                foreach ([$playerType, $position] as $candidate) {
+                    $value = mb_strtolower((string) $candidate);
+
+                    if (str_contains($value, 'off')) {
+                        return 'offense';
+                    }
+
+                    if (str_contains($value, 'def')) {
+                        return 'defense';
+                    }
+                }
+
+                return null;
+            };
+
             foreach ($players as $player) {
 
                 $sanitize = function ($value) {
                     return in_array($value, ['N/A', '', null, 'null'], true) ? null : $value;
                 };
 
+                $positionName = $sanitize($player['target'] ?? null);
+
                 $data = [
-                    'league_id' => $request->league_id ?? null,
-                    'type' => $player['playertype'] ?? $player['target'] ?? null,
+                    'league_id' => $team->league_id,
+                    'type' => $sideOf($positionName, $player['playertype'] ?? null),
                     'name' => $sanitize($player['name'] ?? null),
                     'position_value' => $sanitize($player['position'] ?? null),
-                    'position' => $sanitize($player['target'] ?? null),
+                    'position' => $positionName,
                     'number' => $sanitize($player['number'] ?? null),
                     'size' => $sanitize($player['size'] ?? null),
                     'speed' => $sanitize($player['speed'] ?? 0),
