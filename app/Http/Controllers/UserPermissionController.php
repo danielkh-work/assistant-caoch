@@ -56,7 +56,27 @@ class UserPermissionController extends Controller
         }
 
         $user->syncPermissions(Permission::whereIn('id', $directIds)->get());
-        $user->deniedPermissions()->sync($deniedIds);
+
+        // Only keep a denial for a permission the user would otherwise hold.
+        //
+        // The form has no "none" radio - a permission nothing grants arrives
+        // here as 'denied', so saving this screen without touching it used to
+        // write a deny row for every permission the user simply did not have.
+        // Those rows are not harmless: a denial beats both the role and the
+        // '*' wildcard (User::hasPermissionTo checks it first), so granting the
+        // permission later silently did nothing, which is exactly the "we
+        // allowed it in admin and it still does not work" report.
+        $user->load('roles.permissions');
+        $held = $user->getPermissionsViaRoles()->pluck('name')
+            ->merge(Permission::whereIn('id', $directIds)->pluck('name'));
+
+        $effectiveDeniedIds = Permission::whereIn('id', $deniedIds)
+            ->get()
+            ->filter(fn ($permission) => $held->contains($permission->name))
+            ->pluck('id')
+            ->all();
+
+        $user->deniedPermissions()->sync($effectiveDeniedIds);
 
         return redirect()->route('users.index')->with('success', "Permissions updated for {$user->name}.");
     }
