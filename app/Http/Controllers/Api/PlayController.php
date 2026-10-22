@@ -812,17 +812,15 @@ class PlayController extends Controller
             }
         }
 
-        // A result that arrives without a scoreboard_broadcast of its own still
-        // has to reach the other screens. The frontend used to call the
-        // broadcast endpoint itself right after saving - so if it stopped doing
-        // that, or the coach is on a screen that never did, the ball position
-        // and the rest of the scoreboard stayed stale on everyone else's board
-        // even though the result was saved. Everything needed to send it is
-        // already known here, so send it from the saved row rather than relying
-        // on the caller to hand it over.
-        if (! $request->filled('scoreboard_broadcast')) {
-            $this->broadcastScoreboardAfterResult($request, $playResult);
-        }
+        // Every result has to reach the other screens, the ones that sent a
+        // scoreboard_broadcast of their own included. That broadcast goes out as
+        // 'PlayCompleted', and a board reading it writes the play down and stops
+        // there without taking the ball position out of it, so on its own it
+        // leaves the other coach on the yard line from before the play. This is
+        // the plain state refresh that follows, built from the row the broadcast
+        // above has just written, so what goes out is the position the coach who
+        // saved the result is looking at.
+        $this->broadcastScoreboardAfterResult($request, $playResult);
 
         // Optional: the same Save also used to fire matchEvents() separately -
         // a plain "position changed" log entry (add-play-game-log) with no
