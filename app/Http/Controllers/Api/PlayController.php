@@ -696,12 +696,44 @@ class PlayController extends Controller
     }
 
     /**
+     * The ball position the coach actually played from, as sent with the result.
+     *
+     * The stored scoreboard row is not a reliable source for this. It only
+     * changes when something calls the broadcast endpoint, and dragging the
+     * field slider does not - so between a Start (which clears it) and the
+     * next broadcast it is stale, or null. Broadcasting that would move
+     * everyone else's ball to the wrong yard line, which is worse than not
+     * broadcasting at all. The result request carries the real one in
+     * log_data.current_position, so read it from there.
+     */
+    private function livePositionFromRequest(Request $request): ?string
+    {
+        $entries = $request->input('log_data');
+
+        if (empty($entries)) {
+            return null;
+        }
+
+        $entries = array_is_list($entries) ? $entries : [$entries];
+
+        foreach (array_reverse($entries) as $entry) {
+            $position = is_array($entry) ? ($entry['current_position'] ?? null) : null;
+
+            if ($position !== null && $position !== '' && (int) $position > 0) {
+                return (string) (int) $position;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Push the current scoreboard out to everyone watching this match.
      *
-     * Reads the row the scoreboard broadcasts already keep up to date, so the
-     * ball position, down, distance and score that go out are the stored ones
-     * rather than anything the caller had to supply. Scoreboards listen for
-     * `score.updated` on their own channel and will take it from here.
+     * Reads the row the scoreboard broadcasts already keep up to date, with the
+     * live ball position written onto it first, so what goes out is what the
+     * coach is actually looking at. Scoreboards listen for `score.updated` and
+     * take it from there.
      */
     private function broadcastScoreboardAfterResult(Request $request, PlayResult $playResult): void
     {
@@ -731,6 +763,13 @@ class PlayController extends Controller
             return;
         }
 
+        $livePosition = $this->livePositionFromRequest($request);
+
+        if ($livePosition !== null && (string) $row->position_number !== $livePosition) {
+            $row->position_number = $livePosition;
+            $row->saveQuietly();
+        }
+
         try {
             $payload = ScoreboardBroadcastPayload::fromLiveRow(
                 $row,
@@ -738,12 +777,25 @@ class PlayController extends Controller
                 $coachGroupId
             );
 
+            // A position of 0 or null is "we do not know", not "the ball is on
+            // the 0". The scoreboards apply any truthy value, and in JavaScript
+            // the string "0" is truthy - so leaving it in would snap everyone's
+            // ball to the start of the field. Drop it and they keep what they
+            // have; everything else in the payload still gets through.
+            if ((int) ($payload['positionNumber'] ?? 0) <= 0) {
+                unset($payload['positionNumber']);
+            }
+
+            // Not toOthers(): the point of this is that every scoreboard on the
+            // match ends up showing the same thing, and the screen that saved
+            // the result is one of them. The payload is read back from the
+            // stored row, so re-applying it there is a no-op.
             broadcast(new ScoreUpdated(
                 $payload,
                 $coachGroupId,
                 $gameId,
                 $row->league_id !== null ? (int) $row->league_id : null
-            ))->toOthers();
+            ));
         } catch (\Throwable $e) {
             // The result itself is already saved - a broadcast that cannot be
             // built must not turn that into a failed request.
