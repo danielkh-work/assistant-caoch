@@ -777,6 +777,14 @@ class PlayController extends Controller
                 $coachGroupId
             );
 
+            // The stored action is whatever the last broadcast happened to be,
+            // and the scoreboards read it as an instruction rather than a label:
+            // 'PlayCompleted' makes them record the play and return without
+            // applying anything else, so replaying it here threw the position
+            // away. This is a plain "here is the current state" refresh, which
+            // is what 'INFO' means everywhere else.
+            $payload['action'] = 'INFO';
+
             // A position of 0 or null is "we do not know", not "the ball is on
             // the 0". The scoreboards apply any truthy value, and in JavaScript
             // the string "0" is truthy - so leaving it in would snap everyone's
