@@ -399,26 +399,43 @@ class ConfigureController extends Controller
      *
      * @return array<int, int>
      */
+    /**
+     * Every play "Select All" on the choose-plays screen is standing in for.
+     *
+     * This has to pick exactly what PlayController@index put on the screen,
+     * or Select All quietly saves a different set than the coach ticked. It
+     * used to match on `league_id IN ('1', <league>)`, which predates global
+     * plays: those carry is_global = 1 and a NULL league_id, and SQL's IN
+     * never matches NULL - so a league with 190 global plays and one of its
+     * own saved exactly one.
+     */
     private function matchingPlayIdsForSelectAll(Request $request): array
     {
-        $userRoleIds = auth()->user()->roles->pluck('id');
-        $leagueScope = ['1', $request->league_id];
+        $leagueId = (int) $request->league_id;
 
         $query = \App\Models\Play::query()
-            ->where(function ($sub) use ($leagueScope, $userRoleIds) {
-                $sub->orWhereIn('league_id', $leagueScope)
-                    ->orWhereHas('roles', function ($q) use ($userRoleIds) {
-                        $q->whereIn('roleables.role_id', $userRoleIds);
-                    });
-            });
+            ->leftJoin('league_play_overrides', function ($join) use ($leagueId) {
+                $join->on('league_play_overrides.global_play_id', '=', 'plays.id')
+                    ->where('league_play_overrides.league_id', '=', $leagueId);
+            })
+            ->where(function ($sub) use ($leagueId) {
+                // A global play this league has not hidden or customised,
+                // or a play that belongs to the league itself.
+                $sub->where(function ($q) {
+                    $q->where('plays.is_global', true)
+                        ->whereNull('league_play_overrides.id');
+                })
+                ->orWhere('plays.league_id', $leagueId);
+            })
+            ->select('plays.id');
 
         $searchTerm = trim((string) $request->input('search', ''));
         if ($searchTerm !== '') {
             $needle = '%' . addcslashes($searchTerm, '%_\\') . '%';
-            $query->where('play_name', 'like', $needle);
+            $query->where('plays.play_name', 'like', $needle);
         }
 
-        return $query->pluck('id')->map(fn ($id) => (int) $id)->all();
+        return $query->pluck('plays.id')->map(fn ($id) => (int) $id)->all();
     }
 
     public function configurePlay(Request $request)
