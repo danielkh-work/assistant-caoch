@@ -17,7 +17,11 @@ use App\Models\OffensivePosition;
 use App\Models\DefensivePosition;
 use App\Models\PlayResult;
 use App\Events\PlayResultSubmitted;
+use App\Events\ScoreUpdated;
+use App\Models\WebsocketPracticeScoreboard;
+use App\Models\WebsocketScoreboard;
 use App\Support\BroadcastLeagueResolver;
+use App\Support\ScoreboardBroadcastPayload;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
@@ -691,6 +695,62 @@ class PlayController extends Controller
          return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Defensive positions retrieved successfully.", $positions);
     }
 
+    /**
+     * Push the current scoreboard out to everyone watching this match.
+     *
+     * Reads the row the scoreboard broadcasts already keep up to date, so the
+     * ball position, down, distance and score that go out are the stored ones
+     * rather than anything the caller had to supply. Scoreboards listen for
+     * `score.updated` on their own channel and will take it from here.
+     */
+    private function broadcastScoreboardAfterResult(Request $request, PlayResult $playResult): void
+    {
+        $user = auth()->user();
+
+        if (! $user) {
+            return;
+        }
+
+        $coachGroupId = (int) ($user->role === 'head_coach' ? $user->id : $user->head_coach_id);
+        $gameId = (int) ($playResult->game_id ?? $request->input('game_id'));
+
+        if ($coachGroupId === 0 || $gameId === 0) {
+            return;
+        }
+
+        $isPractice = $request->boolean('is_practice');
+        $model = $isPractice ? WebsocketPracticeScoreboard::class : WebsocketScoreboard::class;
+
+        $row = $model::where('user_id', $coachGroupId)
+            ->where('game_id', $gameId)
+            ->first();
+
+        // No row means no match has been started on this fixture, so there is
+        // no scoreboard for anyone to refresh.
+        if (! $row) {
+            return;
+        }
+
+        try {
+            $payload = ScoreboardBroadcastPayload::fromLiveRow(
+                $row,
+                $isPractice ? 'practice' : 'play',
+                $coachGroupId
+            );
+
+            broadcast(new ScoreUpdated(
+                $payload,
+                $coachGroupId,
+                $gameId,
+                $row->league_id !== null ? (int) $row->league_id : null
+            ))->toOthers();
+        } catch (\Throwable $e) {
+            // The result itself is already saved - a broadcast that cannot be
+            // built must not turn that into a failed request.
+            Log::error('scoreboard broadcast after play result failed: ' . $e->getMessage());
+        }
+    }
+
     public function addPlayResult(Request $request)
     {
 
@@ -750,6 +810,18 @@ class PlayController extends Controller
             } catch (\Throwable $e) {
                 Log::error('scoreboard broadcast (via play-results-add) failed: ' . $e->getMessage());
             }
+        }
+
+        // A result that arrives without a scoreboard_broadcast of its own still
+        // has to reach the other screens. The frontend used to call the
+        // broadcast endpoint itself right after saving - so if it stopped doing
+        // that, or the coach is on a screen that never did, the ball position
+        // and the rest of the scoreboard stayed stale on everyone else's board
+        // even though the result was saved. Everything needed to send it is
+        // already known here, so send it from the saved row rather than relying
+        // on the caller to hand it over.
+        if (! $request->filled('scoreboard_broadcast')) {
+            $this->broadcastScoreboardAfterResult($request, $playResult);
         }
 
         // Optional: the same Save also used to fire matchEvents() separately -
