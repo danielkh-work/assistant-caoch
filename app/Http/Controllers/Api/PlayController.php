@@ -730,7 +730,7 @@ class PlayController extends Controller
         if (! $row) {
             return;
         }
-
+        $row->action = "info";
         try {
             $payload = ScoreboardBroadcastPayload::fromLiveRow(
                 $row,
