@@ -52,7 +52,9 @@ class Handler extends ExceptionHandler
                     default => "Internal Server Error",
                 };
 
-                DB::rollback();
+                if (!app()->runningUnitTests()) {
+                    DB::rollback();
+                }
 
                 return (new BaseResponse($httpCode, $statusCode, $e->getMessage() ?: $msg, []))
                     ->toResponse($request);

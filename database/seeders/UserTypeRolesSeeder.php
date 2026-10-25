@@ -39,7 +39,7 @@ class UserTypeRolesSeeder extends Seeder
             'pending_user.approve',
             'role_permission.manage',
             'recruiting.view',
-            '*', // head_coach's catch-all - see below
+            '*', // kept as a catch-all for the middleware - see below
 
             // Phase 2: League/Team/Player/TeamGroup
             'league.view',
@@ -101,11 +101,23 @@ class UserTypeRolesSeeder extends Seeder
             Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
         }
 
+        // The head coach holds every permission by name, and '*' on top.
+        //
+        // '*' alone was not enough. Only two places understand it: Spatie's
+        // permission middleware, and the frontend's hasPermission(). Everything
+        // else compares names exactly, so a head coach holding nothing but '*'
+        // reads as having no permissions at all - most visibly on the admin
+        // user-permission screen, where all 64 rows came out "none" and the
+        // form then offered to save every one of them as denied. A denied row
+        // beats '*' (see User::hasPermissionTo), so one save of that screen
+        // left the coach unable to do anything.
+        //
+        // Listing them also means a permission a head coach should NOT have can
+        // simply be left out later, which '*' made impossible.
+        $headCoachPermissions = Permission::pluck('name')->all();
+
         $rolePermissions = [
-            // head_coach gets a single wildcard rather than every permission
-            // enumerated - automatically covers permissions added in later
-            // phases too, matching "head coach can do everything".
-            'head_coach' => ['*'],
+            'head_coach' => $headCoachPermissions,
             'assistant_coach' => [
                 'matchstart.system_suggestion.use',
                 'matchstart.scoreboard.edit',
@@ -117,6 +129,8 @@ class UserTypeRolesSeeder extends Seeder
                 'player.view',
                 'team_group.view',
                 'play.view',
+                'play.create',
+                'play.edit',
                 'defensive_play.view',
                 'formation.view',
                 'game.view',
@@ -130,6 +144,8 @@ class UserTypeRolesSeeder extends Seeder
                 'player.view',
                 'team_group.view',
                 'play.view',
+                'play.create',
+                'play.edit',
                 'defensive_play.view',
                 'formation.view',
                 'game.view',

@@ -55,6 +55,7 @@ class AuthController extends Controller
         $user['pendingUser']=  $pendingUser;
         $user['role']=  'head_coach';
         $user->loadCount('assistants');
+        $user->assignRole('head_coach');
          $approvalUrl = url("/api/approve-user/{$pendingUser->id}");
 
          Mail::to('robert.taillefer@ekeau.com')->send(new UserApprovalRequest($request->name, $request->email, $approvalUrl));
@@ -135,6 +136,7 @@ class AuthController extends Controller
         broadcast(new UserQrGenerated($user));
         $user->loadCount('assistants');
         $user['role']=  'head_coach';
+        $user->assignRole('head_coach');
         $expiresIn = now()->addMinutes(config('sanctum.expiration', 60))->timestamp;
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "You have Register SuccessFully", $user,$token);
 
