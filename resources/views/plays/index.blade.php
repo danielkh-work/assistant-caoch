@@ -41,6 +41,7 @@
                             <th>possession</th>
                             <th>description</th>
                             <th>strategies</th>
+                            <th width="80px">Starter</th>
                             <th width="100px">Action</th>
                         </tr>
                         </thead>
@@ -80,7 +81,7 @@
                     {data: 'possession', name: 'possession'},
                     {data: 'description', name: 'description'},
                     {data: 'strategies', name: 'strategies'},
-                
+                    {data: 'starter', name: 'starter', orderable: false, searchable: false},
                     {data: 'action', name: 'action', orderable: false, searchable: false},
                 ],
                 order: [0, 'desc'],
@@ -100,8 +101,22 @@
                 </label>
             `);
             $('#roleFilter').on('change', function () {
-               
+
                 table.draw();
+            });
+
+            $(document).on('change', '.starter-toggle', function () {
+                const checkbox = $(this);
+                const id = checkbox.data('id');
+                $.ajax({
+                    url: '/play/' + id + '/toggle-starter',
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                    error: function (xhr) {
+                        checkbox.prop('checked', !checkbox.prop('checked')); // revert on failure
+                        alert(xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : 'Could not update starter status.');
+                    }
+                });
             });
 
         });
