@@ -562,4 +562,103 @@ class GlobalPlaysTest extends TestCase
         $names = collect($listResponse->json('data'))->pluck('play_name');
         $this->assertTrue($names->contains('Will Be Customized Then Clone Deleted'));
     }
+
+    /** @test */
+    public function creating_a_new_league_seeds_hidden_overrides_for_non_starter_global_plays()
+    {
+        $hc = User::factory()->create(['role' => 'head_coach', 'status' => 'approved']);
+        // givePlayPermissions() uses syncPermissions(), which REPLACES the whole set -
+        // it must run before any other givePermissionTo() call, or it wipes it out.
+        $this->givePlayPermissions($hc);
+        $hc->givePermissionTo('league.create');
+
+        $starterGlobal = $this->makeGlobalPlay('Starter Play One'); // column default: is_starter_play = true
+        $nonStarterGlobal = $this->makeGlobalPlay('Non Starter Play One');
+        $nonStarterGlobal->is_starter_play = false;
+        $nonStarterGlobal->save();
+
+        $sportId = DB::table('sports')->insertGetId(['title' => 'Starter Set Test Sport']);
+        $leagueRuleId = DB::table('league_rules')->value('id') ?? 1;
+
+        Sanctum::actingAs($hc);
+        // SportController::store() reads auth('api')->user() directly, a separate
+        // guard instance from the default one Sanctum::actingAs() authenticates -
+        // see tests/Feature/League/LeagueApiTest.php for the same pairing.
+        $this->actingAs($hc, 'api');
+        $response = $this->postJson('/api/leaque-create', [
+            'sport_id' => $sportId,
+            'location' => 'Test City',
+            'league_rule_id' => $leagueRuleId,
+            'number_of_team' => 1,
+            'title' => 'Starter Set League',
+            'practice_number_players' => 7,
+            'team_name' => [
+                ['name' => 'My Team', 'is_practice' => 0],
+            ],
+        ]);
+
+        $response->assertStatus(200);
+        $leagueId = $response->json('data.id');
+
+        $this->assertDatabaseHas('league_play_overrides', [
+            'league_id' => $leagueId,
+            'global_play_id' => $nonStarterGlobal->id,
+            'status' => 'hidden',
+        ]);
+        $this->assertDatabaseMissing('league_play_overrides', [
+            'league_id' => $leagueId,
+            'global_play_id' => $starterGlobal->id,
+        ]);
+
+        $listResponse = $this->getJson('/api/upload-play-list?league_id=' . $leagueId);
+        $names = collect($listResponse->json('data'))->pluck('play_name');
+        $this->assertTrue($names->contains('Starter Play One'));
+        $this->assertFalse($names->contains('Non Starter Play One'));
+    }
+
+    /** @test */
+    public function creating_a_new_league_seeds_no_overrides_when_every_global_play_is_a_starter_play()
+    {
+        $hc = User::factory()->create(['role' => 'head_coach', 'status' => 'approved']);
+        $hc->givePermissionTo('league.create');
+        $this->makeGlobalPlay('Already A Starter'); // column default: is_starter_play = true
+
+        $sportId = DB::table('sports')->insertGetId(['title' => 'No Seed Test Sport']);
+        $leagueRuleId = DB::table('league_rules')->value('id') ?? 1;
+
+        Sanctum::actingAs($hc);
+        $this->actingAs($hc, 'api');
+        $response = $this->postJson('/api/leaque-create', [
+            'sport_id' => $sportId,
+            'location' => 'Test City',
+            'league_rule_id' => $leagueRuleId,
+            'number_of_team' => 1,
+            'title' => 'No Restriction League',
+            'practice_number_players' => 7,
+            'team_name' => [
+                ['name' => 'My Team', 'is_practice' => 0],
+            ],
+        ]);
+
+        $response->assertStatus(200);
+        $leagueId = $response->json('data.id');
+        $this->assertSame(0, \App\Models\LeaguePlayOverride::where('league_id', $leagueId)->count());
+    }
+
+    /** @test */
+    public function changing_starter_status_after_a_league_already_exists_does_not_retroactively_hide_anything_for_it()
+    {
+        $hc = User::factory()->create(['role' => 'head_coach', 'status' => 'approved']);
+        $this->givePlayPermissions($hc);
+        $league = $this->makeLeague($hc); // created directly, as if it predates this feature
+        $global = $this->makeGlobalPlay('Pre-Existing League Play'); // starts as starter by default
+
+        $global->is_starter_play = false; // admin un-stars it AFTER the league already exists
+        $global->save();
+
+        Sanctum::actingAs($hc);
+        $response = $this->getJson('/api/upload-play-list?league_id=' . $league->id);
+        $names = collect($response->json('data'))->pluck('play_name');
+        $this->assertTrue($names->contains('Pre-Existing League Play'));
+    }
 }
