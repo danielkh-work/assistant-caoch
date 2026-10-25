@@ -27,6 +27,11 @@ class Play extends Model
         'possession', 'video_path',
     ];
 
+    protected $casts = [
+        'is_global' => 'boolean',
+        'is_starter_play' => 'boolean',
+    ];
+
     public function configuredLeagues()
     {
         return $this->belongsToMany(League::class, 'configure_plays', 'play_id', 'league_id');

@@ -157,6 +157,21 @@ class PlayController extends Controller
         $play->delete();
         return redirect()->route('play.index')->with('success', 'Play deleted successfully');
     }
+
+    public function toggleStarter($id)
+    {
+        $play = Play::findOrFail($id);
+
+        if (!$play->is_global) {
+            return response()->json(['message' => 'Only Global Plays can be starter plays.'], 422);
+        }
+
+        $play->is_starter_play = !$play->is_starter_play;
+        $play->save();
+
+        return response()->json(['is_starter_play' => $play->is_starter_play]);
+    }
+
     public function store(Request $request)
     {
         DB::beginTransaction();

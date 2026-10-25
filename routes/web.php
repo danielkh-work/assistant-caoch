@@ -76,6 +76,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('play/{id}/edit', 'edit')->name('play.edit');
         Route::put('play/{id}', 'update')->name('play.update');
         Route::delete('play/{id}', 'destroy')->name('play.destroy');
+        Route::post('play/{id}/toggle-starter', 'toggleStarter')->name('play.toggle-starter');
     });
     Route::controller(LeagueController::class)->group(function () {
         Route::get('league', 'index')->name('league.index');
