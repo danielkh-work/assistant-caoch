@@ -20,7 +20,7 @@ class Play extends Model
      * behavior - nothing in the codebase used Play::create() before this.
      */
     protected $fillable = [
-        'league_id', 'is_global', 'created_by', 'created_by_user_id',
+        'league_id', 'is_global', 'is_starter_play', 'created_by', 'created_by_user_id',
         'play_name', 'play_type', 'zone_selection',
         'min_expected_yard', 'max_expected_yard',
         'pre_snap_motion', 'play_action_fake',
