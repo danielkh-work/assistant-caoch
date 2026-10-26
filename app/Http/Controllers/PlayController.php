@@ -56,7 +56,14 @@ class PlayController extends Controller
                     //         ' . method_field('DELETE') . '
                     //         <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm(\'Are you sure?\')">Delete</button>
                     //     </form>
-                ->rawColumns(['action'])
+                    ->addColumn('starter', function($row){
+                        if (!$row->is_global) {
+                            return '<span class="text-muted">&mdash;</span>';
+                        }
+                        $checked = $row->is_starter_play ? 'checked' : '';
+                        return '<input type="checkbox" class="starter-toggle" data-id="' . $row->id . '" ' . $checked . '>';
+                    })
+                ->rawColumns(['action', 'starter'])
                 ->make(true);
         }
         return view('plays.index',$data);
@@ -157,6 +164,21 @@ class PlayController extends Controller
         $play->delete();
         return redirect()->route('play.index')->with('success', 'Play deleted successfully');
     }
+
+    public function toggleStarter($id)
+    {
+        $play = Play::findOrFail($id);
+
+        if (!$play->is_global) {
+            return response()->json(['message' => 'Only Global Plays can be starter plays.'], 422);
+        }
+
+        $play->is_starter_play = !$play->is_starter_play;
+        $play->save();
+
+        return response()->json(['is_starter_play' => $play->is_starter_play]);
+    }
+
     public function store(Request $request)
     {
         DB::beginTransaction();
