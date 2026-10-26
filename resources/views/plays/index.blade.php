@@ -29,14 +29,78 @@
             <br>
             <div class="row mb-3">
                 <div class="col-md-12">
-                    <div class="card card-body py-2 px-3 d-flex flex-row align-items-center flex-wrap" style="gap: 16px;">
-                        <div class="form-check mb-0">
-                            <input type="checkbox" class="form-check-input" id="starterHeaderCheckbox">
-                            <label class="form-check-label" for="starterHeaderCheckbox">
-                                Toggle "Starter" for every Global Play shown on this page
-                            </label>
+                    <div class="card card-body py-2 px-3">
+                        <div class="d-flex flex-row align-items-center flex-wrap justify-content-between" style="gap: 16px;">
+                            <div class="form-check mb-0">
+                                <input type="checkbox" class="form-check-input" id="starterHeaderCheckbox">
+                                <label class="form-check-label" for="starterHeaderCheckbox">
+                                    Toggle "Starter" for every Global Play shown on this page
+                                </label>
+                            </div>
+                            <div class="d-flex align-items-center" style="gap: 10px;">
+                                <a href="#" id="starterAcrossPagesLink" class="btn btn-outline-primary btn-sm mb-0" style="display:none;"></a>
+                                <button type="button" id="playFiltersToggle" class="btn btn-outline-secondary btn-sm mb-0">
+                                    Filters <span id="playFiltersBadge" class="badge badge-primary" style="display:none;"></span>
+                                </button>
+                            </div>
                         </div>
-                        <a href="#" id="starterAcrossPagesLink" class="btn btn-outline-primary btn-sm mb-0" style="display:none;"></a>
+
+                        <div id="playFiltersPanel" style="display:none; margin-top: 14px; border-top: 1px solid #e9ecef; padding-top: 14px;">
+                            <div class="d-flex flex-wrap" style="gap: 28px;">
+                                <div>
+                                    <div class="d-flex align-items-center justify-content-between mb-1" style="width: 180px;">
+                                        <strong class="small text-uppercase text-muted">Strategies</strong>
+                                        <span>
+                                            <a href="#" class="small play-filter-select-all" data-group="strategies">All</a> /
+                                            <a href="#" class="small play-filter-clear-group" data-group="strategies">None</a>
+                                        </span>
+                                    </div>
+                                    <label class="d-block mb-0"><input type="checkbox" class="play-filter-checkbox" data-group="strategies" value="regular"> Regular</label>
+                                    <label class="d-block mb-0"><input type="checkbox" class="play-filter-checkbox" data-group="strategies" value="red zone"> Red Zone</label>
+                                    <label class="d-block mb-0"><input type="checkbox" class="play-filter-checkbox" data-group="strategies" value="hurry up"> Hurry Up</label>
+                                    <label class="d-block mb-0"><input type="checkbox" class="play-filter-checkbox" data-group="strategies" value="aggressive"> Aggressive</label>
+                                    <label class="d-block mb-0"><input type="checkbox" class="play-filter-checkbox" data-group="strategies" value="chew clock"> Chew Clock</label>
+                                </div>
+
+                                <div>
+                                    <div class="d-flex align-items-center justify-content-between mb-1" style="width: 150px;">
+                                        <strong class="small text-uppercase text-muted">Preferred Down</strong>
+                                        <span>
+                                            <a href="#" class="small play-filter-select-all" data-group="preferred_down">All</a> /
+                                            <a href="#" class="small play-filter-clear-group" data-group="preferred_down">None</a>
+                                        </span>
+                                    </div>
+                                    <label class="d-block mb-0"><input type="checkbox" class="play-filter-checkbox" data-group="preferred_down" value="1"> 1st</label>
+                                    <label class="d-block mb-0"><input type="checkbox" class="play-filter-checkbox" data-group="preferred_down" value="2"> 2nd</label>
+                                    <label class="d-block mb-0"><input type="checkbox" class="play-filter-checkbox" data-group="preferred_down" value="3"> 3rd</label>
+                                    <label class="d-block mb-0"><input type="checkbox" class="play-filter-checkbox" data-group="preferred_down" value="4"> 4th</label>
+                                </div>
+
+                                <div>
+                                    <strong class="small text-uppercase text-muted d-block mb-1">Yardage Gain</strong>
+                                    <select id="yardageGainFilter" class="form-control form-control-sm" style="width: 160px;">
+                                        <option value="">All</option>
+                                        <option value="short">Short (1-4)</option>
+                                        <option value="medium">Medium (4-7)</option>
+                                        <option value="long">Long (7+)</option>
+                                        <option value="open_down">Open Down</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <strong class="small text-uppercase text-muted d-block mb-1">Play Target</strong>
+                                    <select id="playTargetFilter" class="form-control form-control-sm" style="width: 140px;">
+                                        <option value="">All</option>
+                                        <option value="offensive">Offensive</option>
+                                        <option value="defensive">Defensive</option>
+                                    </select>
+                                </div>
+
+                                <div class="align-self-end">
+                                    <button type="button" id="clearAllPlayFiltersBtn" class="btn btn-sm btn-link">Clear all filters</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -83,6 +147,10 @@
                     url: "{{ route('play.index') }}",
                     data: function (d) {
                         d.role = $('#roleFilter').val();
+                        d.strategies = getCheckedFilterValues('strategies').join(',');
+                        d.preferred_down = getCheckedFilterValues('preferred_down').join(',');
+                        d.yardage_gain = $('#yardageGainFilter').val();
+                        d.play_target = $('#playTargetFilter').val();
                     }
                 },
                 columns: [
@@ -115,6 +183,56 @@
             `);
             $('#roleFilter').on('change', function () {
 
+                table.draw();
+            });
+
+            function getCheckedFilterValues(group) {
+                return $('.play-filter-checkbox[data-group="' + group + '"]:checked')
+                    .map(function () { return $(this).val(); })
+                    .get();
+            }
+
+            function updatePlayFiltersBadge() {
+                const count = getCheckedFilterValues('strategies').length
+                    + getCheckedFilterValues('preferred_down').length
+                    + ($('#yardageGainFilter').val() ? 1 : 0)
+                    + ($('#playTargetFilter').val() ? 1 : 0);
+                if (count > 0) {
+                    $('#playFiltersBadge').text(count).show();
+                } else {
+                    $('#playFiltersBadge').hide();
+                }
+            }
+
+            $('#playFiltersToggle').on('click', function () {
+                $('#playFiltersPanel').slideToggle(150);
+            });
+
+            $(document).on('change', '.play-filter-checkbox, #yardageGainFilter, #playTargetFilter', function () {
+                updatePlayFiltersBadge();
+                table.draw();
+            });
+
+            $(document).on('click', '.play-filter-select-all', function (e) {
+                e.preventDefault();
+                const group = $(this).data('group');
+                $('.play-filter-checkbox[data-group="' + group + '"]').prop('checked', true);
+                updatePlayFiltersBadge();
+                table.draw();
+            });
+
+            $(document).on('click', '.play-filter-clear-group', function (e) {
+                e.preventDefault();
+                const group = $(this).data('group');
+                $('.play-filter-checkbox[data-group="' + group + '"]').prop('checked', false);
+                updatePlayFiltersBadge();
+                table.draw();
+            });
+
+            $('#clearAllPlayFiltersBtn').on('click', function () {
+                $('.play-filter-checkbox').prop('checked', false);
+                $('#yardageGainFilter, #playTargetFilter').val('');
+                updatePlayFiltersBadge();
                 table.draw();
             });
 
@@ -172,6 +290,10 @@
                     data: {
                         role: $('#roleFilter').val(),
                         search: table.search(),
+                        strategies: getCheckedFilterValues('strategies').join(','),
+                        preferred_down: getCheckedFilterValues('preferred_down').join(','),
+                        yardage_gain: $('#yardageGainFilter').val(),
+                        play_target: $('#playTargetFilter').val(),
                     },
                     success: function (resp) {
                         applyStarter(resp.ids, targetValue, function () {

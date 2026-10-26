@@ -24,12 +24,13 @@ class PlayController extends Controller
     public function index(Request $request)
     {
         
-        $query = Play::with('roles')->orderBy('id', 'desc');   
+        $query = Play::with('roles')->orderBy('id', 'desc');
         if ($request->filled('role')) {
             $query->whereHas('roles', function ($q) use ($request) {
                 $q->where('roles.id', $request->role);
             });
         }
+        $this->applyPlayValueFilters($query, $request);
         $data = $query->get();
         if ($request->ajax()) {
             return DataTables::of($data)
@@ -210,7 +211,43 @@ class PlayController extends Controller
             $query->where('play_name', 'like', '%' . $request->input('search') . '%');
         }
 
+        $this->applyPlayValueFilters($query, $request);
+
         return response()->json(['ids' => $query->pluck('id')]);
+    }
+
+    /**
+     * Shared by index() (the DataTable) and globalIds() (what "Apply to all matching
+     * Global Plays across all pages" expands to) - they must stay in lockstep, or
+     * that action would apply to a different set of plays than the admin is looking at.
+     */
+    private function applyPlayValueFilters($query, Request $request): void
+    {
+        $selectedStrategies = array_filter(array_map('trim', explode(',', (string) $request->input('strategies', ''))));
+        if (!empty($selectedStrategies)) {
+            $query->where(function ($q) use ($selectedStrategies) {
+                foreach ($selectedStrategies as $strategy) {
+                    $q->orWhere('strategies', 'like', '%' . addcslashes($strategy, '%_\\') . '%');
+                }
+            });
+        }
+
+        $selectedDowns = array_filter(array_map('trim', explode(',', (string) $request->input('preferred_down', ''))));
+        if (!empty($selectedDowns)) {
+            $query->where(function ($q) use ($selectedDowns) {
+                foreach ($selectedDowns as $down) {
+                    $q->orWhere('preferred_down', 'like', '%' . addcslashes($down, '%_\\') . '%');
+                }
+            });
+        }
+
+        if ($request->filled('yardage_gain')) {
+            $query->where('min_expected_yard', $request->input('yardage_gain'));
+        }
+
+        if ($request->filled('play_target')) {
+            $query->where('possession', $request->input('play_target'));
+        }
     }
 
     public function store(Request $request)
