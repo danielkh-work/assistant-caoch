@@ -101,6 +101,7 @@
                                 <button type="button" id="clearAllPlayFiltersBtn" class="play-filter-clear-all">Clear all filters</button>
                             </div>
                         </div>
+                        <div id="playFiltersChips" class="play-filters-chips"></div>
                     </div>
                 </div>
             </div>
@@ -211,6 +212,34 @@
                     white-space: nowrap;
                 }
                 .play-filter-clear-all:hover { background: #dc3545; color: #ffffff; }
+
+                .play-filters-chips {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 8px;
+                    margin-top: 10px;
+                }
+                .play-filters-chips:empty { margin-top: 0; }
+                .play-filter-chip {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                    background: #e7f1ff;
+                    border: 1px solid #b6d4fe;
+                    color: #0d6efd;
+                    border-radius: 999px;
+                    font-size: 12px;
+                    font-weight: 600;
+                    padding: 4px 8px 4px 12px;
+                }
+                .play-filter-chip__remove {
+                    color: #0d6efd;
+                    text-decoration: none;
+                    font-weight: 700;
+                    line-height: 1;
+                    padding: 0 2px;
+                }
+                .play-filter-chip__remove:hover { color: #dc3545; }
             </style>
             <!-- Small boxes (Stat box) -->
             <div class="row">
@@ -300,6 +329,33 @@
                     .get();
             }
 
+            const strategyLabels = { 'regular': 'Regular', 'red zone': 'Red Zone', 'hurry up': 'Hurry Up', 'aggressive': 'Aggressive', 'chew clock': 'Chew Clock' };
+            const downLabels = { '1': '1st Down', '2': '2nd Down', '3': '3rd Down', '4': '4th Down' };
+
+            function renderPlayFiltersChips() {
+                const chips = [];
+                getCheckedFilterValues('strategies').forEach(function (v) {
+                    chips.push({ group: 'strategies', value: v, label: strategyLabels[v] || v });
+                });
+                getCheckedFilterValues('preferred_down').forEach(function (v) {
+                    chips.push({ group: 'preferred_down', value: v, label: downLabels[v] || v });
+                });
+                [
+                    { sel: '#yardageGainFilter' },
+                    { sel: '#playTargetFilter' },
+                ].forEach(function (f) {
+                    const val = $(f.sel).val();
+                    if (val) {
+                        chips.push({ group: 'select', target: f.sel, label: $(f.sel + ' option:selected').text() });
+                    }
+                });
+
+                $('#playFiltersChips').data('chips', chips).html(chips.map(function (chip, i) {
+                    return '<span class="play-filter-chip">' + chip.label
+                        + '<a href="#" class="play-filter-chip__remove" data-chip-index="' + i + '">&times;</a></span>';
+                }).join(''));
+            }
+
             function updatePlayFiltersBadge() {
                 const count = getCheckedFilterValues('strategies').length
                     + getCheckedFilterValues('preferred_down').length
@@ -310,6 +366,7 @@
                 } else {
                     $('#playFiltersBadge').hide();
                 }
+                renderPlayFiltersChips();
             }
 
             $('#playFiltersToggle').on('click', function () {
@@ -343,6 +400,23 @@
                 updatePlayFiltersBadge();
                 table.draw();
             });
+
+            $(document).on('click', '.play-filter-chip__remove', function (e) {
+                e.preventDefault();
+                const index = $(this).data('chip-index');
+                const chips = $('#playFiltersChips').data('chips') || [];
+                const chip = chips[index];
+                if (!chip) { return; }
+                if (chip.group === 'select') {
+                    $(chip.target).val('');
+                } else {
+                    $('.play-filter-checkbox[data-group="' + chip.group + '"][value="' + chip.value + '"]').prop('checked', false);
+                }
+                updatePlayFiltersBadge();
+                table.draw();
+            });
+
+            updatePlayFiltersBadge();
 
             $(document).on('change', '.starter-toggle', function () {
                 const checkbox = $(this);
