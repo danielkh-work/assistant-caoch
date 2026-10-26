@@ -164,10 +164,15 @@ class PlayController extends Controller
             ->where(function ($sub) use ($leagueId) {
                 // A Global Play this league has no override row for (not hidden,
                 // not customized - customized ones are already covered by the
-                // branch below, since the clone itself carries this league_id).
+                // branch below, since the clone itself carries this league_id) -
+                // and that the admin currently has marked as a starter play. This
+                // is evaluated live on every request, for every league (new or
+                // old), so promoting/demoting a Global Play's starter status takes
+                // effect everywhere immediately.
                 $sub->where(function ($q) {
                     $q->where('plays.is_global', true)
-                        ->whereNull('league_play_overrides.id');
+                        ->whereNull('league_play_overrides.id')
+                        ->where('plays.is_starter_play', true);
                 })
                 ->orWhere('plays.league_id', $leagueId);
             })
