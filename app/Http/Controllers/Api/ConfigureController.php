@@ -438,6 +438,8 @@ class ConfigureController extends Controller
             $query->where('plays.play_name', 'like', $needle);
         }
 
+        \App\Http\Controllers\Api\PlayController::applyPlayValueFilters($query, $request);
+
         return $query->pluck('plays.id')->map(fn ($id) => (int) $id)->all();
     }
 

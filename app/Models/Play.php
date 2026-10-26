@@ -25,6 +25,7 @@ class Play extends Model
         'min_expected_yard', 'max_expected_yard',
         'pre_snap_motion', 'play_action_fake',
         'possession', 'video_path',
+        'strategies', 'preferred_down',
     ];
 
     protected $casts = [
