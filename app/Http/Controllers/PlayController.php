@@ -63,13 +63,7 @@ class PlayController extends Controller
                         $checked = $row->is_starter_play ? 'checked' : '';
                         return '<input type="checkbox" class="starter-toggle" data-id="' . $row->id . '" ' . $checked . '>';
                     })
-                    ->addColumn('select', function($row){
-                        if (!$row->is_global) {
-                            return '';
-                        }
-                        return '<input type="checkbox" class="row-select" data-id="' . $row->id . '">';
-                    })
-                ->rawColumns(['action', 'starter', 'select'])
+                ->rawColumns(['action', 'starter'])
                 ->make(true);
         }
         return view('plays.index',$data);
