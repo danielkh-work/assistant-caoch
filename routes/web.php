@@ -70,6 +70,7 @@ Route::middleware(['auth'])->group(function () {
     Route::controller(PlayController::class)->group(function () {
         Route::get('play', 'index')->name('play.index');
         Route::get('play/create', 'create')->name('play.create'); // <- Move this above
+        Route::get('play/global-ids', 'globalIds')->name('play.global-ids');
         Route::get('play/{id}', 'show')->name('play.show');
         Route::post('play', 'store')->name('play.store');
 
@@ -77,6 +78,7 @@ Route::middleware(['auth'])->group(function () {
         Route::put('play/{id}', 'update')->name('play.update');
         Route::delete('play/{id}', 'destroy')->name('play.destroy');
         Route::post('play/{id}/toggle-starter', 'toggleStarter')->name('play.toggle-starter');
+        Route::post('play/bulk-toggle-starter', 'bulkToggleStarter')->name('play.bulk-toggle-starter');
     });
     Route::controller(LeagueController::class)->group(function () {
         Route::get('league', 'index')->name('league.index');

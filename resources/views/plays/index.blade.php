@@ -27,6 +27,19 @@
                 </div>
             </div>
             <br>
+            <div class="row mb-3">
+                <div class="col-md-12">
+                    <div class="card card-body py-2 px-3 d-flex flex-row align-items-center flex-wrap" style="gap: 16px;">
+                        <div class="form-check mb-0">
+                            <input type="checkbox" class="form-check-input" id="starterHeaderCheckbox">
+                            <label class="form-check-label" for="starterHeaderCheckbox">
+                                Toggle "Starter" for every Global Play shown on this page
+                            </label>
+                        </div>
+                        <a href="#" id="starterAcrossPagesLink" class="btn btn-outline-primary btn-sm mb-0" style="display:none;"></a>
+                    </div>
+                </div>
+            </div>
             <!-- Small boxes (Stat box) -->
             <div class="row">
                  <div class="table-responsive">
@@ -115,6 +128,55 @@
                     error: function (xhr) {
                         checkbox.prop('checked', !checkbox.prop('checked')); // revert on failure
                         alert(xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : 'Could not update starter status.');
+                    }
+                });
+            });
+
+            function applyStarter(ids, value, onDone) {
+                if (!ids.length) {
+                    return;
+                }
+                $.ajax({
+                    url: '{{ route('play.bulk-toggle-starter') }}',
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                    data: { ids: ids, starter: value ? 1 : 0 },
+                    success: function () {
+                        table.ajax.reload(null, false);
+                        if (onDone) { onDone(); }
+                    },
+                    error: function (xhr) {
+                        $('#starterHeaderCheckbox').prop('checked', !value);
+                        alert(xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : 'Could not update starter status.');
+                    }
+                });
+            }
+
+            $('#starterHeaderCheckbox').on('change', function () {
+                const checked = this.checked;
+                const ids = $('.starter-toggle').map(function () { return $(this).data('id'); }).get();
+                applyStarter(ids, checked, function () {
+                    $('#starterAcrossPagesLink')
+                        .show()
+                        .data('target', checked)
+                        .text('Apply to all matching Global Plays across all pages');
+                });
+            });
+
+            $(document).on('click', '#starterAcrossPagesLink', function (e) {
+                e.preventDefault();
+                const targetValue = $(this).data('target');
+                $.ajax({
+                    url: '{{ route('play.global-ids') }}',
+                    method: 'GET',
+                    data: {
+                        role: $('#roleFilter').val(),
+                        search: table.search(),
+                    },
+                    success: function (resp) {
+                        applyStarter(resp.ids, targetValue, function () {
+                            $('#starterAcrossPagesLink').hide();
+                        });
                     }
                 });
             });

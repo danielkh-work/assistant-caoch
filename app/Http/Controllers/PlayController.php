@@ -179,6 +179,38 @@ class PlayController extends Controller
         return response()->json(['is_starter_play' => $play->is_starter_play]);
     }
 
+    public function bulkToggleStarter(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer',
+            'starter' => 'required|boolean',
+        ]);
+
+        $updated = Play::whereIn('id', $request->input('ids'))
+            ->where('is_global', true)
+            ->update(['is_starter_play' => $request->boolean('starter')]);
+
+        return response()->json(['updated' => $updated]);
+    }
+
+    public function globalIds(Request $request)
+    {
+        $query = Play::where('is_global', true);
+
+        if ($request->filled('role')) {
+            $query->whereHas('roles', function ($q) use ($request) {
+                $q->where('roles.id', $request->role);
+            });
+        }
+
+        if ($request->filled('search')) {
+            $query->where('play_name', 'like', '%' . $request->input('search') . '%');
+        }
+
+        return response()->json(['ids' => $query->pluck('id')]);
+    }
+
     public function store(Request $request)
     {
         DB::beginTransaction();
