@@ -27,6 +27,19 @@
                 </div>
             </div>
             <br>
+            <div class="row mb-3">
+                <div class="col-md-12">
+                    <div class="card card-body py-2 px-3 d-flex flex-row align-items-center flex-wrap" style="gap: 16px;">
+                        <div class="form-check mb-0">
+                            <input type="checkbox" class="form-check-input" id="starterHeaderCheckbox">
+                            <label class="form-check-label" for="starterHeaderCheckbox">
+                                Toggle "Starter" for every Global Play shown on this page
+                            </label>
+                        </div>
+                        <a href="#" id="starterAcrossPagesLink" class="btn btn-outline-primary btn-sm mb-0" style="display:none;"></a>
+                    </div>
+                </div>
+            </div>
             <!-- Small boxes (Stat box) -->
             <div class="row">
                  <div class="table-responsive">
@@ -41,12 +54,7 @@
                             <th>possession</th>
                             <th>description</th>
                             <th>strategies</th>
-                            <th width="90px">
-                                Starter
-                                <br>
-                                <input type="checkbox" id="starterHeaderCheckbox" title="Set starter status for all Global Plays on this page">
-                                <a href="#" id="starterAcrossPagesLink" style="display:none;"></a>
-                            </th>
+                            <th width="80px">Starter</th>
                             <th width="100px">Action</th>
                         </tr>
                         </thead>
