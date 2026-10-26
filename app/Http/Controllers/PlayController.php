@@ -110,6 +110,8 @@ class PlayController extends Controller
                 : $request->strategies;
             $play->possession = $request->possession;
             $play->description = $request->description;
+            $play->read_1 = $request->read_1;
+            $play->read_2 = $request->read_2;
             if ($request->hasFile('image')) {
                 $imagePath = uploadImage($request->file('image'), 'public/uploads/public');
                 $play->image = $imagePath;
@@ -245,6 +247,8 @@ class PlayController extends Controller
 
             $play->possession = $request->possession;
             $play->description = $request->description;
+            $play->read_1 = $request->read_1;
+            $play->read_2 = $request->read_2;
             $play->position_status = 2;
             $play->video_path = 'video path';
             // Upload image

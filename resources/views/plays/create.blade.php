@@ -65,9 +65,19 @@
                         </div>
                         <div class="row">
                            <div class="col-md-4">
-                                <label for="">description</label>
+                                <label for="">Read 1</label>
                                  <textarea id="description" name="description" class="form-control" rows="3" placeholder="Enter description"></textarea>
-                              
+
+                            </div>
+
+                            <div class="col-md-4">
+                                <label for="">Read 2</label>
+                                 <textarea id="read_1" name="read_1" class="form-control" rows="3" placeholder="Enter read 2"></textarea>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label for="">Read 3</label>
+                                 <textarea id="read_2" name="read_2" class="form-control" rows="3" placeholder="Enter read 3"></textarea>
                             </div>
 
                              <div class="col-md-4">
