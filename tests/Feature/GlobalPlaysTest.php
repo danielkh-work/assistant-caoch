@@ -564,7 +564,7 @@ class GlobalPlaysTest extends TestCase
     }
 
     /** @test */
-    public function creating_a_new_league_seeds_hidden_overrides_for_non_starter_global_plays()
+    public function a_newly_created_league_only_shows_global_plays_currently_marked_as_starter()
     {
         $hc = User::factory()->create(['role' => 'head_coach', 'status' => 'approved']);
         // givePlayPermissions() uses syncPermissions(), which REPLACES the whole set -
@@ -600,15 +600,9 @@ class GlobalPlaysTest extends TestCase
         $response->assertStatus(200);
         $leagueId = $response->json('data.id');
 
-        $this->assertDatabaseHas('league_play_overrides', [
-            'league_id' => $leagueId,
-            'global_play_id' => $nonStarterGlobal->id,
-            'status' => 'hidden',
-        ]);
-        $this->assertDatabaseMissing('league_play_overrides', [
-            'league_id' => $leagueId,
-            'global_play_id' => $starterGlobal->id,
-        ]);
+        // No overrides get seeded at all - visibility is computed live from
+        // is_starter_play, not snapshotted at league-creation time.
+        $this->assertSame(0, \App\Models\LeaguePlayOverride::where('league_id', $leagueId)->count());
 
         $listResponse = $this->getJson('/api/upload-play-list?league_id=' . $leagueId);
         $names = collect($listResponse->json('data'))->pluck('play_name');
@@ -617,48 +611,48 @@ class GlobalPlaysTest extends TestCase
     }
 
     /** @test */
-    public function creating_a_new_league_seeds_no_overrides_when_every_global_play_is_a_starter_play()
-    {
-        $hc = User::factory()->create(['role' => 'head_coach', 'status' => 'approved']);
-        $hc->givePermissionTo('league.create');
-        $this->makeGlobalPlay('Already A Starter'); // column default: is_starter_play = true
-
-        $sportId = DB::table('sports')->insertGetId(['title' => 'No Seed Test Sport']);
-        $leagueRuleId = DB::table('league_rules')->value('id') ?? 1;
-
-        Sanctum::actingAs($hc);
-        $this->actingAs($hc, 'api');
-        $response = $this->postJson('/api/leaque-create', [
-            'sport_id' => $sportId,
-            'location' => 'Test City',
-            'league_rule_id' => $leagueRuleId,
-            'number_of_team' => 1,
-            'title' => 'No Restriction League',
-            'practice_number_players' => 7,
-            'team_name' => [
-                ['name' => 'My Team', 'is_practice' => 0],
-            ],
-        ]);
-
-        $response->assertStatus(200);
-        $leagueId = $response->json('data.id');
-        $this->assertSame(0, \App\Models\LeaguePlayOverride::where('league_id', $leagueId)->count());
-    }
-
-    /** @test */
-    public function changing_starter_status_after_a_league_already_exists_does_not_retroactively_hide_anything_for_it()
+    public function changing_starter_status_applies_live_to_a_league_created_before_the_change()
     {
         $hc = User::factory()->create(['role' => 'head_coach', 'status' => 'approved']);
         $this->givePlayPermissions($hc);
         $league = $this->makeLeague($hc); // created directly, as if it predates this feature
         $global = $this->makeGlobalPlay('Pre-Existing League Play'); // starts as starter by default
 
+        Sanctum::actingAs($hc);
+
+        $response = $this->getJson('/api/upload-play-list?league_id=' . $league->id);
+        $this->assertTrue(collect($response->json('data'))->pluck('play_name')->contains('Pre-Existing League Play'));
+
         $global->is_starter_play = false; // admin un-stars it AFTER the league already exists
         $global->save();
 
+        $response = $this->getJson('/api/upload-play-list?league_id=' . $league->id);
+        $this->assertFalse(collect($response->json('data'))->pluck('play_name')->contains('Pre-Existing League Play'));
+
+        $global->is_starter_play = true; // admin re-stars it
+        $global->save();
+
+        $response = $this->getJson('/api/upload-play-list?league_id=' . $league->id);
+        $this->assertTrue(collect($response->json('data'))->pluck('play_name')->contains('Pre-Existing League Play'));
+    }
+
+    /** @test */
+    public function a_global_play_the_head_coach_manually_hid_stays_hidden_even_if_marked_as_a_starter_play()
+    {
+        $hc = User::factory()->create(['role' => 'head_coach', 'status' => 'approved']);
+        $this->givePlayPermissions($hc);
+        $league = $this->makeLeague($hc);
+        $global = $this->makeGlobalPlay('Manually Hidden Starter Play'); // is_starter_play default true
+
+        \App\Models\LeaguePlayOverride::create([
+            'league_id' => $league->id,
+            'global_play_id' => $global->id,
+            'status' => 'hidden',
+            'created_by_user_id' => $hc->id,
+        ]);
+
         Sanctum::actingAs($hc);
         $response = $this->getJson('/api/upload-play-list?league_id=' . $league->id);
-        $names = collect($response->json('data'))->pluck('play_name');
-        $this->assertTrue($names->contains('Pre-Existing League Play'));
+        $this->assertFalse(collect($response->json('data'))->pluck('play_name')->contains('Manually Hidden Starter Play'));
     }
 }

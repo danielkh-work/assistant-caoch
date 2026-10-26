@@ -8,7 +8,6 @@ use App\Models\League;
 use App\Models\LeagueRule;
 use App\Models\LeagueTeam;
 use App\Models\PersionalGrouping;
-use App\Models\Play;
 use App\Models\Player;
 use App\Models\PlayGameMode;
 use App\Models\Sport;
@@ -71,25 +70,6 @@ class SportController extends Controller
            $League->flag_tbd =$request->flag_tbd;
         //    $League->warning_time_minutes =$request->warning_time_minutes;
            $League->save();
-
-           $nonStarterGlobalPlayIds = Play::where('is_global', true)
-               ->where('is_starter_play', false)
-               ->pluck('id');
-
-           if ($nonStarterGlobalPlayIds->isNotEmpty()) {
-               $now = now();
-               $overrideRows = $nonStarterGlobalPlayIds->map(fn ($playId) => [
-                   'league_id' => $League->id,
-                   'global_play_id' => $playId,
-                   'status' => 'hidden',
-                   'customized_play_id' => null,
-                   'created_by_user_id' => null,
-                   'created_at' => $now,
-                   'updated_at' => $now,
-               ])->all();
-
-               DB::table('league_play_overrides')->insert($overrideRows);
-           }
 
            $practiceTeams = [];
            foreach($request->team_name as $index => $value)
