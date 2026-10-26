@@ -63,7 +63,13 @@ class PlayController extends Controller
                         $checked = $row->is_starter_play ? 'checked' : '';
                         return '<input type="checkbox" class="starter-toggle" data-id="' . $row->id . '" ' . $checked . '>';
                     })
-                ->rawColumns(['action', 'starter'])
+                    ->addColumn('select', function($row){
+                        if (!$row->is_global) {
+                            return '';
+                        }
+                        return '<input type="checkbox" class="row-select" data-id="' . $row->id . '">';
+                    })
+                ->rawColumns(['action', 'starter', 'select'])
                 ->make(true);
         }
         return view('plays.index',$data);
@@ -177,6 +183,38 @@ class PlayController extends Controller
         $play->save();
 
         return response()->json(['is_starter_play' => $play->is_starter_play]);
+    }
+
+    public function bulkToggleStarter(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer',
+            'starter' => 'required|boolean',
+        ]);
+
+        $updated = Play::whereIn('id', $request->input('ids'))
+            ->where('is_global', true)
+            ->update(['is_starter_play' => $request->boolean('starter')]);
+
+        return response()->json(['updated' => $updated]);
+    }
+
+    public function globalIds(Request $request)
+    {
+        $query = Play::where('is_global', true);
+
+        if ($request->filled('role')) {
+            $query->whereHas('roles', function ($q) use ($request) {
+                $q->where('roles.id', $request->role);
+            });
+        }
+
+        if ($request->filled('search')) {
+            $query->where('play_name', 'like', '%' . $request->input('search') . '%');
+        }
+
+        return response()->json(['ids' => $query->pluck('id')]);
     }
 
     public function store(Request $request)

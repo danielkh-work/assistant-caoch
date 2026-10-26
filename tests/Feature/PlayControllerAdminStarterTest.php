@@ -94,4 +94,73 @@ class PlayControllerAdminStarterTest extends TestCase
         $response->assertStatus(422);
         $this->assertTrue($play->fresh()->is_starter_play); // column default, never changed
     }
+
+    /** @test */
+    public function admin_can_bulk_mark_several_global_plays_as_starter()
+    {
+        $admin = User::factory()->create(['status' => 'approved']);
+        $playA = $this->makeGlobalPlay(isStarter: false);
+        $playB = $this->makeGlobalPlay(isStarter: false);
+
+        $response = $this->actingAs($admin)->postJson(route('play.bulk-toggle-starter'), [
+            'ids' => [$playA->id, $playB->id],
+            'starter' => true,
+        ]);
+
+        $response->assertStatus(200);
+        $this->assertTrue($playA->fresh()->is_starter_play);
+        $this->assertTrue($playB->fresh()->is_starter_play);
+    }
+
+    /** @test */
+    public function admin_can_bulk_unmark_several_global_plays_as_starter()
+    {
+        $admin = User::factory()->create(['status' => 'approved']);
+        $playA = $this->makeGlobalPlay(isStarter: true);
+        $playB = $this->makeGlobalPlay(isStarter: true);
+
+        $response = $this->actingAs($admin)->postJson(route('play.bulk-toggle-starter'), [
+            'ids' => [$playA->id, $playB->id],
+            'starter' => false,
+        ]);
+
+        $response->assertStatus(200);
+        $this->assertFalse($playA->fresh()->is_starter_play);
+        $this->assertFalse($playB->fresh()->is_starter_play);
+    }
+
+    /** @test */
+    public function bulk_toggle_ignores_league_scoped_plays_in_the_id_list()
+    {
+        $admin = User::factory()->create(['status' => 'approved']);
+        $globalPlay = $this->makeGlobalPlay(isStarter: false);
+        $leaguePlay = $this->makeLeagueScopedPlay();
+
+        $this->actingAs($admin)->postJson(route('play.bulk-toggle-starter'), [
+            'ids' => [$globalPlay->id, $leaguePlay->id],
+            'starter' => true,
+        ])->assertStatus(200);
+
+        $this->assertTrue($globalPlay->fresh()->is_starter_play);
+        $this->assertTrue($leaguePlay->fresh()->is_starter_play); // untouched, column default was already true
+    }
+
+    /** @test */
+    public function admin_can_fetch_all_global_play_ids_matching_a_search_term()
+    {
+        $admin = User::factory()->create(['status' => 'approved']);
+        $match = $this->makeGlobalPlay();
+        $match->play_name = 'Zone Blitz Special';
+        $match->save();
+        $nonMatch = $this->makeGlobalPlay();
+        $nonMatch->play_name = 'Unrelated Play';
+        $nonMatch->save();
+
+        $response = $this->actingAs($admin)->getJson(route('play.global-ids', ['search' => 'Zone Blitz']));
+
+        $response->assertStatus(200);
+        $ids = $response->json('ids');
+        $this->assertContains($match->id, $ids);
+        $this->assertNotContains($nonMatch->id, $ids);
+    }
 }
