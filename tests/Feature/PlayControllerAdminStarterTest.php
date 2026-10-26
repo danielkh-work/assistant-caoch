@@ -146,6 +146,21 @@ class PlayControllerAdminStarterTest extends TestCase
     }
 
     /** @test */
+    public function bulk_toggle_accepts_the_form_encoded_1_0_the_admin_page_actually_sends()
+    {
+        $admin = User::factory()->create(['status' => 'approved']);
+        $play = $this->makeGlobalPlay(isStarter: false);
+
+        $response = $this->actingAs($admin)->post(route('play.bulk-toggle-starter'), [
+            'ids' => [$play->id],
+            'starter' => '1',
+        ]);
+
+        $response->assertStatus(200);
+        $this->assertTrue($play->fresh()->is_starter_play);
+    }
+
+    /** @test */
     public function admin_can_fetch_all_global_play_ids_matching_a_search_term()
     {
         $admin = User::factory()->create(['status' => 'approved']);

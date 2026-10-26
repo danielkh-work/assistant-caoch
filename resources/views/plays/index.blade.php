@@ -132,7 +132,7 @@
                     url: '{{ route('play.bulk-toggle-starter') }}',
                     method: 'POST',
                     headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-                    data: { ids: ids, starter: value },
+                    data: { ids: ids, starter: value ? 1 : 0 },
                     success: function () {
                         table.ajax.reload(null, false);
                         if (onDone) { onDone(); }
