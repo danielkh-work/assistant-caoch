@@ -24,50 +24,49 @@ class PlayController extends Controller
     public function index(Request $request)
     {
         
-        $query = Play::with('roles')->orderBy('id', 'desc');
+        $query = Play::with(['roles', 'league'])->orderBy('id', 'desc');
         if ($request->filled('role')) {
             $query->whereHas('roles', function ($q) use ($request) {
                 $q->where('roles.id', $request->role);
             });
+        }
+        if ($request->input('scope') === 'global') {
+            $query->where('is_global', true);
+        } elseif ($request->input('scope') === 'league') {
+            $query->where('is_global', false);
         }
         $this->applyPlayValueFilters($query, $request);
         $data = $query->get();
         if ($request->ajax()) {
             return DataTables::of($data)
                 ->addIndexColumn()
-                // ->addColumn('position',function ($row){
-                //     return $row->is_verify==1 ? 'offence' : 'deffence';
-                // })
                   ->addColumn('roles', function($row) {
                             return $row->roles->pluck('name')->implode(', ');
                     })
+                    ->addColumn('league', function($row){
+                        return $row->league->title ?? '<span class="text-muted">&mdash;</span>';
+                    })
                     ->addColumn('action', function($row){
                     $editUrl = route('play.edit', ['id' => $row->id]);
-                    $deleteUrl = route('play.destroy', ['id' => $row->id]);
-
-                   
 
                     return '
                         <a href="' . $editUrl . '" class="btn btn-warning btn-sm me-1">Edit</a>
-                       
+
                     ';
                     })
-                    //  <form action="' . $deleteUrl . '" method="POST" style="display:inline;">
-                    //         ' . csrf_field() . '
-                    //         ' . method_field('DELETE') . '
-                    //         <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm(\'Are you sure?\')">Delete</button>
-                    //     </form>
                     ->addColumn('starter', function($row){
                         if (!$row->is_global) {
                             return '<span class="text-muted">&mdash;</span>';
                         }
                         $checked = $row->is_starter_play ? 'checked' : '';
-                        return '<input type="checkbox" class="starter-toggle" data-id="' . $row->id . '" ' . $checked . '>';
+                        return '<label class="pv-switch"><input type="checkbox" class="starter-toggle" data-id="' . $row->id . '" ' . $checked . '><span class="pv-switch__slider"></span></label>';
                     })
-                ->rawColumns(['action', 'starter'])
+                ->rawColumns(['action', 'starter', 'league'])
                 ->make(true);
         }
-        return view('plays.index',$data);
+        return view('plays.index', [
+            'leagues' => League::orderBy('title')->get(['id', 'title']),
+        ]);
     }
     public function create(){
 
@@ -217,6 +216,46 @@ class PlayController extends Controller
     }
 
     /**
+     * Drag-and-drop copy between the Global Plays and League Plays panels. Always
+     * creates a new row (replicate), never moves/mutates the original.
+     */
+    public function copyPlay(Request $request, $id)
+    {
+        $request->validate([
+            'target' => 'required|in:global,league',
+            'league_id' => 'required_if:target,league|nullable|integer|exists:leagues,id',
+        ]);
+
+        $play = Play::findOrFail($id);
+        $targetIsGlobal = $request->input('target') === 'global';
+        $targetLeagueId = $targetIsGlobal ? null : (int) $request->input('league_id');
+
+        $alreadyExists = Play::where('is_global', $targetIsGlobal)
+            ->when(!$targetIsGlobal, function ($q) use ($targetLeagueId) {
+                $q->where('league_id', $targetLeagueId);
+            })
+            ->whereRaw('LOWER(TRIM(play_name)) = ?', [mb_strtolower(trim($play->play_name))])
+            ->exists();
+
+        if ($alreadyExists) {
+            return response()->json([
+                'message' => '"' . $play->play_name . '" already exists there - it was not duplicated.',
+                'duplicate' => true,
+            ], 409);
+        }
+
+        $copy = $play->replicate();
+        $copy->is_global = $targetIsGlobal;
+        $copy->league_id = $targetLeagueId;
+        $copy->is_starter_play = false;
+        $copy->created_by = 'admin';
+        $copy->created_by_user_id = auth()->id();
+        $copy->save();
+
+        return response()->json(['id' => $copy->id, 'message' => 'Play copied successfully.']);
+    }
+
+    /**
      * Shared by index() (the DataTable) and globalIds() (what "Apply to all matching
      * Global Plays across all pages" expands to) - they must stay in lockstep, or
      * that action would apply to a different set of plays than the admin is looking at.
@@ -241,12 +280,14 @@ class PlayController extends Controller
             });
         }
 
-        if ($request->filled('yardage_gain')) {
-            $query->where('min_expected_yard', $request->input('yardage_gain'));
+        $selectedYardages = array_filter(array_map('trim', explode(',', (string) $request->input('yardage_gain', ''))));
+        if (!empty($selectedYardages)) {
+            $query->whereIn('min_expected_yard', $selectedYardages);
         }
 
-        if ($request->filled('play_target')) {
-            $query->where('possession', $request->input('play_target'));
+        $selectedTargets = array_filter(array_map('trim', explode(',', (string) $request->input('play_target', ''))));
+        if (!empty($selectedTargets)) {
+            $query->whereIn('possession', $selectedTargets);
         }
     }
 

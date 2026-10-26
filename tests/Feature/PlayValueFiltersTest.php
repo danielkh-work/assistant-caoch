@@ -105,6 +105,36 @@ class PlayValueFiltersTest extends TestCase
     }
 
     /** @test */
+    public function filtering_by_multiple_yardage_gains_returns_any_selected_value()
+    {
+        [, $league] = $this->actingAsHeadCoach();
+        $this->makePlay($league->id, 'Long Gain Play Two', ['min_expected_yard' => 'long']);
+        $this->makePlay($league->id, 'Short Gain Play Two', ['min_expected_yard' => 'short']);
+        $this->makePlay($league->id, 'Medium Gain Play Two', ['min_expected_yard' => 'medium']);
+
+        $response = $this->getJson('/api/upload-play-list?league_id=' . $league->id . '&yardage_gain=long,short');
+        $names = collect($response->json('data'))->pluck('play_name');
+
+        $this->assertTrue($names->contains('Long Gain Play Two'));
+        $this->assertTrue($names->contains('Short Gain Play Two'));
+        $this->assertFalse($names->contains('Medium Gain Play Two'));
+    }
+
+    /** @test */
+    public function filtering_by_multiple_play_targets_returns_any_selected_value()
+    {
+        [, $league] = $this->actingAsHeadCoach();
+        $this->makePlay($league->id, 'Offensive Play Two', ['possession' => 'offensive']);
+        $this->makePlay($league->id, 'Defensive Play Two', ['possession' => 'defensive']);
+
+        $response = $this->getJson('/api/upload-play-list?league_id=' . $league->id . '&play_target=offensive,defensive');
+        $names = collect($response->json('data'))->pluck('play_name');
+
+        $this->assertTrue($names->contains('Offensive Play Two'));
+        $this->assertTrue($names->contains('Defensive Play Two'));
+    }
+
+    /** @test */
     public function combining_filters_applies_them_together_not_either_or()
     {
         [, $league] = $this->actingAsHeadCoach();

@@ -273,12 +273,14 @@ class PlayController extends Controller
             });
         }
 
-        if ($request->filled('yardage_gain')) {
-            $query->where('plays.min_expected_yard', $request->input('yardage_gain'));
+        $selectedYardages = array_filter(array_map('trim', explode(',', (string) $request->input('yardage_gain', ''))));
+        if (!empty($selectedYardages)) {
+            $query->whereIn('plays.min_expected_yard', $selectedYardages);
         }
 
-        if ($request->filled('play_target')) {
-            $query->where('plays.possession', $request->input('play_target'));
+        $selectedTargets = array_filter(array_map('trim', explode(',', (string) $request->input('play_target', ''))));
+        if (!empty($selectedTargets)) {
+            $query->whereIn('plays.possession', $selectedTargets);
         }
     }
 
