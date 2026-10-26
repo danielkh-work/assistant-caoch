@@ -211,6 +211,8 @@ class PlayController extends Controller
             $query->where('play_name', 'like', $needle);
         }
 
+        $this->applyPlayValueFilters($query, $request);
+
 
         //TODO improve pagination logic by using laravel standard function
         $paginateRequested = $request->has('page')
@@ -244,6 +246,40 @@ class PlayController extends Controller
         $play = $query->get();
 
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Play Uploaded List ', $play);
+    }
+
+    /**
+     * Shared by PlayController@index and ConfigureController::matchingPlayIdsForSelectAll()
+     * - the two queries must stay in lockstep (see that method's docblock), so any filter
+     * added here must be added there too.
+     */
+    public static function applyPlayValueFilters($query, Request $request): void
+    {
+        $selectedStrategies = array_filter(array_map('trim', explode(',', (string) $request->input('strategies', ''))));
+        if (!empty($selectedStrategies)) {
+            $query->where(function ($q) use ($selectedStrategies) {
+                foreach ($selectedStrategies as $strategy) {
+                    $q->orWhere('plays.strategies', 'like', '%' . addcslashes($strategy, '%_\\') . '%');
+                }
+            });
+        }
+
+        $selectedDowns = array_filter(array_map('trim', explode(',', (string) $request->input('preferred_down', ''))));
+        if (!empty($selectedDowns)) {
+            $query->where(function ($q) use ($selectedDowns) {
+                foreach ($selectedDowns as $down) {
+                    $q->orWhere('plays.preferred_down', 'like', '%' . addcslashes($down, '%_\\') . '%');
+                }
+            });
+        }
+
+        if ($request->filled('yardage_gain')) {
+            $query->where('plays.min_expected_yard', $request->input('yardage_gain'));
+        }
+
+        if ($request->filled('play_target')) {
+            $query->where('plays.possession', $request->input('play_target'));
+        }
     }
 
     public function deletePlayResults($id)
