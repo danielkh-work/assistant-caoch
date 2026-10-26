@@ -2,9 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Models\League;
 use App\Models\Play;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class PlayControllerAdminFilterTest extends TestCase
@@ -21,6 +23,19 @@ class PlayControllerAdminFilterTest extends TestCase
             'is_global' => true, 'league_id' => null,
             'strategies' => 'regular', 'preferred_down' => '1',
         ], $overrides));
+    }
+
+    private function makeLeague(User $owner): League
+    {
+        $sportId = DB::table('sports')->insertGetId(['title' => 'Admin Filter Test Sport']);
+        $league = new League();
+        $league->user_id = $owner->id;
+        $league->sport_id = $sportId;
+        $league->league_rule_id = DB::table('league_rules')->value('id') ?? 1;
+        $league->title = 'Admin Filter Test League';
+        $league->number_of_team = 2;
+        $league->save();
+        return $league;
     }
 
     private function ajaxGet(string $url)
@@ -74,6 +89,62 @@ class PlayControllerAdminFilterTest extends TestCase
         $names = collect($response->json('data'))->pluck('play_name');
         $this->assertTrue($names->contains('Long Defensive Play'));
         $this->assertFalse($names->contains('Short Offensive Play'));
+    }
+
+    /** @test */
+    public function admin_datatable_filters_by_multiple_yardage_gains_and_play_targets()
+    {
+        $admin = User::factory()->create(['status' => 'approved']);
+        $this->makePlay('Long Admin Play', ['min_expected_yard' => 'long', 'possession' => 'offensive']);
+        $this->makePlay('Short Admin Play', ['min_expected_yard' => 'short', 'possession' => 'defensive']);
+        $this->makePlay('Medium Admin Play', ['min_expected_yard' => 'medium', 'possession' => 'offensive']);
+
+        $response = $this->actingAs($admin)->ajaxGet(
+            route('play.index') . '?yardage_gain=long,short&play_target=offensive,defensive&draw=1&start=0&length=10'
+        );
+
+        $names = collect($response->json('data'))->pluck('play_name');
+        $this->assertTrue($names->contains('Long Admin Play'));
+        $this->assertTrue($names->contains('Short Admin Play'));
+        $this->assertFalse($names->contains('Medium Admin Play'));
+    }
+
+    /** @test */
+    public function admin_datatable_scope_global_returns_only_global_plays()
+    {
+        $admin = User::factory()->create(['status' => 'approved']);
+        $league = $this->makeLeague($admin);
+        $this->makePlay('Global Scoped Play');
+        $this->makePlay('League Scoped Play', ['is_global' => false, 'league_id' => $league->id]);
+
+        $response = $this->actingAs($admin)->ajaxGet(
+            route('play.index') . '?scope=global&draw=1&start=0&length=10'
+        );
+
+        $names = collect($response->json('data'))->pluck('play_name');
+        $this->assertTrue($names->contains('Global Scoped Play'));
+        $this->assertFalse($names->contains('League Scoped Play'));
+    }
+
+    /** @test */
+    public function admin_datatable_scope_league_returns_only_league_plays_and_their_league_name()
+    {
+        $admin = User::factory()->create(['status' => 'approved']);
+        $league = $this->makeLeague($admin);
+        $this->makePlay('Global Scoped Play Two');
+        $this->makePlay('League Scoped Play Two', ['is_global' => false, 'league_id' => $league->id]);
+
+        $response = $this->actingAs($admin)->ajaxGet(
+            route('play.index') . '?scope=league&draw=1&start=0&length=10'
+        );
+
+        $rows = collect($response->json('data'));
+        $names = $rows->pluck('play_name');
+        $this->assertFalse($names->contains('Global Scoped Play Two'));
+        $this->assertTrue($names->contains('League Scoped Play Two'));
+
+        $leagueRow = $rows->firstWhere('play_name', 'League Scoped Play Two');
+        $this->assertSame('Admin Filter Test League', $leagueRow['league']);
     }
 
     /** @test */

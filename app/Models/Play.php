@@ -38,6 +38,11 @@ class Play extends Model
         return $this->belongsToMany(League::class, 'configure_plays', 'play_id', 'league_id');
     }
 
+    public function league()
+    {
+        return $this->belongsTo(League::class);
+    }
+
     public function offensiveTargets()
     {
         return $this->hasMany(OffensiveTargetStrength::class, 'play_id');
