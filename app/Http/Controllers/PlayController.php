@@ -23,17 +23,33 @@ class PlayController extends Controller
      */
     public function index(Request $request)
     {
-        
+        return $this->listPlays($request, false);
+    }
+
+    /**
+     * Same listing, but scoped to Global Plays only - backs the "Global Plays"
+     * sidebar submenu.
+     */
+    public function indexGlobal(Request $request)
+    {
+        return $this->listPlays($request, true);
+    }
+
+    private function listPlays(Request $request, bool $onlyGlobal)
+    {
         $query = Play::with(['roles', 'league'])->orderBy('id', 'desc');
         if ($request->filled('role')) {
             $query->whereHas('roles', function ($q) use ($request) {
                 $q->where('roles.id', $request->role);
             });
         }
-        if ($request->input('scope') === 'global') {
+        if ($onlyGlobal || $request->input('scope') === 'global') {
             $query->where('is_global', true);
         } elseif ($request->input('scope') === 'league') {
             $query->where('is_global', false);
+        }
+        if ($request->filled('starter')) {
+            $query->where('is_starter_play', $request->input('starter') === '1');
         }
         $this->applyPlayValueFilters($query, $request);
         $data = $query->get();
@@ -64,9 +80,7 @@ class PlayController extends Controller
                 ->rawColumns(['action', 'starter', 'league'])
                 ->make(true);
         }
-        return view('plays.index', [
-            'leagues' => League::orderBy('title')->get(['id', 'title']),
-        ]);
+        return view($onlyGlobal ? 'plays.global' : 'plays.index');
     }
     public function create(){
 
@@ -210,49 +224,13 @@ class PlayController extends Controller
             $query->where('play_name', 'like', '%' . $request->input('search') . '%');
         }
 
+        if ($request->filled('starter')) {
+            $query->where('is_starter_play', $request->input('starter') === '1');
+        }
+
         $this->applyPlayValueFilters($query, $request);
 
         return response()->json(['ids' => $query->pluck('id')]);
-    }
-
-    /**
-     * Drag-and-drop copy between the Global Plays and League Plays panels. Always
-     * creates a new row (replicate), never moves/mutates the original.
-     */
-    public function copyPlay(Request $request, $id)
-    {
-        $request->validate([
-            'target' => 'required|in:global,league',
-            'league_id' => 'required_if:target,league|nullable|integer|exists:leagues,id',
-        ]);
-
-        $play = Play::findOrFail($id);
-        $targetIsGlobal = $request->input('target') === 'global';
-        $targetLeagueId = $targetIsGlobal ? null : (int) $request->input('league_id');
-
-        $alreadyExists = Play::where('is_global', $targetIsGlobal)
-            ->when(!$targetIsGlobal, function ($q) use ($targetLeagueId) {
-                $q->where('league_id', $targetLeagueId);
-            })
-            ->whereRaw('LOWER(TRIM(play_name)) = ?', [mb_strtolower(trim($play->play_name))])
-            ->exists();
-
-        if ($alreadyExists) {
-            return response()->json([
-                'message' => '"' . $play->play_name . '" already exists there - it was not duplicated.',
-                'duplicate' => true,
-            ], 409);
-        }
-
-        $copy = $play->replicate();
-        $copy->is_global = $targetIsGlobal;
-        $copy->league_id = $targetLeagueId;
-        $copy->is_starter_play = false;
-        $copy->created_by = 'admin';
-        $copy->created_by_user_id = auth()->id();
-        $copy->save();
-
-        return response()->json(['id' => $copy->id, 'message' => 'Play copied successfully.']);
     }
 
     /**

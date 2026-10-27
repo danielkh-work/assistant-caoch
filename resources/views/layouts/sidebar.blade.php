@@ -54,13 +54,25 @@
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a 
+                    <a
                     href="{{ route('play.index') }}"
-                        class="{{ Request::is('play') || Request::is('play/*') ? 'nav-link active' : 'nav-link' }}" 
+                        class="{{ Request::is('play') ? 'nav-link active' : 'nav-link' }}"
                         >
                         <i class="nav-icon fas fa-video"></i>
                         <p>
                             Plays
+                        </p>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a
+                    href="{{ route('play.global') }}"
+                        class="{{ Request::is('play/global') ? 'nav-link active' : 'nav-link' }}"
+                        style="padding-left: 2.5rem;"
+                        >
+                        <i class="far fa-circle nav-icon"></i>
+                        <p>
+                            Global Plays
                         </p>
                     </a>
                 </li>
