@@ -71,8 +71,18 @@
 
                     <div class="row mt-3">
                         <div class="col-md-4">
-                            <label for="">Description</label>
+                            <label for="">Read 1</label>
                             <textarea id="description" name="description" class="form-control" rows="3">{{ old('description', $play->description) }}</textarea>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="">Read 2</label>
+                            <textarea id="read_1" name="read_1" class="form-control" rows="3">{{ old('read_1', $play->read_1) }}</textarea>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="">Read 3</label>
+                            <textarea id="read_2" name="read_2" class="form-control" rows="3">{{ old('read_2', $play->read_2) }}</textarea>
                         </div>
 
                         <div class="col-md-4">
