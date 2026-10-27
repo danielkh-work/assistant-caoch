@@ -164,10 +164,15 @@ class PlayController extends Controller
             ->where(function ($sub) use ($leagueId) {
                 // A Global Play this league has no override row for (not hidden,
                 // not customized - customized ones are already covered by the
-                // branch below, since the clone itself carries this league_id).
+                // branch below, since the clone itself carries this league_id) -
+                // and that the admin currently has marked as a starter play. This
+                // is evaluated live on every request, for every league (new or
+                // old), so promoting/demoting a Global Play's starter status takes
+                // effect everywhere immediately.
                 $sub->where(function ($q) {
                     $q->where('plays.is_global', true)
-                        ->whereNull('league_play_overrides.id');
+                        ->whereNull('league_play_overrides.id')
+                        ->where('plays.is_starter_play', true);
                 })
                 ->orWhere('plays.league_id', $leagueId);
             })
@@ -206,6 +211,8 @@ class PlayController extends Controller
             $query->where('play_name', 'like', $needle);
         }
 
+        $this->applyPlayValueFilters($query, $request);
+
 
         //TODO improve pagination logic by using laravel standard function
         $paginateRequested = $request->has('page')
@@ -239,6 +246,42 @@ class PlayController extends Controller
         $play = $query->get();
 
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Play Uploaded List ', $play);
+    }
+
+    /**
+     * Shared by PlayController@index and ConfigureController::matchingPlayIdsForSelectAll()
+     * - the two queries must stay in lockstep (see that method's docblock), so any filter
+     * added here must be added there too.
+     */
+    public static function applyPlayValueFilters($query, Request $request): void
+    {
+        $selectedStrategies = array_filter(array_map('trim', explode(',', (string) $request->input('strategies', ''))));
+        if (!empty($selectedStrategies)) {
+            $query->where(function ($q) use ($selectedStrategies) {
+                foreach ($selectedStrategies as $strategy) {
+                    $q->orWhere('plays.strategies', 'like', '%' . addcslashes($strategy, '%_\\') . '%');
+                }
+            });
+        }
+
+        $selectedDowns = array_filter(array_map('trim', explode(',', (string) $request->input('preferred_down', ''))));
+        if (!empty($selectedDowns)) {
+            $query->where(function ($q) use ($selectedDowns) {
+                foreach ($selectedDowns as $down) {
+                    $q->orWhere('plays.preferred_down', 'like', '%' . addcslashes($down, '%_\\') . '%');
+                }
+            });
+        }
+
+        $selectedYardages = array_filter(array_map('trim', explode(',', (string) $request->input('yardage_gain', ''))));
+        if (!empty($selectedYardages)) {
+            $query->whereIn('plays.min_expected_yard', $selectedYardages);
+        }
+
+        $selectedTargets = array_filter(array_map('trim', explode(',', (string) $request->input('play_target', ''))));
+        if (!empty($selectedTargets)) {
+            $query->whereIn('plays.possession', $selectedTargets);
+        }
     }
 
     public function deletePlayResults($id)
