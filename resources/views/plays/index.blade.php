@@ -226,14 +226,99 @@
                     margin-left: 2px;
                 }
 
-                .pv-thumb {
-                    width: 40px;
+                .pv-pic-stack {
+                    position: relative;
+                    width: 48px;
                     height: 40px;
+                    cursor: pointer;
+                }
+                .pv-pic-stack__img {
+                    width: 36px;
+                    height: 36px;
                     object-fit: cover;
                     border-radius: 6px;
-                    border: 1px solid #e9ecef;
+                    border: 2px solid #ffffff;
+                    box-shadow: 0 1px 4px rgba(0,0,0,.25);
                     background: #f8f9fa;
+                    position: absolute;
+                    top: 1px;
+                    left: 5px;
+                    transition: transform .15s ease;
                 }
+                .pv-pic-stack--1 .pv-pic-stack__img {
+                    position: static;
+                    border: 1px solid #e9ecef;
+                    box-shadow: none;
+                }
+                .pv-pic-stack--2 .pv-pic-stack__img--0 { transform: rotate(-10deg) translate(-5px, 1px); z-index: 1; }
+                .pv-pic-stack--2 .pv-pic-stack__img--1 { transform: rotate(10deg) translate(5px, 1px); z-index: 2; }
+                .pv-pic-stack--3 .pv-pic-stack__img--0 { transform: rotate(-14deg) translate(-8px, 2px); z-index: 1; }
+                .pv-pic-stack--3 .pv-pic-stack__img--1 { transform: rotate(0deg) translate(0, -2px); z-index: 3; }
+                .pv-pic-stack--3 .pv-pic-stack__img--2 { transform: rotate(14deg) translate(8px, 2px); z-index: 2; }
+                .pv-pic-stack:hover .pv-pic-stack__img--0 { transform: rotate(-18deg) translate(-10px, 3px); }
+                .pv-pic-stack:hover .pv-pic-stack__img--2 { transform: rotate(18deg) translate(10px, 3px); }
+
+                .pv-lightbox-backdrop {
+                    position: fixed;
+                    inset: 0;
+                    z-index: 2000;
+                    background: rgba(0, 0, 0, .85);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                .pv-lightbox__image {
+                    max-width: 85vw;
+                    max-height: 80vh;
+                    border-radius: 8px;
+                    box-shadow: 0 20px 60px rgba(0, 0, 0, .5);
+                }
+                .pv-lightbox__close {
+                    position: absolute;
+                    top: 18px;
+                    right: 24px;
+                    background: none;
+                    border: none;
+                    color: #fff;
+                    font-size: 36px;
+                    line-height: 1;
+                    cursor: pointer;
+                }
+                .pv-lightbox__nav {
+                    position: absolute;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    background: rgba(255, 255, 255, .12);
+                    border: none;
+                    color: #fff;
+                    font-size: 32px;
+                    width: 52px;
+                    height: 52px;
+                    border-radius: 50%;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                .pv-lightbox__nav:hover { background: rgba(255, 255, 255, .25); }
+                .pv-lightbox__prev { left: 18px; }
+                .pv-lightbox__next { right: 18px; }
+                .pv-lightbox__dots {
+                    position: absolute;
+                    bottom: 22px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    display: flex;
+                    gap: 8px;
+                }
+                .pv-lightbox__dot {
+                    width: 8px;
+                    height: 8px;
+                    border-radius: 50%;
+                    background: rgba(255, 255, 255, .4);
+                    cursor: pointer;
+                }
+                .pv-lightbox__dot--active { background: #ffffff; }
             </style>
             <!-- Small boxes (Stat box) -->
             <div class="row">
@@ -263,6 +348,14 @@
             <!-- Main row -->
             <!-- /.row (main row) -->
         </div><!-- /.container-fluid -->
+
+        <div id="pvImageLightbox" class="pv-lightbox-backdrop" hidden>
+            <button type="button" class="pv-lightbox__close">&times;</button>
+            <button type="button" class="pv-lightbox__nav pv-lightbox__prev">&#8249;</button>
+            <img id="pvLightboxImage" class="pv-lightbox__image" src="" alt="">
+            <button type="button" class="pv-lightbox__nav pv-lightbox__next">&#8250;</button>
+            <div class="pv-lightbox__dots"></div>
+        </div>
     </section>
 
 @endsection
@@ -277,16 +370,77 @@
                     .get();
             }
 
-            // Shared by every thumbnail's onerror= so a missing file falls back to the
-            // same dash placeholder used for plays that never had a picture at all.
+            // Shared by every stacked thumbnail's onerror= so a missing file just drops
+            // out of the fan instead of showing a broken-image icon.
             window.pvThumbMissing = function (img) {
-                $(img).replaceWith('<span class="text-muted">&mdash;</span>');
+                $(img).remove();
             };
 
-            function renderThumbnail(data) {
-                if (!data) { return '<span class="text-muted">&mdash;</span>'; }
-                return '<img src="{{ url('/') }}/' + data + '" class="pv-thumb" alt="" onerror="pvThumbMissing(this)">';
+            function renderPictureStack(data, type, row) {
+                const paths = [row.hmark_left, row.hmark_center, row.hmark_right].filter(function (p) { return !!p; });
+                if (!paths.length) { return '<span class="text-muted">&mdash;</span>'; }
+                const urls = paths.map(function (p) { return '{{ url('/') }}/' + p; });
+                const imgs = urls.map(function (url, i) {
+                    return '<img src="' + url + '" class="pv-pic-stack__img pv-pic-stack__img--' + i + '" alt="" onerror="pvThumbMissing(this)">';
+                }).join('');
+                return '<div class="pv-pic-stack pv-pic-stack--' + urls.length + '" data-images=\'' + JSON.stringify(urls) + '\'>' + imgs + '</div>';
             }
+
+            // ---- Fullscreen image lightbox (single image, or a slideshow for 2-3) ----
+            let lightboxImages = [];
+            let lightboxIndex = 0;
+
+            function renderLightbox() {
+                $('#pvLightboxImage').attr('src', lightboxImages[lightboxIndex]);
+                const multi = lightboxImages.length > 1;
+                $('.pv-lightbox__nav').toggle(multi);
+                const $dots = $('#pvImageLightbox .pv-lightbox__dots').empty();
+                if (multi) {
+                    lightboxImages.forEach(function (url, i) {
+                        $('<span class="pv-lightbox__dot' + (i === lightboxIndex ? ' pv-lightbox__dot--active' : '') + '"></span>')
+                            .on('click', function () { lightboxIndex = i; renderLightbox(); })
+                            .appendTo($dots);
+                    });
+                }
+            }
+
+            function openLightbox(images, startIndex) {
+                lightboxImages = images;
+                lightboxIndex = startIndex || 0;
+                renderLightbox();
+                $('#pvImageLightbox').removeAttr('hidden');
+            }
+
+            function closeLightbox() {
+                $('#pvImageLightbox').attr('hidden', true);
+            }
+
+            function showPrevImage() {
+                lightboxIndex = (lightboxIndex - 1 + lightboxImages.length) % lightboxImages.length;
+                renderLightbox();
+            }
+
+            function showNextImage() {
+                lightboxIndex = (lightboxIndex + 1) % lightboxImages.length;
+                renderLightbox();
+            }
+
+            $(document).on('click', '.pv-pic-stack', function () {
+                const images = JSON.parse($(this).attr('data-images'));
+                openLightbox(images, 0);
+            });
+            $('.pv-lightbox__close').on('click', closeLightbox);
+            $('.pv-lightbox__prev').on('click', showPrevImage);
+            $('.pv-lightbox__next').on('click', showNextImage);
+            $('#pvImageLightbox').on('click', function (e) {
+                if (e.target === this) { closeLightbox(); }
+            });
+            $(document).on('keydown', function (e) {
+                if ($('#pvImageLightbox').attr('hidden') !== undefined) { return; }
+                if (e.key === 'Escape') { closeLightbox(); }
+                if (e.key === 'ArrowLeft') { showPrevImage(); }
+                if (e.key === 'ArrowRight') { showNextImage(); }
+            });
 
             var table = $('.data-table').DataTable({
                 processing: true,
@@ -304,7 +458,7 @@
                 },
                 columns: [
                     {data: 'id', name: 'id'},
-                    {data: 'hmark_center', name: 'hmark_center', orderable: false, searchable: false, render: renderThumbnail},
+                    {data: null, name: 'hmark_center', orderable: false, searchable: false, render: renderPictureStack},
                     {data: 'play_name', name: 'play_name'},
                     {data: 'roles', name: 'roles'},
                     {data: 'league', name: 'league', orderable: false, searchable: false},
