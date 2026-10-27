@@ -225,6 +225,15 @@
                     text-decoration: underline;
                     margin-left: 2px;
                 }
+
+                .pv-thumb {
+                    width: 40px;
+                    height: 40px;
+                    object-fit: cover;
+                    border-radius: 6px;
+                    border: 1px solid #e9ecef;
+                    background: #f8f9fa;
+                }
             </style>
             <!-- Small boxes (Stat box) -->
             <div class="row">
@@ -233,6 +242,7 @@
                         <thead>
                         <tr>
                             <th>No</th>
+                            <th width="56px">Picture</th>
                             <th>Play Name</th>
                             <th>Roles</th>
                             <th>League</th>
@@ -267,6 +277,17 @@
                     .get();
             }
 
+            // Shared by every thumbnail's onerror= so a missing file falls back to the
+            // same dash placeholder used for plays that never had a picture at all.
+            window.pvThumbMissing = function (img) {
+                $(img).replaceWith('<span class="text-muted">&mdash;</span>');
+            };
+
+            function renderThumbnail(data) {
+                if (!data) { return '<span class="text-muted">&mdash;</span>'; }
+                return '<img src="{{ url('/') }}/' + data + '" class="pv-thumb" alt="" onerror="pvThumbMissing(this)">';
+            }
+
             var table = $('.data-table').DataTable({
                 processing: true,
                 serverSide: true,
@@ -283,6 +304,7 @@
                 },
                 columns: [
                     {data: 'id', name: 'id'},
+                    {data: 'hmark_center', name: 'hmark_center', orderable: false, searchable: false, render: renderThumbnail},
                     {data: 'play_name', name: 'play_name'},
                     {data: 'roles', name: 'roles'},
                     {data: 'league', name: 'league', orderable: false, searchable: false},
