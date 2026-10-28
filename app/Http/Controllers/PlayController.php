@@ -54,6 +54,12 @@ class PlayController extends Controller
         $this->applyPlayValueFilters($query, $request);
         $data = $query->get();
         if ($request->ajax()) {
+            $historyCounts = DB::table('play_game_logs')
+                ->whereIn('play_id', $data->pluck('id'))
+                ->selectRaw('play_id, count(*) as cnt')
+                ->groupBy('play_id')
+                ->pluck('cnt', 'play_id');
+
             return DataTables::of($data)
                 ->addIndexColumn()
                   ->addColumn('roles', function($row) {
@@ -62,12 +68,14 @@ class PlayController extends Controller
                     ->addColumn('league', function($row){
                         return $row->league->title ?? '<span class="text-muted">&mdash;</span>';
                     })
-                    ->addColumn('action', function($row){
+                    ->addColumn('action', function($row) use ($historyCounts){
                     $editUrl = route('play.edit', ['id' => $row->id]);
+                    $safeName = htmlspecialchars($row->play_name, ENT_QUOTES);
+                    $historyCount = (int) ($historyCounts[$row->id] ?? 0);
 
                     return '
                         <a href="' . $editUrl . '" class="btn btn-warning btn-sm me-1">Edit</a>
-
+                        <button type="button" class="btn btn-danger btn-sm delete-play-btn" data-id="' . $row->id . '" data-name="' . $safeName . '" data-history-count="' . $historyCount . '">Delete</button>
                     ';
                     })
                     ->addColumn('starter', function($row){
@@ -126,9 +134,10 @@ class PlayController extends Controller
             $play->description = $request->description;
             $play->read_1 = $request->read_1;
             $play->read_2 = $request->read_2;
-            if ($request->hasFile('image')) {
-                $imagePath = uploadImage($request->file('image'), 'public/uploads/public');
-                $play->image = $imagePath;
+            foreach (['hmark_left', 'hmark_center', 'hmark_right'] as $hmarkField) {
+                if ($request->hasFile($hmarkField)) {
+                    $play->{$hmarkField} = uploadImage($request->file($hmarkField), 'public', $play->{$hmarkField});
+                }
             }
             if ($request->hasFile('video')) {
                 $videoPath = uploadImage($request->file('video'), 'public/uploads/videos');
@@ -174,11 +183,47 @@ class PlayController extends Controller
         // }
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
         $play = Play::findOrFail($id);
-        $play->delete();
+
+        DB::transaction(function () use ($play) {
+            DB::table('play_game_logs')->where('play_id', $play->id)->delete();
+            $play->delete();
+        });
+
+        if ($request->ajax() || $request->wantsJson()) {
+            // A redirect response here would make an XHR DELETE's browser-side
+            // redirect-follow re-issue as DELETE against the Location URL (which
+            // doesn't support DELETE) - the play would already be gone, but the
+            // request would still come back as an error. AJAX callers get a plain
+            // JSON response instead; classic form submits keep the redirect/flash.
+            return response()->json(['message' => 'Play deleted successfully.']);
+        }
+
         return redirect()->route('play.index')->with('success', 'Play deleted successfully');
+    }
+
+    public function bulkDestroy(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer',
+        ]);
+
+        $ids = $request->input('ids');
+        $deletedCount = DB::transaction(function () use ($ids) {
+            DB::table('play_game_logs')->whereIn('play_id', $ids)->delete();
+            return Play::whereIn('id', $ids)->delete();
+        });
+
+        $message = $deletedCount . ($deletedCount === 1 ? ' play deleted.' : ' plays deleted.');
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json(['message' => $message, 'deleted' => $deletedCount]);
+        }
+
+        return redirect()->route('play.index')->with('success', $message);
     }
 
     public function toggleStarter($id)
