@@ -21,10 +21,10 @@
     <section class="content">
         <div class="container-fluid">
             @if (session('success'))
-                <div class="row mb-3"><div class="col-md-12"><div class="alert alert-success mb-0">{{ session('success') }}</div></div></div>
+                <div class="row mb-3"><div class="col-md-12"><div class="alert alert-success alert-dismissible mb-0 pv-flash-alert">{{ session('success') }}</div></div></div>
             @endif
             @if (session('error'))
-                <div class="row mb-3"><div class="col-md-12"><div class="alert alert-danger mb-0">{{ session('error') }}</div></div></div>
+                <div class="row mb-3"><div class="col-md-12"><div class="alert alert-danger alert-dismissible mb-0 pv-flash-alert">{{ session('error') }}</div></div></div>
             @endif
 
             <div class="row">
@@ -415,6 +415,12 @@
 @section('script')
     <script type="text/javascript">
         $(function () {
+
+            // Flash alerts (success/error after a delete) fade out on their own instead
+            // of sitting there forever.
+            setTimeout(function () {
+                $('.pv-flash-alert').fadeOut(400, function () { $(this).closest('.row').remove(); });
+            }, 4000);
 
             function getCheckedFilterValues(group) {
                 return $('.play-filter-checkbox[data-group="' + group + '"]:checked')
