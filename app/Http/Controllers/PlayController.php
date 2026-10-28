@@ -183,7 +183,7 @@ class PlayController extends Controller
         // }
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
         $play = Play::findOrFail($id);
 
@@ -191,6 +191,15 @@ class PlayController extends Controller
             DB::table('play_game_logs')->where('play_id', $play->id)->delete();
             $play->delete();
         });
+
+        if ($request->ajax() || $request->wantsJson()) {
+            // A redirect response here would make an XHR DELETE's browser-side
+            // redirect-follow re-issue as DELETE against the Location URL (which
+            // doesn't support DELETE) - the play would already be gone, but the
+            // request would still come back as an error. AJAX callers get a plain
+            // JSON response instead; classic form submits keep the redirect/flash.
+            return response()->json(['message' => 'Play deleted successfully.']);
+        }
 
         return redirect()->route('play.index')->with('success', 'Play deleted successfully');
     }
@@ -208,8 +217,13 @@ class PlayController extends Controller
             return Play::whereIn('id', $ids)->delete();
         });
 
-        return redirect()->route('play.index')
-            ->with('success', $deletedCount . ($deletedCount === 1 ? ' play deleted.' : ' plays deleted.'));
+        $message = $deletedCount . ($deletedCount === 1 ? ' play deleted.' : ' plays deleted.');
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json(['message' => $message, 'deleted' => $deletedCount]);
+        }
+
+        return redirect()->route('play.index')->with('success', $message);
     }
 
     public function toggleStarter($id)

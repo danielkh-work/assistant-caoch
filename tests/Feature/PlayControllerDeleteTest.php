@@ -45,6 +45,26 @@ class PlayControllerDeleteTest extends TestCase
     }
 
     /** @test */
+    public function an_ajax_delete_gets_a_json_response_instead_of_a_redirect()
+    {
+        // A redirect response to an XHR DELETE makes the browser's redirect-follow
+        // re-issue as DELETE against the Location URL, which 405s even though the
+        // play is already gone - AJAX callers must get plain JSON back instead.
+        $admin = User::factory()->create(['status' => 'approved']);
+        $play = $this->makePlay('Ajax Delete Play');
+
+        $response = $this->actingAs($admin)->delete(
+            route('play.destroy', $play->id),
+            [],
+            ['X-Requested-With' => 'XMLHttpRequest']
+        );
+
+        $response->assertStatus(200);
+        $response->assertJson(['message' => 'Play deleted successfully.']);
+        $this->assertDatabaseMissing('plays', ['id' => $play->id]);
+    }
+
+    /** @test */
     public function a_play_used_in_a_match_can_still_be_deleted_and_its_history_rows_go_with_it()
     {
         $admin = User::factory()->create(['status' => 'approved']);
