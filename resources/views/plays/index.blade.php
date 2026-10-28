@@ -640,10 +640,17 @@
             updatePlayFiltersBadge();
 
             // ---- Delete (single + bulk), with a styled confirm instead of window.confirm ----
-            function selectedPlayIds() {
+            function selectedPlayRows() {
                 return $('.play-row-select:checked').closest('tr').map(function () {
-                    return $(this).attr('data-play-id');
+                    return {
+                        id: $(this).attr('data-play-id'),
+                        historyCount: parseInt($(this).find('.delete-play-btn').attr('data-history-count'), 10) || 0,
+                    };
                 }).get();
+            }
+
+            function selectedPlayIds() {
+                return selectedPlayRows().map(function (row) { return row.id; });
             }
 
             function updateBulkDeleteButton() {
@@ -698,25 +705,35 @@
             $(document).on('click', '.delete-play-btn', function () {
                 const id = $(this).data('id');
                 const name = $(this).data('name');
-                openDeleteConfirm('Delete "' + name + '"? This cannot be undone.', function () {
+                const historyCount = parseInt($(this).attr('data-history-count'), 10) || 0;
+                const message = historyCount > 0
+                    ? 'Delete "' + name + '"? This play has been used in ' + historyCount
+                        + (historyCount === 1 ? ' match history record' : ' match history records')
+                        + ' - deleting it will permanently remove those records too. This cannot be undone.'
+                    : 'Delete "' + name + '"? This cannot be undone.';
+                openDeleteConfirm(message, function () {
                     $('#singleDeleteForm').attr('action', '/play/' + id).trigger('submit');
                 });
             });
 
             $('#bulkDeleteBtn').on('click', function () {
-                const ids = selectedPlayIds();
-                if (!ids.length) { return; }
-                openDeleteConfirm(
-                    'Delete ' + ids.length + (ids.length === 1 ? ' selected play' : ' selected plays')
-                        + '? Any that have been used in a match will be skipped automatically.',
-                    function () {
-                        const $container = $('#bulkDeleteIdsContainer').empty();
-                        ids.forEach(function (id) {
-                            $container.append('<input type="hidden" name="ids[]" value="' + id + '">');
-                        });
-                        $('#bulkDeleteForm').trigger('submit');
-                    }
-                );
+                const rows = selectedPlayRows();
+                if (!rows.length) { return; }
+                const ids = rows.map(function (r) { return r.id; });
+                const withHistory = rows.filter(function (r) { return r.historyCount > 0; }).length;
+                let message = 'Delete ' + ids.length + (ids.length === 1 ? ' selected play' : ' selected plays') + '?';
+                if (withHistory > 0) {
+                    message += ' ' + withHistory + (withHistory === 1 ? ' of them has' : ' of them have')
+                        + ' match history that will also be permanently removed.';
+                }
+                message += ' This cannot be undone.';
+                openDeleteConfirm(message, function () {
+                    const $container = $('#bulkDeleteIdsContainer').empty();
+                    ids.forEach(function (id) {
+                        $container.append('<input type="hidden" name="ids[]" value="' + id + '">');
+                    });
+                    $('#bulkDeleteForm').trigger('submit');
+                });
             });
         });
     </script>

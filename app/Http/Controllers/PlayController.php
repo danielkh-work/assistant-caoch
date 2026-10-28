@@ -54,6 +54,12 @@ class PlayController extends Controller
         $this->applyPlayValueFilters($query, $request);
         $data = $query->get();
         if ($request->ajax()) {
+            $historyCounts = DB::table('play_game_logs')
+                ->whereIn('play_id', $data->pluck('id'))
+                ->selectRaw('play_id, count(*) as cnt')
+                ->groupBy('play_id')
+                ->pluck('cnt', 'play_id');
+
             return DataTables::of($data)
                 ->addIndexColumn()
                   ->addColumn('roles', function($row) {
@@ -62,13 +68,14 @@ class PlayController extends Controller
                     ->addColumn('league', function($row){
                         return $row->league->title ?? '<span class="text-muted">&mdash;</span>';
                     })
-                    ->addColumn('action', function($row){
+                    ->addColumn('action', function($row) use ($historyCounts){
                     $editUrl = route('play.edit', ['id' => $row->id]);
                     $safeName = htmlspecialchars($row->play_name, ENT_QUOTES);
+                    $historyCount = (int) ($historyCounts[$row->id] ?? 0);
 
                     return '
                         <a href="' . $editUrl . '" class="btn btn-warning btn-sm me-1">Edit</a>
-                        <button type="button" class="btn btn-danger btn-sm delete-play-btn" data-id="' . $row->id . '" data-name="' . $safeName . '">Delete</button>
+                        <button type="button" class="btn btn-danger btn-sm delete-play-btn" data-id="' . $row->id . '" data-name="' . $safeName . '" data-history-count="' . $historyCount . '">Delete</button>
                     ';
                     })
                     ->addColumn('starter', function($row){
@@ -180,12 +187,11 @@ class PlayController extends Controller
     {
         $play = Play::findOrFail($id);
 
-        if ($this->playHasGameHistory($play->id)) {
-            return redirect()->route('play.index')
-                ->with('error', '"' . $play->play_name . '" has been used in a match and cannot be deleted.');
-        }
+        DB::transaction(function () use ($play) {
+            DB::table('play_game_logs')->where('play_id', $play->id)->delete();
+            $play->delete();
+        });
 
-        $play->delete();
         return redirect()->route('play.index')->with('success', 'Play deleted successfully');
     }
 
@@ -197,33 +203,13 @@ class PlayController extends Controller
         ]);
 
         $ids = $request->input('ids');
-        $blockedIds = DB::table('play_game_logs')
-            ->whereIn('play_id', $ids)
-            ->distinct()
-            ->pluck('play_id')
-            ->all();
+        $deletedCount = DB::transaction(function () use ($ids) {
+            DB::table('play_game_logs')->whereIn('play_id', $ids)->delete();
+            return Play::whereIn('id', $ids)->delete();
+        });
 
-        $deletableIds = array_values(array_diff($ids, $blockedIds));
-        $deletedCount = $deletableIds ? Play::whereIn('id', $deletableIds)->delete() : 0;
-        $skippedCount = count($blockedIds);
-
-        $message = $deletedCount . ($deletedCount === 1 ? ' play deleted.' : ' plays deleted.');
-        if ($skippedCount > 0) {
-            $message .= ' ' . $skippedCount . ($skippedCount === 1 ? ' play was' : ' plays were')
-                . ' skipped because they have been used in a match.';
-        }
-
-        return redirect()->route('play.index')->with($skippedCount > 0 ? 'error' : 'success', $message);
-    }
-
-    /**
-     * A play that has ever been called during a live/practice game (play_game_logs)
-     * must never be deleted, or that match's history would reference a play that no
-     * longer exists.
-     */
-    private function playHasGameHistory(int $playId): bool
-    {
-        return DB::table('play_game_logs')->where('play_id', $playId)->exists();
+        return redirect()->route('play.index')
+            ->with('success', $deletedCount . ($deletedCount === 1 ? ' play deleted.' : ' plays deleted.'));
     }
 
     public function toggleStarter($id)

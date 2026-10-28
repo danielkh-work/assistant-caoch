@@ -45,20 +45,22 @@ class PlayControllerDeleteTest extends TestCase
     }
 
     /** @test */
-    public function a_play_used_in_a_match_cannot_be_deleted()
+    public function a_play_used_in_a_match_can_still_be_deleted_and_its_history_rows_go_with_it()
     {
         $admin = User::factory()->create(['status' => 'approved']);
         $play = $this->makePlay('Played Play');
         $this->logPlayUsage($play);
+        $this->logPlayUsage($play);
 
         $response = $this->actingAs($admin)->delete(route('play.destroy', $play->id));
 
-        $this->assertDatabaseHas('plays', ['id' => $play->id]);
-        $response->assertSessionHas('error');
+        $this->assertDatabaseMissing('plays', ['id' => $play->id]);
+        $this->assertDatabaseMissing('play_game_logs', ['play_id' => $play->id]);
+        $response->assertSessionHas('success');
     }
 
     /** @test */
-    public function bulk_delete_removes_unused_plays_and_skips_ones_with_game_history()
+    public function bulk_delete_removes_every_selected_play_and_its_history_rows()
     {
         $admin = User::factory()->create(['status' => 'approved']);
         $unused = $this->makePlay('Bulk Unused Play');
@@ -70,8 +72,31 @@ class PlayControllerDeleteTest extends TestCase
         ]);
 
         $this->assertDatabaseMissing('plays', ['id' => $unused->id]);
-        $this->assertDatabaseHas('plays', ['id' => $used->id]);
-        $response->assertSessionHas('error');
+        $this->assertDatabaseMissing('plays', ['id' => $used->id]);
+        $this->assertDatabaseMissing('play_game_logs', ['play_id' => $used->id]);
+        $response->assertSessionHas('success');
+    }
+
+    /** @test */
+    public function the_admin_datatable_tells_the_delete_button_how_much_history_a_play_has()
+    {
+        $admin = User::factory()->create(['status' => 'approved']);
+        $used = $this->makePlay('History Count Play');
+        $this->logPlayUsage($used);
+        $this->logPlayUsage($used);
+        $unused = $this->makePlay('No History Play');
+
+        $response = $this->actingAs($admin)->get(
+            route('play.index') . '?draw=1&start=0&length=10',
+            ['X-Requested-With' => 'XMLHttpRequest']
+        );
+
+        $rows = collect($response->json('data'));
+        $usedAction = $rows->firstWhere('id', $used->id)['action'];
+        $unusedAction = $rows->firstWhere('id', $unused->id)['action'];
+
+        $this->assertStringContainsString('data-history-count="2"', $usedAction);
+        $this->assertStringContainsString('data-history-count="0"', $unusedAction);
     }
 
     /** @test */
