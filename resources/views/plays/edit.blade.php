@@ -104,8 +104,16 @@
 
                     <div class="row mt-3">
                         <div class="col-md-4">
-                            <label for="">Expected Yardage Gain</label>
-                            <input type="text" required name="min_expected_yard" class="form-control" value="{{ old('min_expected_yard', $play->min_expected_yard) }}">
+                            <label for="min_expected_yard">Expected Yardage Gain</label>
+                            <select id="min_expected_yard" name="min_expected_yard" class="form-control" required>
+                                <option value="">Select an option</option>
+                                <option value="short" {{ old('min_expected_yard', $play->min_expected_yard) == 'short' ? 'selected' : '' }}>short 1-4</option>
+                                <option value="medium" {{ old('min_expected_yard', $play->min_expected_yard) == 'medium' ? 'selected' : '' }}>medium 4-7</option>
+                                <option value="long" {{ old('min_expected_yard', $play->min_expected_yard) == 'long' ? 'selected' : '' }}>long 7+</option>
+                            </select>
+                            @error('min_expected_yard')
+                            <small class="text-danger">{{ $message }}</small>
+                            @enderror
                         </div>
                         <div class="col-md-4">
                             <label for="">Possession</label>
@@ -167,12 +175,12 @@
                         <div class="col-md-4">
                             <h5 class="mb-3">Target Offensive Player</h5>
                             @foreach ($offensive_position as $position)
-                         
+
                                  @php
                                         $matching = $play->offensivePositions->firstWhere('id', $position->id);
-                                     
+
                                         $strength = old('offensive.' . $position->id, $matching ? $matching->pivot->strength : 0);
-                                      
+
                                  @endphp
 
                                 <div class="row align-items-center mb-2">
@@ -184,7 +192,7 @@
                                             type="number"
                                             name="offensive[{{ $position['id'] }}]"
                                             min="0"
-                                            max="5"
+                                            max="100"
                                             class="form-control"
                                             value="{{$strength}}"
                                         >
@@ -198,9 +206,9 @@
                             @foreach ($defensive_positions as $position)
                                 @php
                                         $def_matching = $play->deffensivePositions->firstWhere('id', $position->id);
-                                     
+
                                         $def_strength = old('offensive.' . $position->id, $def_matching ? $def_matching->pivot->strength : 0);
-                                      
+
                                  @endphp
                                 <div class="row align-items-center mb-2">
                                     <div class="col-6">

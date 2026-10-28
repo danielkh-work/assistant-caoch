@@ -110,10 +110,10 @@ class PlayController extends Controller
 
      public function update(Request $request, $id)
     {
-       
- 
+
+
         DB::beginTransaction();
-      
+
             $play = Play::findOrFail($id);
             $play->play_name = $request->play_name;
             if ($request->filled('league_id')) {
@@ -336,10 +336,10 @@ class PlayController extends Controller
             $play->zone_selection = 1;
             $play->min_expected_yard = $request->min_expected_yard;
             $play->max_expected_yard = 1;
-          
+
             $play->pre_snap_motion = 1;
             $play->play_action_fake = 1;
-            
+
             if (is_array($request->preferred_down)) {
                 $play->preferred_down = implode(',', $request->preferred_down);
             } else {
@@ -353,6 +353,7 @@ class PlayController extends Controller
                 $play->strategies = $request->strategies;
             }
 
+
             $play->possession = $request->possession;
             $play->description = $request->description;
             $play->read_1 = $request->read_1;
@@ -360,10 +361,12 @@ class PlayController extends Controller
             $play->position_status = 2;
             $play->video_path = 'video path';
             // Upload image
-            if ($request->hasFile('image')) {
-                $imagePath = uploadImage($request->file('image'), 'public/uploads/public');
-                $play->image = $imagePath;
+            foreach (['hmark_left', 'hmark_center', 'hmark_right'] as $hmarkField) {
+                if ($request->hasFile($hmarkField)) {
+                    $play->{$hmarkField} = uploadImage($request->file($hmarkField), 'public', $play->{$hmarkField});
+                }
             }
+
             // Upload video (optional)
             if ($request->hasFile('video')) {
                 $videoPath = uploadImage($request->file('video'), 'public/uploads/videos');
@@ -374,9 +377,9 @@ class PlayController extends Controller
              if ($request->has('role_id') && is_array($request->role_id)) {
                  $play->roles()->sync($request->role_id);
               }
-            
-          
-             
+
+
+
             if (is_array($request->offensive)) {
                 $offensivePositions = OffensivePosition::pluck('id', 'name')->toArray();
                 foreach ($request->offensive as $position => $value) {
@@ -391,7 +394,7 @@ class PlayController extends Controller
                 }
             }
 
-           
+
             if (is_array($request->defensive)) {
                 $defensivePositions = DefensivePosition::pluck('id', 'name')->toArray();
                 foreach ($request->defensive as $position => $value) {
@@ -410,7 +413,6 @@ class PlayController extends Controller
            return redirect()->route('play.index');
         } catch (\Throwable $e) {
             DB::rollBack();
-            dd($e->getMessage());
         }
 
     }
