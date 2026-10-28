@@ -73,72 +73,24 @@ class SuggestionController extends Controller
             if (!in_array($value, [null, '', 'null'], true)) {
                 if ($field == 'preferred_down' || $field == 'strategies') {
                     $query->whereRaw("FIND_IN_SET(?, $field)", [$value]);
-                } elseif ($field === 'min_expected_yard') {
-                    // Selecting "Open Down" itself means "no yardage restriction" -
-                    // every play matches. Otherwise, a play tagged "open_down" is
-                    // usable under any yardage gain, so it always matches too.
-                    if ($value !== 'open_down') {
-                        $query->where(function ($q) use ($value) {
-                            $q->where('min_expected_yard', $value)->orWhere('min_expected_yard', 'open_down');
-                        });
-                    }
                 } else {
                     $query->where($field, $value);
                 }
             }
         }
 
-        // play_results carries no league/team column of its own - it's only
-        // reachable to a league via its game_id - so every count below must join
-        // through games and filter to the requesting league, or a Global Play's
-        // stats bleed in from every other league that has ever used it.
-        $scoped = function ($q) use ($leagueId) {
-            $q->join('games', 'games.id', '=', 'play_results.game_id')
-                ->where('games.league_id', $leagueId);
-        };
-
         $plays = $query->withCount([
-            'playResults as win_result' => function ($q) use ($scoped) {
-                $scoped($q);
-                $q->where('play_results.result', 'win')->where('play_results.is_practice', 0);
-            },
-            'playResults as win_result_rain' => function ($q) use ($scoped) {
-                $scoped($q);
-                $q->where('play_results.result', 'win')->where('play_results.weather', 'rain');
-            },
-            'playResults as win_result_snow' => function ($q) use ($scoped) {
-                $scoped($q);
-                $q->where('play_results.result', 'win')->where('play_results.weather', 'snow');
-            },
-            'playResults as loss_result' => function ($q) use ($scoped) {
-                $scoped($q);
-                $q->where('play_results.result', 'loss')->where('play_results.is_practice', 0);
-            },
-            'playResults as practice_win_result' => function ($q) use ($scoped) {
-                $scoped($q);
-                $q->where('play_results.result', 'win')->where('play_results.is_practice', 1);
-            },
-            'playResults as practice_loss_result' => function ($q) use ($scoped) {
-                $scoped($q);
-                $q->where('play_results.result', 'loss')->where('play_results.is_practice', 1);
-            },
-            'playResults as total_count' => function ($q) use ($scoped) {
-                $scoped($q);
-                $q->where('play_results.is_practice', 0);
-            },
-            'playResults as total_practice_count' => function ($q) use ($scoped) {
-                $scoped($q);
-                $q->where('play_results.is_practice', 1);
-            },
-            'playResults as total_rain' => function ($q) use ($scoped) {
-                $scoped($q);
-                $q->where('play_results.weather', 'rain');
-            },
-            'playResults as total_snow' => function ($q) use ($scoped) {
-                $scoped($q);
-                $q->where('play_results.weather', 'snow');
-            },
-        ])->withAvg(['playResults as yardage_difference' => $scoped], 'yardage_difference')->get();
+            'playResults as win_result' => fn ($q) => $q->where('result', 'win')->where('is_practice', 0),
+            'playResults as win_result_rain' => fn ($q) => $q->where('result', 'win')->where('weather', 'rain'),
+            'playResults as win_result_snow' => fn ($q) => $q->where('result', 'win')->where('weather', 'snow'),
+            'playResults as loss_result' => fn ($q) => $q->where('result', 'loss')->where('is_practice', 0),
+            'playResults as practice_win_result' => fn ($q) => $q->where('result', 'win')->where('is_practice', 1),
+            'playResults as practice_loss_result' => fn ($q) => $q->where('result', 'loss')->where('is_practice', 1),
+            'playResults as total_count' => fn ($q) => $q->where('is_practice', 0),
+            'playResults as total_practice_count' => fn ($q) => $q->where('is_practice', 1),
+            'playResults as total_rain' => fn ($q) => $q->where('weather', 'rain'),
+            'playResults as total_snow' => fn ($q) => $q->where('weather', 'snow'),
+        ])->withAvg('playResults as yardage_difference', 'yardage_difference')->get();
 
         $plays = $plays->map(function ($play) use ($offenseByPosition, $defenseByPosition) {
             return $this->rppCalculator->enrichPlayWithRppScore($play, $offenseByPosition, $defenseByPosition);
@@ -223,16 +175,6 @@ class SuggestionController extends Controller
                         case 'strategies':
                             $query->whereRaw("FIND_IN_SET(?, $field)", [$value]);
                             break;
-                        case 'min_expected_yard':
-                            // Selecting "Open Down" itself means "no yardage
-                            // restriction" - every play matches. Otherwise, a play
-                            // tagged "open_down" always matches any other value too.
-                            if ($value !== 'open_down') {
-                                $query->where(function ($q) use ($value) {
-                                    $q->where('min_expected_yard', $value)->orWhere('min_expected_yard', 'open_down');
-                                });
-                            }
-                            break;
                         default:
                             $query->where($field, $value);
                             break;
@@ -241,54 +183,36 @@ class SuggestionController extends Controller
             }
         }
 
-        // play_results carries no league/team column of its own - it's only
-        // reachable to a league via its game_id - so every count below must join
-        // through games and filter to the requesting league, or a Global Play's
-        // stats bleed in from every other league that has ever used it.
-        $scopedDefensive = function ($q) use ($leagueId) {
-            $q->join('games', 'games.id', '=', 'play_results.game_id')
-                ->where('games.league_id', $leagueId);
-        };
-
         $defensivePlays = $query->withCount([
-            'playResults as win_result' => function ($q) use ($scopedDefensive) {
-                $scopedDefensive($q);
-                $q->where('play_results.result', 'win')->where('play_results.is_practice', 0);
+            'playResults as win_result' => function ($q) {
+                $q->where('result', 'win')->where('is_practice', 0);
             },
-            'playResults as practice_win_result' => function ($q) use ($scopedDefensive) {
-                $scopedDefensive($q);
-                $q->where('play_results.result', 'win')->where('play_results.is_practice', 1);
+            'playResults as practice_win_result' => function ($q) {
+                $q->where('result', 'win')->where('is_practice', 1);
             },
-            'playResults as win_result_rain' => function ($q) use ($scopedDefensive) {
-                $scopedDefensive($q);
-                $q->where('play_results.result', 'win')->where('play_results.weather', 'rain');
+            'playResults as win_result_rain' => function ($q) {
+                $q->where('result', 'win')->where('weather', 'rain');
             },
-            'playResults as win_result_snow' => function ($q) use ($scopedDefensive) {
-                $scopedDefensive($q);
-                $q->where('play_results.result', 'win')->where('play_results.weather', 'snow');
+            'playResults as win_result_snow' => function ($q) {
+                $q->where('result', 'win')->where('weather', 'snow');
             },
-            'playResults as total_rain' => function ($q) use ($scopedDefensive) {
-                $scopedDefensive($q);
-                $q->where('play_results.weather', 'rain');
+            'playResults as total_rain' => function ($q) {
+                $q->where('weather', 'rain');
             },
-            'playResults as total_snow' => function ($q) use ($scopedDefensive) {
-                $scopedDefensive($q);
-                $q->where('play_results.weather', 'snow');
+            'playResults as total_snow' => function ($q) {
+                $q->where('weather', 'snow');
             },
-            'playResults as loss_result' => function ($q) use ($scopedDefensive) {
-                $scopedDefensive($q);
-                $q->where('play_results.result', 'loss');
+            'playResults as loss_result' => function ($q) {
+                $q->where('result', 'loss');
             },
-            'playResults as total_count' => function ($q) use ($scopedDefensive) {
-                $scopedDefensive($q);
-                $q->where('play_results.is_practice', 0);
+            'playResults as total_count' => function ($q) {
+                $q->where('is_practice', 0);
             },
-            'playResults as total_practice_count' => function ($q) use ($scopedDefensive) {
-                $scopedDefensive($q);
-                $q->where('play_results.is_practice', 1);
+            'playResults as total_practice_count' => function ($q) {
+                $q->where('is_practice', 1);
             },
         ])
-            ->withAvg(['playResults as yardage_difference' => $scopedDefensive], 'yardage_difference')
+            ->withAvg('playResults as yardage_difference', 'yardage_difference')
             ->get();
 
         $defensivePlays = $this->playSort->applyCollectionSorts($defensivePlays, $sorts);
