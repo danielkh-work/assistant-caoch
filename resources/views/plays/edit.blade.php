@@ -48,17 +48,59 @@
 
                     <div class="row mt-3">
                         @foreach (['hmark_left' => 'Left', 'hmark_center' => 'Center', 'hmark_right' => 'Right'] as $hmarkField => $label)
-                            <div class="col-md-3">
+                            <div class="col-md-3 mb-3">
                                 <label for="">{{ $label }} Image</label>
-                                <input type="file" name="{{ $hmarkField }}" class="form-control" accept="image/*">
-                                @if($play->{$hmarkField})
-                                    <div class="mt-2">
-                                        <img src="{{ url('/') }}/{{ $play->{$hmarkField} }}" alt="Current {{ $label }} image" width="100" onerror="this.closest('div').remove()">
-                                    </div>
-                                @endif
+                                <input type="file" name="{{ $hmarkField }}" class="form-control hmark-file-input" accept="image/*" data-preview-target="hmarkPreview_{{ $hmarkField }}">
+                                <div class="hmark-preview mt-2 {{ $play->{$hmarkField} ? '' : 'hmark-preview--empty' }}">
+                                    <img id="hmarkPreview_{{ $hmarkField }}"
+                                         src="{{ $play->{$hmarkField} ? url('/') . '/' . $play->{$hmarkField} : '' }}"
+                                         alt="{{ $label }} image"
+                                         onerror="this.closest('.hmark-preview').classList.add('hmark-preview--empty')"
+                                         onload="this.closest('.hmark-preview').classList.remove('hmark-preview--empty')">
+                                    <span class="hmark-preview__placeholder">No image</span>
+                                </div>
                             </div>
                         @endforeach
                     </div>
+
+                    <style>
+                        .hmark-preview {
+                            position: relative;
+                            width: 160px;
+                            height: 160px;
+                            border-radius: 10px;
+                            border: 1px solid #e3e6ea;
+                            background: #f8f9fa;
+                            overflow: hidden;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                        }
+                        .hmark-preview img {
+                            width: 100%;
+                            height: 100%;
+                            object-fit: cover;
+                            display: block;
+                        }
+                        .hmark-preview__placeholder {
+                            display: none;
+                            font-size: 12px;
+                            color: #adb5bd;
+                        }
+                        .hmark-preview--empty img { display: none; }
+                        .hmark-preview--empty .hmark-preview__placeholder { display: block; }
+                    </style>
+
+                    <script>
+                        document.querySelectorAll('.hmark-file-input').forEach(function (input) {
+                            input.addEventListener('change', function () {
+                                const file = input.files && input.files[0];
+                                if (!file) { return; }
+                                const img = document.getElementById(input.dataset.previewTarget);
+                                img.src = URL.createObjectURL(file);
+                            });
+                        });
+                    </script>
 
                     <div class="row mt-3">
                         <div class="col-md-4">
