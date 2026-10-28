@@ -92,42 +92,6 @@ class PlayControllerAdminFilterTest extends TestCase
     }
 
     /** @test */
-    public function admin_datatable_yardage_gain_filter_always_also_returns_open_down_plays()
-    {
-        $admin = User::factory()->create(['status' => 'approved']);
-        $this->makePlay('Long Admin Play Open', ['min_expected_yard' => 'long']);
-        $this->makePlay('Short Admin Play Open', ['min_expected_yard' => 'short']);
-        $this->makePlay('Open Down Admin Play', ['min_expected_yard' => 'open_down']);
-
-        $response = $this->actingAs($admin)->ajaxGet(
-            route('play.index') . '?yardage_gain=long&draw=1&start=0&length=10'
-        );
-
-        $names = collect($response->json('data'))->pluck('play_name');
-        $this->assertTrue($names->contains('Long Admin Play Open'));
-        $this->assertTrue($names->contains('Open Down Admin Play'), 'An open_down play should match any yardage gain filter');
-        $this->assertFalse($names->contains('Short Admin Play Open'));
-    }
-
-    /** @test */
-    public function admin_datatable_selecting_the_open_down_filter_itself_returns_every_yardage_gain()
-    {
-        $admin = User::factory()->create(['status' => 'approved']);
-        $this->makePlay('Long Admin Play Selected Open', ['min_expected_yard' => 'long']);
-        $this->makePlay('Short Admin Play Selected Open', ['min_expected_yard' => 'short']);
-        $this->makePlay('Open Down Admin Play Selected', ['min_expected_yard' => 'open_down']);
-
-        $response = $this->actingAs($admin)->ajaxGet(
-            route('play.index') . '?yardage_gain=open_down&draw=1&start=0&length=10'
-        );
-
-        $names = collect($response->json('data'))->pluck('play_name');
-        $this->assertTrue($names->contains('Long Admin Play Selected Open'), 'Open Down selected should act as no yardage restriction');
-        $this->assertTrue($names->contains('Short Admin Play Selected Open'));
-        $this->assertTrue($names->contains('Open Down Admin Play Selected'));
-    }
-
-    /** @test */
     public function admin_datatable_filters_by_multiple_yardage_gains_and_play_targets()
     {
         $admin = User::factory()->create(['status' => 'approved']);

@@ -974,39 +974,6 @@
                 });
             });
 
-            // ---- Delete a play (works from the default table and both manager panels) ----
-            $(document).on('click', '.delete-play-btn', function () {
-                const id = $(this).attr('data-id');
-                const name = $(this).attr('data-name');
-                const historyCount = parseInt($(this).attr('data-history-count'), 10) || 0;
-                const message = historyCount > 0
-                    ? 'Delete "' + name + '"? This play has been used in ' + historyCount
-                        + (historyCount === 1 ? ' match history record' : ' match history records')
-                        + ' - deleting it will permanently remove those records too. This cannot be undone.'
-                    : 'Delete "' + name + '"? This cannot be undone.';
-
-                confirmDialog(message, 'Delete').then(function (confirmed) {
-                    if (!confirmed) { return; }
-                    $.ajax({
-                        url: '/play/' + id,
-                        method: 'DELETE',
-                        headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-                        success: function () {
-                            showToast('Play deleted successfully.', 'success');
-                            pendingChanges.delete(String(id));
-                            defaultTable.ajax.reload(null, false);
-                            if (managerInitialized) {
-                                poolApi.fetchFresh();
-                                starterApi.fetchFresh();
-                            }
-                        },
-                        error: function (xhr) {
-                            showToast(errorMessage(xhr, 'Could not delete play.'), 'error');
-                        }
-                    });
-                });
-            });
-
             // ---- Starter manager: Global pool (not yet starter) <-> Starter Plays ----
             // Drag-and-drop and bulk-select only STAGE a change locally (pendingChanges);
             // nothing is persisted until "Save Changes" is clicked.
