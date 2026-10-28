@@ -53,7 +53,7 @@
                                 <input type="file" name="{{ $hmarkField }}" class="form-control" accept="image/*">
                                 @if($play->{$hmarkField})
                                     <div class="mt-2">
-                                        <img src="{{ url('/') }}/{{ $play->{$hmarkField} }}" alt="{{ $label }}" width="100">
+                                        <img src="{{ url('/') }}/{{ $play->{$hmarkField} }}" alt="Current {{ $label }} image" width="100" onerror="this.closest('div').remove()">
                                     </div>
                                 @endif
                             </div>
