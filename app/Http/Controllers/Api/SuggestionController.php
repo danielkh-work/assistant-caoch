@@ -73,6 +73,12 @@ class SuggestionController extends Controller
             if (!in_array($value, [null, '', 'null'], true)) {
                 if ($field == 'preferred_down' || $field == 'strategies') {
                     $query->whereRaw("FIND_IN_SET(?, $field)", [$value]);
+                } elseif ($field === 'min_expected_yard') {
+                    // A play tagged "open_down" is usable under any yardage gain,
+                    // so it always matches this filter regardless of the value picked.
+                    $query->where(function ($q) use ($value) {
+                        $q->where('min_expected_yard', $value)->orWhere('min_expected_yard', 'open_down');
+                    });
                 } else {
                     $query->where($field, $value);
                 }
@@ -213,6 +219,13 @@ class SuggestionController extends Controller
                         case 'preferred_down':
                         case 'strategies':
                             $query->whereRaw("FIND_IN_SET(?, $field)", [$value]);
+                            break;
+                        case 'min_expected_yard':
+                            // A play tagged "open_down" is usable under any yardage
+                            // gain, so it always matches regardless of the value picked.
+                            $query->where(function ($q) use ($value) {
+                                $q->where('min_expected_yard', $value)->orWhere('min_expected_yard', 'open_down');
+                            });
                             break;
                         default:
                             $query->where($field, $value);

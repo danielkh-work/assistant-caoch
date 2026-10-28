@@ -199,7 +199,11 @@ class MatchPlaysController extends Controller
 
         $expectedYard = $validated['expectedyard'] ?? null;
         if ($expectedYard !== null && $expectedYard !== '') {
-            $query->where('min_expected_yard', $expectedYard);
+            // A play tagged "open_down" is usable under any yardage gain, so it
+            // always matches this filter regardless of the value picked.
+            $query->where(function ($q) use ($expectedYard) {
+                $q->where('min_expected_yard', $expectedYard)->orWhere('min_expected_yard', 'open_down');
+            });
         }
 
         $searchTerm = trim((string) ($validated['search'] ?? ''));

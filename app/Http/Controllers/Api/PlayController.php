@@ -295,7 +295,12 @@ class PlayController extends Controller
 
         $selectedYardages = array_filter(array_map('trim', explode(',', (string) $request->input('yardage_gain', ''))));
         if (!empty($selectedYardages)) {
-            $query->whereIn('plays.min_expected_yard', $selectedYardages);
+            // A play tagged "open_down" is usable under any yardage gain, so it
+            // always matches a yardage filter regardless of which values are picked.
+            $query->where(function ($q) use ($selectedYardages) {
+                $q->whereIn('plays.min_expected_yard', $selectedYardages)
+                    ->orWhere('plays.min_expected_yard', 'open_down');
+            });
         }
 
         $selectedTargets = array_filter(array_map('trim', explode(',', (string) $request->input('play_target', ''))));
