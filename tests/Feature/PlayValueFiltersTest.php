@@ -91,6 +91,38 @@ class PlayValueFiltersTest extends TestCase
     }
 
     /** @test */
+    public function filtering_by_yardage_gain_always_also_returns_open_down_plays()
+    {
+        [, $league] = $this->actingAsHeadCoach();
+        $this->makePlay($league->id, 'Long Gain Play Open', ['min_expected_yard' => 'long']);
+        $this->makePlay($league->id, 'Short Gain Play Open', ['min_expected_yard' => 'short']);
+        $this->makePlay($league->id, 'Open Down Play', ['min_expected_yard' => 'open_down']);
+
+        $response = $this->getJson('/api/upload-play-list?league_id=' . $league->id . '&yardage_gain=long');
+        $names = collect($response->json('data'))->pluck('play_name');
+
+        $this->assertTrue($names->contains('Long Gain Play Open'));
+        $this->assertTrue($names->contains('Open Down Play'), 'An open_down play should match any yardage gain filter');
+        $this->assertFalse($names->contains('Short Gain Play Open'));
+    }
+
+    /** @test */
+    public function selecting_the_open_down_filter_itself_returns_every_yardage_gain()
+    {
+        [, $league] = $this->actingAsHeadCoach();
+        $this->makePlay($league->id, 'Long Gain Play Selected Open', ['min_expected_yard' => 'long']);
+        $this->makePlay($league->id, 'Short Gain Play Selected Open', ['min_expected_yard' => 'short']);
+        $this->makePlay($league->id, 'Open Down Play Selected', ['min_expected_yard' => 'open_down']);
+
+        $response = $this->getJson('/api/upload-play-list?league_id=' . $league->id . '&yardage_gain=open_down');
+        $names = collect($response->json('data'))->pluck('play_name');
+
+        $this->assertTrue($names->contains('Long Gain Play Selected Open'), 'Open Down selected should act as no yardage restriction');
+        $this->assertTrue($names->contains('Short Gain Play Selected Open'));
+        $this->assertTrue($names->contains('Open Down Play Selected'));
+    }
+
+    /** @test */
     public function filtering_by_play_target_matches_possession()
     {
         [$hc, $league] = $this->actingAsHeadCoach();

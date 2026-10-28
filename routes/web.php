@@ -80,6 +80,7 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('play/{id}', 'destroy')->name('play.destroy');
         Route::post('play/{id}/toggle-starter', 'toggleStarter')->name('play.toggle-starter');
         Route::post('play/bulk-toggle-starter', 'bulkToggleStarter')->name('play.bulk-toggle-starter');
+        Route::post('play/bulk-destroy', 'bulkDestroy')->name('play.bulk-destroy');
     });
     Route::controller(LeagueController::class)->group(function () {
         Route::get('league', 'index')->name('league.index');
