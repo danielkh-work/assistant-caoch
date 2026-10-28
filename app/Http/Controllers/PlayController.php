@@ -64,10 +64,11 @@ class PlayController extends Controller
                     })
                     ->addColumn('action', function($row){
                     $editUrl = route('play.edit', ['id' => $row->id]);
+                    $safeName = htmlspecialchars($row->play_name, ENT_QUOTES);
 
                     return '
                         <a href="' . $editUrl . '" class="btn btn-warning btn-sm me-1">Edit</a>
-
+                        <button type="button" class="btn btn-danger btn-sm delete-play-btn" data-id="' . $row->id . '" data-name="' . $safeName . '">Delete</button>
                     ';
                     })
                     ->addColumn('starter', function($row){
@@ -126,9 +127,10 @@ class PlayController extends Controller
             $play->description = $request->description;
             $play->read_1 = $request->read_1;
             $play->read_2 = $request->read_2;
-            if ($request->hasFile('image')) {
-                $imagePath = uploadImage($request->file('image'), 'public/uploads/public');
-                $play->image = $imagePath;
+            foreach (['hmark_left', 'hmark_center', 'hmark_right'] as $hmarkField) {
+                if ($request->hasFile($hmarkField)) {
+                    $play->{$hmarkField} = uploadImage($request->file($hmarkField), 'public', $play->{$hmarkField});
+                }
             }
             if ($request->hasFile('video')) {
                 $videoPath = uploadImage($request->file('video'), 'public/uploads/videos');
@@ -177,8 +179,51 @@ class PlayController extends Controller
     public function destroy($id)
     {
         $play = Play::findOrFail($id);
+
+        if ($this->playHasGameHistory($play->id)) {
+            return redirect()->route('play.index')
+                ->with('error', '"' . $play->play_name . '" has been used in a match and cannot be deleted.');
+        }
+
         $play->delete();
         return redirect()->route('play.index')->with('success', 'Play deleted successfully');
+    }
+
+    public function bulkDestroy(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer',
+        ]);
+
+        $ids = $request->input('ids');
+        $blockedIds = DB::table('play_game_logs')
+            ->whereIn('play_id', $ids)
+            ->distinct()
+            ->pluck('play_id')
+            ->all();
+
+        $deletableIds = array_values(array_diff($ids, $blockedIds));
+        $deletedCount = $deletableIds ? Play::whereIn('id', $deletableIds)->delete() : 0;
+        $skippedCount = count($blockedIds);
+
+        $message = $deletedCount . ($deletedCount === 1 ? ' play deleted.' : ' plays deleted.');
+        if ($skippedCount > 0) {
+            $message .= ' ' . $skippedCount . ($skippedCount === 1 ? ' play was' : ' plays were')
+                . ' skipped because they have been used in a match.';
+        }
+
+        return redirect()->route('play.index')->with($skippedCount > 0 ? 'error' : 'success', $message);
+    }
+
+    /**
+     * A play that has ever been called during a live/practice game (play_game_logs)
+     * must never be deleted, or that match's history would reference a play that no
+     * longer exists.
+     */
+    private function playHasGameHistory(int $playId): bool
+    {
+        return DB::table('play_game_logs')->where('play_id', $playId)->exists();
     }
 
     public function toggleStarter($id)

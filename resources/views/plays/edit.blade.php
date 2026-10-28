@@ -44,16 +44,20 @@
                             <label for="">Name</label>
                             <input required type="text" name="play_name" class="form-control" value="{{ old('play_name', $play->play_name) }}">
                         </div>
-                        <div class="col-md-3">
-                            <label for="">Image</label>
-                            <input type="file" name="image" class="form-control">
-                            @if($play->image)
-                                <div class="mt-2">
-                                    <img src="{{ asset('storage/' . $play->image) }}" alt="Current Image" width="100">
-                                </div>
-                            @endif
-                        </div>
                     </div>
+
+                    <div class="row mt-3">
+                        @foreach (['hmark_left' => 'Left', 'hmark_center' => 'Center', 'hmark_right' => 'Right'] as $hmarkField => $label)
+                            <div class="col-md-3">
+                                <label for="">{{ $label }} Image</label>
+                                <input type="file" name="{{ $hmarkField }}" class="form-control" accept="image/*">
+                                @if($play->{$hmarkField})
+                                    <div class="mt-2">
+                                        <img src="{{ url('/') }}/{{ $play->{$hmarkField} }}" alt="{{ $label }}" width="100">
+                                    </div>
+                                @endif
+                            </div>
+                        @endforeach
 
                     <div class="row mt-3">
                         <div class="col-md-4">

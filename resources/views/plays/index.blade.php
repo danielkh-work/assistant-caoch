@@ -20,6 +20,13 @@
     <!-- Main content -->
     <section class="content">
         <div class="container-fluid">
+            @if (session('success'))
+                <div class="row mb-3"><div class="col-md-12"><div class="alert alert-success mb-0">{{ session('success') }}</div></div></div>
+            @endif
+            @if (session('error'))
+                <div class="row mb-3"><div class="col-md-12"><div class="alert alert-danger mb-0">{{ session('error') }}</div></div></div>
+            @endif
+
             <div class="row">
                 <div class="col-md-12">
                 <a href="{{ route('play.create') }}" class="btn btn-success">Uploads Play</a>
@@ -31,6 +38,8 @@
                 <div class="col-md-12">
                     <div class="card card-body py-2 px-3">
                         <div class="d-flex flex-row align-items-center flex-wrap justify-content-end" style="gap: 16px;">
+                            <span id="bulkDeleteCount" class="text-muted" style="display:none;"></span>
+                            <button type="button" id="bulkDeleteBtn" class="btn btn-danger btn-sm mb-0" disabled>Delete Selected</button>
                             <button type="button" id="playFiltersToggle" class="btn btn-outline-secondary btn-sm mb-0">
                                 Filters <span id="playFiltersBadge" class="badge badge-primary" style="display:none;"></span>
                             </button>
@@ -319,6 +328,27 @@
                     cursor: pointer;
                 }
                 .pv-lightbox__dot--active { background: #ffffff; }
+
+                .pv-confirm-backdrop {
+                    position: fixed;
+                    inset: 0;
+                    z-index: 2100;
+                    background: rgba(17, 24, 39, 0.45);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                .pv-confirm {
+                    width: 380px;
+                    max-width: calc(100vw - 32px);
+                    background: #ffffff;
+                    border-radius: 10px;
+                    padding: 20px;
+                    box-shadow: 0 24px 48px rgba(17, 24, 39, 0.25);
+                }
+                .pv-confirm__title { font-size: 16px; font-weight: 700; margin: 0 0 6px; }
+                .pv-confirm__desc { font-size: 13px; color: #6c757d; margin: 0 0 16px; }
+                .pv-confirm__actions { display: flex; justify-content: flex-end; gap: 8px; }
             </style>
             <!-- Small boxes (Stat box) -->
             <div class="row">
@@ -326,6 +356,7 @@
                     <table class="table table-bordered data-table">
                         <thead>
                         <tr>
+                            <th width="30px"><input type="checkbox" id="selectAllPlaysOnPage"></th>
                             <th>No</th>
                             <th width="56px">Picture</th>
                             <th>Play Name</th>
@@ -356,6 +387,27 @@
             <button type="button" class="pv-lightbox__nav pv-lightbox__next">&#8250;</button>
             <div class="pv-lightbox__dots"></div>
         </div>
+
+        <div id="pvDeleteConfirmModal" class="pv-confirm-backdrop" hidden>
+            <div class="pv-confirm">
+                <h4 class="pv-confirm__title">Delete play?</h4>
+                <p id="pvDeleteConfirmMessage" class="pv-confirm__desc"></p>
+                <div class="pv-confirm__actions">
+                    <button type="button" id="pvDeleteCancelBtn" class="btn btn-outline-secondary btn-sm">Cancel</button>
+                    <button type="button" id="pvDeleteConfirmBtn" class="btn btn-danger btn-sm">Delete</button>
+                </div>
+            </div>
+        </div>
+
+        <form id="singleDeleteForm" method="POST" style="display:none;">
+            @csrf
+            @method('DELETE')
+        </form>
+
+        <form id="bulkDeleteForm" method="POST" action="{{ route('play.bulk-destroy') }}" style="display:none;">
+            @csrf
+            <div id="bulkDeleteIdsContainer"></div>
+        </form>
     </section>
 
 @endsection
@@ -457,6 +509,7 @@
                     }
                 },
                 columns: [
+                    {data: null, defaultContent: '<input type="checkbox" class="play-row-select">', orderable: false, searchable: false},
                     {data: 'id', name: 'id'},
                     {data: null, name: 'hmark_center', orderable: false, searchable: false, render: renderPictureStack},
                     {data: 'play_name', name: 'play_name'},
@@ -469,7 +522,10 @@
                     {data: 'strategies', name: 'strategies'},
                     {data: 'action', name: 'action', orderable: false, searchable: false},
                 ],
-                order: [0, 'desc'],
+                order: [1, 'desc'],
+                createdRow: function (row, data) {
+                    $(row).attr('data-play-id', data.id);
+                },
                 dom: '<"row mb-2 align-items-center"<"col-md-4"l><"col-md-4 text-center"<"#custom-filter-wrapper">><"col-md-4 text-right"f>>rt<"row mt-2"<"col-md-6"i><"col-md-6"p>>',
             });
 
@@ -582,6 +638,86 @@
             });
 
             updatePlayFiltersBadge();
+
+            // ---- Delete (single + bulk), with a styled confirm instead of window.confirm ----
+            function selectedPlayIds() {
+                return $('.play-row-select:checked').closest('tr').map(function () {
+                    return $(this).attr('data-play-id');
+                }).get();
+            }
+
+            function updateBulkDeleteButton() {
+                const ids = selectedPlayIds();
+                $('#bulkDeleteBtn').prop('disabled', ids.length === 0);
+                if (ids.length) {
+                    $('#bulkDeleteCount').text(ids.length + (ids.length === 1 ? ' selected' : ' selected')).show();
+                } else {
+                    $('#bulkDeleteCount').hide();
+                }
+            }
+
+            $(document).on('change', '.play-row-select', function () {
+                const total = $('.play-row-select').length;
+                const checked = $('.play-row-select:checked').length;
+                $('#selectAllPlaysOnPage').prop('checked', total > 0 && checked === total);
+                $('#selectAllPlaysOnPage').prop('indeterminate', checked > 0 && checked < total);
+                updateBulkDeleteButton();
+            });
+
+            $('#selectAllPlaysOnPage').on('change', function () {
+                $('.play-row-select').prop('checked', this.checked);
+                updateBulkDeleteButton();
+            });
+
+            table.on('draw', function () {
+                $('#selectAllPlaysOnPage').prop('checked', false).prop('indeterminate', false);
+                updateBulkDeleteButton();
+            });
+
+            let pendingDeleteAction = null;
+
+            function openDeleteConfirm(message, onConfirm) {
+                $('#pvDeleteConfirmMessage').text(message);
+                pendingDeleteAction = onConfirm;
+                $('#pvDeleteConfirmModal').removeAttr('hidden');
+            }
+
+            function closeDeleteConfirm() {
+                pendingDeleteAction = null;
+                $('#pvDeleteConfirmModal').attr('hidden', true);
+            }
+
+            $('#pvDeleteCancelBtn').on('click', closeDeleteConfirm);
+            $('#pvDeleteConfirmModal').on('click', function (e) {
+                if (e.target === this) { closeDeleteConfirm(); }
+            });
+            $('#pvDeleteConfirmBtn').on('click', function () {
+                if (pendingDeleteAction) { pendingDeleteAction(); }
+            });
+
+            $(document).on('click', '.delete-play-btn', function () {
+                const id = $(this).data('id');
+                const name = $(this).data('name');
+                openDeleteConfirm('Delete "' + name + '"? This cannot be undone.', function () {
+                    $('#singleDeleteForm').attr('action', '/play/' + id).trigger('submit');
+                });
+            });
+
+            $('#bulkDeleteBtn').on('click', function () {
+                const ids = selectedPlayIds();
+                if (!ids.length) { return; }
+                openDeleteConfirm(
+                    'Delete ' + ids.length + (ids.length === 1 ? ' selected play' : ' selected plays')
+                        + '? Any that have been used in a match will be skipped automatically.',
+                    function () {
+                        const $container = $('#bulkDeleteIdsContainer').empty();
+                        ids.forEach(function (id) {
+                            $container.append('<input type="hidden" name="ids[]" value="' + id + '">');
+                        });
+                        $('#bulkDeleteForm').trigger('submit');
+                    }
+                );
+            });
         });
     </script>
 @endsection
