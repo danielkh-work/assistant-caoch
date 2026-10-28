@@ -95,55 +95,86 @@ class MatchPlaysController extends Controller
                 $q->where('configure_plays.league_id', $leagueId)
                     ->where('configure_plays.match_id', $matchId);
             })
-            ->withCount($this->playResultCountDefinitions())
-            ->withAvg('playResults as yardage_difference', 'yardage_difference');
+            ->withCount($this->playResultCountDefinitions($leagueId))
+            ->withAvg($this->yardageDifferenceDefinition($leagueId), 'yardage_difference');
     }
 
     private function defensivePlayQuery(int $leagueId): Builder
     {
         return DefensivePlay::with('playResults', 'strategyBlitz', 'formation', 'personals.teamPlayer.player')
             ->where('league_id', $leagueId)
-            ->withCount($this->playResultCountDefinitions())
-            ->withAvg('playResults as yardage_difference', 'yardage_difference');
+            ->withCount($this->playResultCountDefinitions($leagueId))
+            ->withAvg($this->yardageDifferenceDefinition($leagueId), 'yardage_difference');
+    }
+
+    /**
+     * play_results carries no league/team column of its own - it's only reachable
+     * to a league via its game_id - so every count here must join through games and
+     * filter to the requesting league, or a Global Play's stats bleed in from every
+     * other league that has ever used it.
+     *
+     * @return array<string, callable>
+     */
+    private function playResultCountDefinitions(int $leagueId): array
+    {
+        $scoped = function ($q) use ($leagueId) {
+            $q->join('games', 'games.id', '=', 'play_results.game_id')
+                ->where('games.league_id', $leagueId);
+        };
+
+        return [
+            'playResults as win_result' => function ($q) use ($scoped) {
+                $scoped($q);
+                $q->where('play_results.result', 'win')->where('play_results.is_practice', 0);
+            },
+            'playResults as win_result_rain' => function ($q) use ($scoped) {
+                $scoped($q);
+                $q->where('play_results.result', 'win')->where('play_results.weather', 'rain');
+            },
+            'playResults as win_result_snow' => function ($q) use ($scoped) {
+                $scoped($q);
+                $q->where('play_results.result', 'win')->where('play_results.weather', 'snow');
+            },
+            'playResults as loss_result' => function ($q) use ($scoped) {
+                $scoped($q);
+                $q->where('play_results.result', 'loss')->where('play_results.is_practice', 0);
+            },
+            'playResults as practice_win_result' => function ($q) use ($scoped) {
+                $scoped($q);
+                $q->where('play_results.result', 'win')->where('play_results.is_practice', 1);
+            },
+            'playResults as practice_loss_result' => function ($q) use ($scoped) {
+                $scoped($q);
+                $q->where('play_results.result', 'loss')->where('play_results.is_practice', 1);
+            },
+            'playResults as total_count' => function ($q) use ($scoped) {
+                $scoped($q);
+                $q->where('play_results.is_practice', 0);
+            },
+            'playResults as total_practice_count' => function ($q) use ($scoped) {
+                $scoped($q);
+                $q->where('play_results.is_practice', 1);
+            },
+            'playResults as total_rain' => function ($q) use ($scoped) {
+                $scoped($q);
+                $q->where('play_results.weather', 'rain');
+            },
+            'playResults as total_snow' => function ($q) use ($scoped) {
+                $scoped($q);
+                $q->where('play_results.weather', 'snow');
+            },
+        ];
     }
 
     /**
      * @return array<string, callable>
      */
-    private function playResultCountDefinitions(): array
+    private function yardageDifferenceDefinition(int $leagueId): array
     {
-        return [
-            'playResults as win_result' => function ($q) {
-                $q->where('result', 'win')->where('is_practice', 0);
-            },
-            'playResults as win_result_rain' => function ($q) {
-                $q->where('result', 'win')->where('weather', 'rain');
-            },
-            'playResults as win_result_snow' => function ($q) {
-                $q->where('result', 'win')->where('weather', 'snow');
-            },
-            'playResults as loss_result' => function ($q) {
-                $q->where('result', 'loss')->where('is_practice', 0);
-            },
-            'playResults as practice_win_result' => function ($q) {
-                $q->where('result', 'win')->where('is_practice', 1);
-            },
-            'playResults as practice_loss_result' => function ($q) {
-                $q->where('result', 'loss')->where('is_practice', 1);
-            },
-            'playResults as total_count' => function ($q) {
-                $q->where('is_practice', 0);
-            },
-            'playResults as total_practice_count' => function ($q) {
-                $q->where('is_practice', 1);
-            },
-            'playResults as total_rain' => function ($q) {
-                $q->where('weather', 'rain');
-            },
-            'playResults as total_snow' => function ($q) {
-                $q->where('weather', 'snow');
-            },
-        ];
+        return ['playResults as yardage_difference' => function ($q) use ($leagueId) {
+            $q->join('games', 'games.id', '=', 'play_results.game_id')
+                ->where('games.league_id', $leagueId);
+        }];
     }
 
     private function applySorting(Builder $query, array $sorts, string $table): void
