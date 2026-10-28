@@ -198,9 +198,9 @@ class MatchPlaysController extends Controller
         }
 
         $expectedYard = $validated['expectedyard'] ?? null;
-        if ($expectedYard !== null && $expectedYard !== '') {
-            // A play tagged "open_down" is usable under any yardage gain, so it
-            // always matches this filter regardless of the value picked.
+        if ($expectedYard !== null && $expectedYard !== '' && $expectedYard !== 'open_down') {
+            // Selecting "Open Down" itself means "no yardage restriction" - every
+            // play matches. Otherwise, a play tagged "open_down" always matches too.
             $query->where(function ($q) use ($expectedYard) {
                 $q->where('min_expected_yard', $expectedYard)->orWhere('min_expected_yard', 'open_down');
             });
