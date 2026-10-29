@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Responses\BaseResponse;
+use App\Models\ConfiguredPlayingTeamPlayer;
 use App\Models\Player;
 use App\Models\PracticeTeamPlayer;
 use App\Models\PracticeTeamPlayerPosition;
@@ -633,6 +634,26 @@ class PlayerController extends Controller
             $practiceRowIds->all(),
             $teamPlayerIds->all(),
         );
+
+        // Configure Players (per-match roster) rows aren't cleaned up anywhere else when a
+        // player leaves the team roster. Left behind, they keep referencing a TeamPlayer /
+        // PracticeTeamPlayer id that no longer resolves, so every match that ever configured
+        // this player - including opposition-team matches - ends up with a dangling row. That
+        // row's `player`/`practice_player` relation comes back null, and the opposition grouping
+        // screen filters those rows out entirely: if every configured row for a match/side was
+        // left dangling this way, the whole player pool silently disappears with no explanation.
+        if ($teamPlayerIds->isNotEmpty() || $practiceRowIds->isNotEmpty()) {
+            ConfiguredPlayingTeamPlayer::query()
+                ->where(function ($query) use ($teamPlayerIds, $practiceRowIds) {
+                    if ($teamPlayerIds->isNotEmpty()) {
+                        $query->whereIn('player_id', $teamPlayerIds);
+                    }
+                    if ($practiceRowIds->isNotEmpty()) {
+                        $query->orWhereIn('practice_player_id', $practiceRowIds);
+                    }
+                })
+                ->delete();
+        }
 
         if ($practiceRowIds->isNotEmpty()) {
             PracticeTeamPlayerPosition::query()
