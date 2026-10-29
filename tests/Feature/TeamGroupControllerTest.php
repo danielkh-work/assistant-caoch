@@ -4,7 +4,10 @@ namespace Tests\Feature;
 
 use App\Models\LeagueTeam;
 use App\Models\PersionalGrouping;
+use App\Models\Player;
+use App\Models\PracticeTeamPlayer;
 use App\Models\TeamGroup;
+use App\Models\TeamPlayer;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -223,5 +226,168 @@ class TeamGroupControllerTest extends TestCase
         $this->assertEquals(2, (int) $copy->group_level);
         $this->assertNotNull($copy->practice_players);
         $this->assertNull($copy->players);
+    }
+
+    private function makePlayerWithPosition(string $name, string $positionName): Player
+    {
+        $player = Player::forceCreate([
+            'name'     => $name,
+            'number'   => '1',
+            'position' => 1,
+            'size'     => 180,
+            'speed'    => 10,
+            'strength' => 10,
+        ]);
+
+        $player->playerPosition()->create([
+            'position_name' => $positionName,
+        ]);
+
+        return $player;
+    }
+
+    /** @test */
+    public function players_endpoint_falls_back_to_the_players_own_position_when_no_team_player_position_pivot_exists(): void
+    {
+        // A freshly created player: linked to a Player with a playerPosition row, but with
+        // NO team_player_position pivot rows yet (those only get created by the separate
+        // position-assignment flow) - this is exactly the state of a brand-new player.
+        $player = $this->makePlayerWithPosition('Newly Created Player', 'QB');
+
+        $teamPlayer = TeamPlayer::forceCreate([
+            'team_id'   => $this->teamId,
+            'player_id' => $player->id,
+            'name'      => $player->name,
+            'number'    => $player->number,
+            'speed'     => 10,
+        ]);
+
+        $response = $this->getJson("/api/teams/{$this->teamId}/players");
+
+        $response->assertOk();
+        $rows = collect($response->json('data'));
+        $row = $rows->firstWhere('id', $teamPlayer->id);
+
+        $this->assertNotNull($row, 'Expected the new player to be in the players list');
+        $this->assertContains('QB', $row['positions']);
+    }
+
+    /** @test */
+    public function players_endpoint_falls_back_to_the_players_own_position_for_a_practice_team(): void
+    {
+        DB::statement('SET FOREIGN_KEY_CHECKS=0');
+        $practiceTeam = LeagueTeam::forceCreate([
+            'team_name'   => 'Practice Squad',
+            'league_id'   => 1,
+            'type'        => 1,
+            'is_practice' => 1,
+        ]);
+        DB::statement('SET FOREIGN_KEY_CHECKS=1');
+
+        $player = $this->makePlayerWithPosition('Newly Created Practice Player', 'WR');
+
+        $teamPlayer = TeamPlayer::forceCreate([
+            'team_id'   => $practiceTeam->id,
+            'player_id' => $player->id,
+            'name'      => $player->name,
+            'number'    => $player->number,
+            'speed'     => 10,
+        ]);
+
+        PracticeTeamPlayer::forceCreate([
+            'team_id'   => $practiceTeam->id,
+            'player_id' => $teamPlayer->id,
+            'name'      => $player->name,
+            'number'    => $player->number,
+            'speed'     => 10,
+        ]);
+
+        $response = $this->getJson("/api/teams/{$practiceTeam->id}/players");
+
+        $response->assertOk();
+        $rows = collect($response->json('data'));
+        $row = $rows->firstWhere('name', $player->name);
+
+        $this->assertNotNull($row, 'Expected the new practice player to be in the players list');
+        $this->assertContains('WR', $row['positions']);
+    }
+
+    /** @test */
+    public function index_embeds_each_members_current_name_even_when_beyond_the_players_pickers_first_page(): void
+    {
+        // Create more team players than the frontend player-picker's first-page size (20),
+        // so a naive "only check what's already loaded in the picker" lookup would miss this one.
+        $teamPlayers = [];
+        for ($i = 1; $i <= 25; $i++) {
+            $player = Player::forceCreate([
+                'name'     => "Roster Player {$i}",
+                'number'   => (string) $i,
+                'position' => 1,
+                'size'     => 180,
+                'speed'    => 10,
+                'strength' => 10,
+            ]);
+            $teamPlayers[] = TeamPlayer::forceCreate([
+                'team_id'   => $this->teamId,
+                'player_id' => $player->id,
+                'name'      => "Roster Player {$i}",
+                'number'    => (string) $i,
+                'speed'     => 10,
+            ]);
+        }
+
+        $lateMember = $teamPlayers[20]; // 21st player - beyond a 20-per-page picker's first page.
+
+        $group = $this->makeTeamGroup([
+            'group_name' => 'Late Member Group',
+            'players'    => [['id' => $lateMember->id, 'positions' => 'QB']],
+        ]);
+
+        $response = $this->getJson("/api/teams/{$this->teamId}/groups");
+
+        $response->assertOk();
+        $returnedGroup = collect($response->json('data'))->firstWhere('id', $group->id);
+        $this->assertNotNull($returnedGroup);
+
+        $memberEntry = collect($returnedGroup['players'])->firstWhere('id', $lateMember->id);
+        $this->assertNotNull($memberEntry, 'Expected the saved member entry to still be present');
+        $this->assertEquals('Roster Player 21', $memberEntry['name']);
+        $this->assertEquals('21', $memberEntry['number']);
+        $this->assertEquals('QB', $memberEntry['position']);
+    }
+
+    /** @test */
+    public function index_falls_back_to_the_linked_players_name_when_the_team_player_has_none(): void
+    {
+        $player = Player::forceCreate([
+            'name'     => 'Core Player Record',
+            'number'   => '9',
+            'position' => 1,
+            'size'     => 180,
+            'speed'    => 10,
+            'strength' => 10,
+        ]);
+
+        $teamPlayer = TeamPlayer::forceCreate([
+            'team_id'   => $this->teamId,
+            'player_id' => $player->id,
+            'name'      => null,
+            'number'    => null,
+            'speed'     => 10,
+        ]);
+
+        $group = $this->makeTeamGroup([
+            'group_name' => 'Fallback Name Group',
+            'players'    => [['id' => $teamPlayer->id, 'positions' => null]],
+        ]);
+
+        $response = $this->getJson("/api/teams/{$this->teamId}/groups");
+
+        $response->assertOk();
+        $returnedGroup = collect($response->json('data'))->firstWhere('id', $group->id);
+        $memberEntry = collect($returnedGroup['players'])->firstWhere('id', $teamPlayer->id);
+
+        $this->assertNotNull($memberEntry);
+        $this->assertEquals('Core Player Record', $memberEntry['name']);
     }
 }
