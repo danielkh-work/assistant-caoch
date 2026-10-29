@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Responses\BaseResponse;
+use App\Models\ConfiguredPlayingTeamPlayer;
 use App\Models\Player;
 use App\Models\PracticeTeamPlayer;
 use App\Models\PracticeTeamPlayerPosition;
@@ -198,9 +199,9 @@ class PlayerController extends Controller
           $existingPlayer = Player::where('name', $request->name)
                         ->where('number', $request->number)
                         ->first();
-        if ($existingPlayer) {
+          if ($existingPlayer) {
               return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "A player with this name and number already exists.",$existingPlayer);
-           }
+          }
            $player = new Player();
            $type= $request->type;
 
@@ -249,24 +250,44 @@ class PlayerController extends Controller
                 }
             }
            if($type === 'team'){
-                    DB::table('team_players')->insert([
-                        'player_id' => $player->id,
-                        'team_id' => $request->team_id,
-                        'name' => $player->name,
-                        'number' => $player->number,
-                        'position' => $player->position,
-                        'size' => $player->size,
-                        'speed' => $player->speed,
-                        'strength' => $player->strength,
-                        'weight' => $player->weight,
-                        'height' => $player->height,
-                        'dob' => $player->dob,
-                        'image' => $player->image,
-                        'position_value' => $player->position_value,
-                        'rpp' => $player->rpp,
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
+               $teamPlayer = TeamPlayer::create([
+                   'player_id'      => $player->id,
+                   'team_id'        => $request->team_id,
+                   'name'           => $player->name,
+                   'number'         => $player->number,
+                   'position'       => $player->position,
+                   'size'           => $player->size,
+                   'speed'          => $player->speed,
+                   'strength'       => $player->strength,
+                   'weight'         => $player->weight,
+                   'height'         => $player->height,
+                   'dob'            => $player->dob,
+                   'image'          => $player->image,
+                   'position_value' => is_array($player->position_value)
+                       ? json_encode($player->position_value)
+                       : $player->position_value,
+                   'rpp'            => $player->rpp,
+               ]);
+
+               $positions = $player->position_value;
+               if (is_string($positions)) {
+                   $positions = json_decode($positions, true) ?: [];
+               }
+
+               $rows = collect((array) $positions)
+                   ->values()
+                   ->map(fn ($position, $index) => [
+                       'position_name' => is_array($position)
+                           ? ($position['position_name'] ?? $position['name'] ?? null)
+                           : $position,
+                       'meta'          => is_array($position) ? ($position['meta'] ?? $position) : null,
+                       'sort'          => is_array($position) ? ($position['sort'] ?? $index) : $index,
+                   ])
+                   ->all();
+
+               if ($rows) {
+                   $teamPlayer->teamPlayerPosition()->createMany($rows);
+               }
             }
             DB::commit();
             return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, "Player Added SuccessFully ", $player);
@@ -613,6 +634,26 @@ class PlayerController extends Controller
             $practiceRowIds->all(),
             $teamPlayerIds->all(),
         );
+
+        // Configure Players (per-match roster) rows aren't cleaned up anywhere else when a
+        // player leaves the team roster. Left behind, they keep referencing a TeamPlayer /
+        // PracticeTeamPlayer id that no longer resolves, so every match that ever configured
+        // this player - including opposition-team matches - ends up with a dangling row. That
+        // row's `player`/`practice_player` relation comes back null, and the opposition grouping
+        // screen filters those rows out entirely: if every configured row for a match/side was
+        // left dangling this way, the whole player pool silently disappears with no explanation.
+        if ($teamPlayerIds->isNotEmpty() || $practiceRowIds->isNotEmpty()) {
+            ConfiguredPlayingTeamPlayer::query()
+                ->where(function ($query) use ($teamPlayerIds, $practiceRowIds) {
+                    if ($teamPlayerIds->isNotEmpty()) {
+                        $query->whereIn('player_id', $teamPlayerIds);
+                    }
+                    if ($practiceRowIds->isNotEmpty()) {
+                        $query->orWhereIn('practice_player_id', $practiceRowIds);
+                    }
+                })
+                ->delete();
+        }
 
         if ($practiceRowIds->isNotEmpty()) {
             PracticeTeamPlayerPosition::query()
