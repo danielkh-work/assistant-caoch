@@ -27,30 +27,74 @@
                     <form method="POST" enctype="multipart/form-data" action="{{ route('play.store') }}">
                       @csrf
                     <div class="row">
-                         <div class="col-md-3">
-                                        <label for="">Package</label>
-                                        <select name="role_id[]" class="form-control select2" multiple id="" required>
-                                            <option value="">Select Package</option>
-                                            @foreach ($roles as $role)
-                                                <option value="{{ $role->id }}">{{ $role->name }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
+{{--                         <div class="col-md-3">--}}
+{{--                                        <label for="">Package</label>--}}
+{{--                                        <select name="role_id[]" class="form-control select2" multiple id="" required>--}}
+{{--                                            <option value="">Select Package</option>--}}
+{{--                                            @foreach ($roles as $role)--}}
+{{--                                                <option value="{{ $role->id }}">{{ $role->name }}</option>--}}
+{{--                                            @endforeach--}}
+{{--                                        </select>--}}
+{{--                                    </div>--}}
+                        <div class="col-md-3">
+                            <label for="">League</label>
+                            <select name="league_id" class="form-control">
+                                <option value="" >— Global (no league) —</option>
+                                @foreach ($league as $leagu)
+                                    <option value="{{ $leagu->id }}" >
+                                        {{ $leagu->title }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
                             <div class="col-md-3">
                                 <label for="">Name</label>
                                 <input required type="text" name="play_name" class="form-control">
                             </div>
-                            <div class="col-md-3">
-                                <label for="">Image</label>
-                                <input required type="file" name="image" class="form-control">
-                            </div>
-                          
+
+                        <div class="row mt-3">
+                            @foreach (['hmark_left' => 'Left', 'hmark_center' => 'Center', 'hmark_right' => 'Right'] as $hmarkField => $label)
+                                <div class="col-md-3 mb-3">
+                                    <label for="{{ $hmarkField }}">{{ $label }} Image</label>
+                                    <input type="file"
+                                           id="{{ $hmarkField }}"
+                                           name="{{ $hmarkField }}"
+                                           class="form-control hmark-file-input"
+                                           accept="image/*"
+                                           data-preview-target="hmarkPreview_{{ $hmarkField }}">
+                                    <div class="hmark-preview hmark-preview--empty mt-2">
+                                        <img id="hmarkPreview_{{ $hmarkField }}" alt="{{ $label }} image">
+                                        <span class="hmark-preview__placeholder">No image</span>
+                                    </div>
+                                    @error($hmarkField)
+                                    <small class="text-danger">{{ $message }}</small>
+                                    @enderror
+                                </div>
+                            @endforeach
                         </div>
-                      
+
+                        <style>
+                            .hmark-preview img { max-width: 100%; max-height: 160px; display: block; }
+                            .hmark-preview--empty img { display: none; }
+                            .hmark-preview:not(.hmark-preview--empty) .hmark-preview__placeholder { display: none; }
+                            .hmark-preview__placeholder { color: #888; font-size: 0.875rem; }
+                        </style>
+
+
+                    </div>
+
                         <div class="row">
-                             <div class="col-md-4">
-                                <label for="">Expected Yardage Gain</label>
-                              <input type="text" required name="min_expected_yard" class="form-control">
+                            <div class="col-md-4">
+                                <label for="min_expected_yard">Expected Yardage Gain</label>
+                                <select id="min_expected_yard" name="min_expected_yard" class="form-control" required>
+                                    <option value="">Select an option</option>
+                                    <option value="short" {{ old('min_expected_yard') == 'short' ? 'selected' : '' }}>short 1-4</option>
+                                    <option value="medium" {{ old('min_expected_yard') == 'medium' ? 'selected' : '' }}>medium 4-7</option>
+                                    <option value="long" {{ old('min_expected_yard') == 'long' ? 'selected' : '' }}>long 7+</option>
+                                </select>
+                                @error('min_expected_yard')
+                                <small class="text-danger">{{ $message }}</small>
+                                @enderror
                             </div>
                             <div class="col-md-4">
                                 <label for="">possession</label>
@@ -59,15 +103,25 @@
                                     <option value="defensive">deffence</option>
                                 </select>
                             </div>
-                            
-                            
+
+
 
                         </div>
                         <div class="row">
                            <div class="col-md-4">
-                                <label for="">description</label>
+                                <label for="">Read 1</label>
                                  <textarea id="description" name="description" class="form-control" rows="3" placeholder="Enter description"></textarea>
-                              
+
+                            </div>
+
+                            <div class="col-md-4">
+                                <label for="">Read 2</label>
+                                 <textarea id="read_1" name="read_1" class="form-control" rows="3" placeholder="Enter read 2"></textarea>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label for="">Read 3</label>
+                                 <textarea id="read_2" name="read_2" class="form-control" rows="3" placeholder="Enter read 3"></textarea>
                             </div>
 
                              <div class="col-md-4">
@@ -148,7 +202,7 @@
 
                         <div class="row">
                              <div class="col-md-4">
-                                
+
                                 <h5 class="mb-3">Target Offensive Player</h5>
 
                                 @foreach ($offensive_position as $position)
@@ -195,14 +249,14 @@
 
                              </div>
                         </div>
-                    
+
                         <br>
-                       
+
                         <div class="row">
                             <div class="col-12 d-flex justify-content-end p-4">
                             <input class="btn btn-success" type="submit" value="Submit">
                             </div>
-                       
+
                         </div>
                     </form>
 
@@ -229,6 +283,29 @@
     @if (session('warning'))
         toastr.warning("{{ session('warning') }}");
     @endif
+
+    document.querySelectorAll('.hmark-file-input').forEach(function (input) {
+        input.addEventListener('change', function () {
+            var img = document.getElementById(input.dataset.previewTarget);
+            var box = img.closest('.hmark-preview');
+
+            if (img.dataset.objectUrl) {
+                URL.revokeObjectURL(img.dataset.objectUrl);
+                delete img.dataset.objectUrl;
+            }
+
+            var file = input.files && input.files[0];
+            if (file && file.type.startsWith('image/')) {
+                var url = URL.createObjectURL(file);
+                img.dataset.objectUrl = url;
+                img.src = url;
+                box.classList.remove('hmark-preview--empty');
+            } else {
+                img.removeAttribute('src');
+                box.classList.add('hmark-preview--empty');
+            }
+        });
+    });
 </script>
 @endsection
 

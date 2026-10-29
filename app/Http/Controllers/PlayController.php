@@ -23,43 +23,72 @@ class PlayController extends Controller
      */
     public function index(Request $request)
     {
-        
-        $query = Play::with('roles')->orderBy('id', 'desc');   
+        return $this->listPlays($request, false);
+    }
+
+    /**
+     * Same listing, but scoped to Global Plays only - backs the "Global Plays"
+     * sidebar submenu.
+     */
+    public function indexGlobal(Request $request)
+    {
+        return $this->listPlays($request, true);
+    }
+
+    private function listPlays(Request $request, bool $onlyGlobal)
+    {
+        $query = Play::with(['roles', 'league'])->orderBy('id', 'desc');
         if ($request->filled('role')) {
             $query->whereHas('roles', function ($q) use ($request) {
                 $q->where('roles.id', $request->role);
             });
         }
+        if ($onlyGlobal || $request->input('scope') === 'global') {
+            $query->where('is_global', true);
+        } elseif ($request->input('scope') === 'league') {
+            $query->where('is_global', false);
+        }
+        if ($request->filled('starter')) {
+            $query->where('is_starter_play', $request->input('starter') === '1');
+        }
+        $this->applyPlayValueFilters($query, $request);
         $data = $query->get();
         if ($request->ajax()) {
+            $historyCounts = DB::table('play_game_logs')
+                ->whereIn('play_id', $data->pluck('id'))
+                ->selectRaw('play_id, count(*) as cnt')
+                ->groupBy('play_id')
+                ->pluck('cnt', 'play_id');
+
             return DataTables::of($data)
                 ->addIndexColumn()
-                // ->addColumn('position',function ($row){
-                //     return $row->is_verify==1 ? 'offence' : 'deffence';
-                // })
                   ->addColumn('roles', function($row) {
                             return $row->roles->pluck('name')->implode(', ');
                     })
-                    ->addColumn('action', function($row){
+                    ->addColumn('league', function($row){
+                        return $row->league->title ?? '<span class="text-muted">&mdash;</span>';
+                    })
+                    ->addColumn('action', function($row) use ($historyCounts){
                     $editUrl = route('play.edit', ['id' => $row->id]);
-                    $deleteUrl = route('play.destroy', ['id' => $row->id]);
-
-                   
+                    $safeName = htmlspecialchars($row->play_name, ENT_QUOTES);
+                    $historyCount = (int) ($historyCounts[$row->id] ?? 0);
 
                     return '
                         <a href="' . $editUrl . '" class="btn btn-warning btn-sm me-1">Edit</a>
-                       
+                        <button type="button" class="btn btn-danger btn-sm delete-play-btn" data-id="' . $row->id . '" data-name="' . $safeName . '" data-history-count="' . $historyCount . '">Delete</button>
                     ';
                     })
-                    //  <form action="' . $deleteUrl . '" method="POST" style="display:inline;">
-                    //         ' . csrf_field() . '
-                    //         ' . method_field('DELETE') . '
-                    //         <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm(\'Are you sure?\')">Delete</button>
-                    //     </form>
-                ->rawColumns(['action'])
+                    ->addColumn('starter', function($row){
+                        if (!$row->is_global) {
+                            return '<span class="text-muted">&mdash;</span>';
+                        }
+                        $checked = $row->is_starter_play ? 'checked' : '';
+                        return '<label class="pv-switch"><input type="checkbox" class="starter-toggle" data-id="' . $row->id . '" ' . $checked . '><span class="pv-switch__slider"></span></label>';
+                    })
+                ->rawColumns(['action', 'starter', 'league'])
                 ->make(true);
         }
-        return view('plays.index',$data);
+        return view($onlyGlobal ? 'plays.global' : 'plays.index');
     }
     public function create(){
 
@@ -81,10 +110,10 @@ class PlayController extends Controller
 
      public function update(Request $request, $id)
     {
-       
- 
+
+
         DB::beginTransaction();
-      
+
             $play = Play::findOrFail($id);
             $play->play_name = $request->play_name;
             if ($request->filled('league_id')) {
@@ -103,9 +132,12 @@ class PlayController extends Controller
                 : $request->strategies;
             $play->possession = $request->possession;
             $play->description = $request->description;
-            if ($request->hasFile('image')) {
-                $imagePath = uploadImage($request->file('image'), 'public/uploads/public');
-                $play->image = $imagePath;
+            $play->read_1 = $request->read_1;
+            $play->read_2 = $request->read_2;
+            foreach (['hmark_left', 'hmark_center', 'hmark_right'] as $hmarkField) {
+                if ($request->hasFile($hmarkField)) {
+                    $play->{$hmarkField} = uploadImage($request->file($hmarkField), 'public', $play->{$hmarkField});
+                }
             }
             if ($request->hasFile('video')) {
                 $videoPath = uploadImage($request->file('video'), 'public/uploads/videos');
@@ -151,12 +183,144 @@ class PlayController extends Controller
         // }
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
         $play = Play::findOrFail($id);
-        $play->delete();
+
+        DB::transaction(function () use ($play) {
+            DB::table('play_game_logs')->where('play_id', $play->id)->delete();
+            $play->delete();
+        });
+
+        if ($request->ajax() || $request->wantsJson()) {
+            // A redirect response here would make an XHR DELETE's browser-side
+            // redirect-follow re-issue as DELETE against the Location URL (which
+            // doesn't support DELETE) - the play would already be gone, but the
+            // request would still come back as an error. AJAX callers get a plain
+            // JSON response instead; classic form submits keep the redirect/flash.
+            return response()->json(['message' => 'Play deleted successfully.']);
+        }
+
         return redirect()->route('play.index')->with('success', 'Play deleted successfully');
     }
+
+    public function bulkDestroy(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer',
+        ]);
+
+        $ids = $request->input('ids');
+        $deletedCount = DB::transaction(function () use ($ids) {
+            DB::table('play_game_logs')->whereIn('play_id', $ids)->delete();
+            return Play::whereIn('id', $ids)->delete();
+        });
+
+        $message = $deletedCount . ($deletedCount === 1 ? ' play deleted.' : ' plays deleted.');
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json(['message' => $message, 'deleted' => $deletedCount]);
+        }
+
+        return redirect()->route('play.index')->with('success', $message);
+    }
+
+    public function toggleStarter($id)
+    {
+        $play = Play::findOrFail($id);
+
+        if (!$play->is_global) {
+            return response()->json(['message' => 'Only Global Plays can be starter plays.'], 422);
+        }
+
+        $play->is_starter_play = !$play->is_starter_play;
+        $play->save();
+
+        return response()->json(['is_starter_play' => $play->is_starter_play]);
+    }
+
+    public function bulkToggleStarter(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer',
+            'starter' => 'required|boolean',
+        ]);
+
+        $updated = Play::whereIn('id', $request->input('ids'))
+            ->where('is_global', true)
+            ->update(['is_starter_play' => $request->boolean('starter')]);
+
+        return response()->json(['updated' => $updated]);
+    }
+
+    public function globalIds(Request $request)
+    {
+        $query = Play::where('is_global', true);
+
+        if ($request->filled('role')) {
+            $query->whereHas('roles', function ($q) use ($request) {
+                $q->where('roles.id', $request->role);
+            });
+        }
+
+        if ($request->filled('search')) {
+            $query->where('play_name', 'like', '%' . $request->input('search') . '%');
+        }
+
+        if ($request->filled('starter')) {
+            $query->where('is_starter_play', $request->input('starter') === '1');
+        }
+
+        $this->applyPlayValueFilters($query, $request);
+
+        return response()->json(['ids' => $query->pluck('id')]);
+    }
+
+    /**
+     * Shared by index() (the DataTable) and globalIds() (what "Apply to all matching
+     * Global Plays across all pages" expands to) - they must stay in lockstep, or
+     * that action would apply to a different set of plays than the admin is looking at.
+     */
+    private function applyPlayValueFilters($query, Request $request): void
+    {
+        $selectedStrategies = array_filter(array_map('trim', explode(',', (string) $request->input('strategies', ''))));
+        if (!empty($selectedStrategies)) {
+            $query->where(function ($q) use ($selectedStrategies) {
+                foreach ($selectedStrategies as $strategy) {
+                    $q->orWhere('strategies', 'like', '%' . addcslashes($strategy, '%_\\') . '%');
+                }
+            });
+        }
+
+        $selectedDowns = array_filter(array_map('trim', explode(',', (string) $request->input('preferred_down', ''))));
+        if (!empty($selectedDowns)) {
+            $query->where(function ($q) use ($selectedDowns) {
+                foreach ($selectedDowns as $down) {
+                    $q->orWhere('preferred_down', 'like', '%' . addcslashes($down, '%_\\') . '%');
+                }
+            });
+        }
+
+        $selectedYardages = array_filter(array_map('trim', explode(',', (string) $request->input('yardage_gain', ''))));
+        if (!empty($selectedYardages) && !in_array('open_down', $selectedYardages, true)) {
+            // A play tagged "open_down" is usable under any yardage gain, so it
+            // always matches a yardage filter regardless of which values are picked.
+            $query->where(function ($q) use ($selectedYardages) {
+                $q->whereIn('min_expected_yard', $selectedYardages)
+                    ->orWhere('min_expected_yard', 'open_down');
+            });
+        }
+        // Selecting "Open Down" as the filter itself means "no yardage
+        // restriction" - every play matches, same as selecting none at all.
+
+        $selectedTargets = array_filter(array_map('trim', explode(',', (string) $request->input('play_target', ''))));
+        if (!empty($selectedTargets)) {
+            $query->whereIn('possession', $selectedTargets);
+        }
+    }
+
     public function store(Request $request)
     {
         DB::beginTransaction();
@@ -172,10 +336,10 @@ class PlayController extends Controller
             $play->zone_selection = 1;
             $play->min_expected_yard = $request->min_expected_yard;
             $play->max_expected_yard = 1;
-          
+
             $play->pre_snap_motion = 1;
             $play->play_action_fake = 1;
-            
+
             if (is_array($request->preferred_down)) {
                 $play->preferred_down = implode(',', $request->preferred_down);
             } else {
@@ -189,15 +353,20 @@ class PlayController extends Controller
                 $play->strategies = $request->strategies;
             }
 
+
             $play->possession = $request->possession;
             $play->description = $request->description;
+            $play->read_1 = $request->read_1;
+            $play->read_2 = $request->read_2;
             $play->position_status = 2;
             $play->video_path = 'video path';
             // Upload image
-            if ($request->hasFile('image')) {
-                $imagePath = uploadImage($request->file('image'), 'public/uploads/public');
-                $play->image = $imagePath;
+            foreach (['hmark_left', 'hmark_center', 'hmark_right'] as $hmarkField) {
+                if ($request->hasFile($hmarkField)) {
+                    $play->{$hmarkField} = uploadImage($request->file($hmarkField), 'public', $play->{$hmarkField});
+                }
             }
+
             // Upload video (optional)
             if ($request->hasFile('video')) {
                 $videoPath = uploadImage($request->file('video'), 'public/uploads/videos');
@@ -208,9 +377,9 @@ class PlayController extends Controller
              if ($request->has('role_id') && is_array($request->role_id)) {
                  $play->roles()->sync($request->role_id);
               }
-            
-          
-             
+
+
+
             if (is_array($request->offensive)) {
                 $offensivePositions = OffensivePosition::pluck('id', 'name')->toArray();
                 foreach ($request->offensive as $position => $value) {
@@ -225,7 +394,7 @@ class PlayController extends Controller
                 }
             }
 
-           
+
             if (is_array($request->defensive)) {
                 $defensivePositions = DefensivePosition::pluck('id', 'name')->toArray();
                 foreach ($request->defensive as $position => $value) {
@@ -244,7 +413,6 @@ class PlayController extends Controller
            return redirect()->route('play.index');
         } catch (\Throwable $e) {
             DB::rollBack();
-            dd($e->getMessage());
         }
 
     }

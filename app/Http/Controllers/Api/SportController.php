@@ -70,6 +70,7 @@ class SportController extends Controller
            $League->flag_tbd =$request->flag_tbd;
         //    $League->warning_time_minutes =$request->warning_time_minutes;
            $League->save();
+
            $practiceTeams = [];
            foreach($request->team_name as $index => $value)
            {

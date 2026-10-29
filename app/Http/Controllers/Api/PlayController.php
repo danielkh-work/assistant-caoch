@@ -164,35 +164,60 @@ class PlayController extends Controller
             ->where(function ($sub) use ($leagueId) {
                 // A Global Play this league has no override row for (not hidden,
                 // not customized - customized ones are already covered by the
-                // branch below, since the clone itself carries this league_id).
+                // branch below, since the clone itself carries this league_id) -
+                // and that the admin currently has marked as a starter play. This
+                // is evaluated live on every request, for every league (new or
+                // old), so promoting/demoting a Global Play's starter status takes
+                // effect everywhere immediately.
                 $sub->where(function ($q) {
                     $q->where('plays.is_global', true)
-                        ->whereNull('league_play_overrides.id');
+                        ->whereNull('league_play_overrides.id')
+                        ->where('plays.is_starter_play', true);
                 })
                 ->orWhere('plays.league_id', $leagueId);
             })
             ->select('plays.*')
+            // play_results carries no league/team column of its own - it's only
+            // reachable to a league via its game_id - so every subquery here must
+            // join through games and filter to the requesting league, or a Global
+            // Play's win/loss/practice counts bleed in from every other league that
+            // has ever used it.
             ->withCount([
-                'playResults as win_result' => function ($q) {
-                    $q->where('result', 'win')->where('is_practice', 0);
+                'playResults as win_result' => function ($q) use ($leagueId) {
+                    $q->join('games', 'games.id', '=', 'play_results.game_id')
+                        ->where('games.league_id', $leagueId)
+                        ->where('play_results.result', 'win')->where('play_results.is_practice', 0);
                 },
-                'playResults as loss_result' => function ($q) {
-                    $q->where('result', 'loss')->where('is_practice', 0);
+                'playResults as loss_result' => function ($q) use ($leagueId) {
+                    $q->join('games', 'games.id', '=', 'play_results.game_id')
+                        ->where('games.league_id', $leagueId)
+                        ->where('play_results.result', 'loss')->where('play_results.is_practice', 0);
                 },
-                'playResults as practice_win_result' => function ($q) {
-                    $q->where('result', 'win')->where('is_practice', 1);
+                'playResults as practice_win_result' => function ($q) use ($leagueId) {
+                    $q->join('games', 'games.id', '=', 'play_results.game_id')
+                        ->where('games.league_id', $leagueId)
+                        ->where('play_results.result', 'win')->where('play_results.is_practice', 1);
                 },
-                'playResults as practice_loss_result' => function ($q) {
-                    $q->where('result', 'loss')->where('is_practice', 1);
+                'playResults as practice_loss_result' => function ($q) use ($leagueId) {
+                    $q->join('games', 'games.id', '=', 'play_results.game_id')
+                        ->where('games.league_id', $leagueId)
+                        ->where('play_results.result', 'loss')->where('play_results.is_practice', 1);
                 },
-                'playResults as total_count' => function ($q) {
-                    $q->where('is_practice', 0);
+                'playResults as total_count' => function ($q) use ($leagueId) {
+                    $q->join('games', 'games.id', '=', 'play_results.game_id')
+                        ->where('games.league_id', $leagueId)
+                        ->where('play_results.is_practice', 0);
                 },
-                'playResults as total_practice_count' => function ($q) {
-                    $q->where('is_practice', 1);
+                'playResults as total_practice_count' => function ($q) use ($leagueId) {
+                    $q->join('games', 'games.id', '=', 'play_results.game_id')
+                        ->where('games.league_id', $leagueId)
+                        ->where('play_results.is_practice', 1);
                 },
             ])
-            ->withAvg('playResults as yardage_difference', 'yardage_difference');
+            ->withAvg(['playResults as yardage_difference' => function ($q) use ($leagueId) {
+                $q->join('games', 'games.id', '=', 'play_results.game_id')
+                    ->where('games.league_id', $leagueId);
+            }], 'yardage_difference');
 
         if($request->sort == "win_result"){
             $query = $query->orderByDesc('win_result');
@@ -205,6 +230,8 @@ class PlayController extends Controller
             $needle = '%' . addcslashes($searchTerm, '%_\\') . '%';
             $query->where('play_name', 'like', $needle);
         }
+
+        $this->applyPlayValueFilters($query, $request);
 
 
         //TODO improve pagination logic by using laravel standard function
@@ -239,6 +266,49 @@ class PlayController extends Controller
         $play = $query->get();
 
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Play Uploaded List ', $play);
+    }
+
+    /**
+     * Shared by PlayController@index and ConfigureController::matchingPlayIdsForSelectAll()
+     * - the two queries must stay in lockstep (see that method's docblock), so any filter
+     * added here must be added there too.
+     */
+    public static function applyPlayValueFilters($query, Request $request): void
+    {
+        $selectedStrategies = array_filter(array_map('trim', explode(',', (string) $request->input('strategies', ''))));
+        if (!empty($selectedStrategies)) {
+            $query->where(function ($q) use ($selectedStrategies) {
+                foreach ($selectedStrategies as $strategy) {
+                    $q->orWhere('plays.strategies', 'like', '%' . addcslashes($strategy, '%_\\') . '%');
+                }
+            });
+        }
+
+        $selectedDowns = array_filter(array_map('trim', explode(',', (string) $request->input('preferred_down', ''))));
+        if (!empty($selectedDowns)) {
+            $query->where(function ($q) use ($selectedDowns) {
+                foreach ($selectedDowns as $down) {
+                    $q->orWhere('plays.preferred_down', 'like', '%' . addcslashes($down, '%_\\') . '%');
+                }
+            });
+        }
+
+        $selectedYardages = array_filter(array_map('trim', explode(',', (string) $request->input('yardage_gain', ''))));
+        if (!empty($selectedYardages) && !in_array('open_down', $selectedYardages, true)) {
+            // A play tagged "open_down" is usable under any yardage gain, so it
+            // always matches a yardage filter regardless of which values are picked.
+            $query->where(function ($q) use ($selectedYardages) {
+                $q->whereIn('plays.min_expected_yard', $selectedYardages)
+                    ->orWhere('plays.min_expected_yard', 'open_down');
+            });
+        }
+        // Selecting "Open Down" as the filter itself means "no yardage
+        // restriction" - every play matches, same as selecting none at all.
+
+        $selectedTargets = array_filter(array_map('trim', explode(',', (string) $request->input('play_target', ''))));
+        if (!empty($selectedTargets)) {
+            $query->whereIn('plays.possession', $selectedTargets);
+        }
     }
 
     public function deletePlayResults($id)

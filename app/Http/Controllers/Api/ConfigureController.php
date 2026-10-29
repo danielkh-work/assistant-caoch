@@ -419,11 +419,14 @@ class ConfigureController extends Controller
                     ->where('league_play_overrides.league_id', '=', $leagueId);
             })
             ->where(function ($sub) use ($leagueId) {
-                // A global play this league has not hidden or customised,
-                // or a play that belongs to the league itself.
+                // A global play this league has not hidden or customised, and
+                // that is currently marked as a starter play (live, same rule
+                // as PlayController@index) - or a play that belongs to the
+                // league itself.
                 $sub->where(function ($q) {
                     $q->where('plays.is_global', true)
-                        ->whereNull('league_play_overrides.id');
+                        ->whereNull('league_play_overrides.id')
+                        ->where('plays.is_starter_play', true);
                 })
                 ->orWhere('plays.league_id', $leagueId);
             })
@@ -434,6 +437,8 @@ class ConfigureController extends Controller
             $needle = '%' . addcslashes($searchTerm, '%_\\') . '%';
             $query->where('plays.play_name', 'like', $needle);
         }
+
+        \App\Http\Controllers\Api\PlayController::applyPlayValueFilters($query, $request);
 
         return $query->pluck('plays.id')->map(fn ($id) => (int) $id)->all();
     }

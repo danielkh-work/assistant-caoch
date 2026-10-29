@@ -16,7 +16,81 @@ class TeamGroupController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
+        $this->embedPlayerDisplayFields($groups);
+
         return new BaseResponse(STATUS_CODE_OK, STATUS_CODE_OK, 'Team groups fetched', $groups);
+    }
+
+    /**
+     * Embeds each group member's current name/number/position (resolved live from
+     * TeamPlayer, falling back to the linked Player) into the stored `players` /
+     * `practice_players` arrays, so the UI never has to cross-reference a separate,
+     * possibly-partial roster cache (e.g. a paginated player picker) just to display
+     * a saved group's member names. The group's own saved position *assignment*
+     * (the `positions` key on each entry) is left untouched and still wins as the
+     * displayed position.
+     *
+     * @param \Illuminate\Support\Collection<int, TeamGroup> $groups
+     */
+    private function embedPlayerDisplayFields($groups): void
+    {
+        $ids = [];
+        foreach ($groups as $group) {
+            foreach (['players', 'practice_players'] as $col) {
+                foreach ((array) ($group->{$col} ?? []) as $entry) {
+                    $id = is_array($entry) ? ($entry['id'] ?? null) : $entry;
+                    if ($id !== null && $id !== '') {
+                        $ids[] = (int) $id;
+                    }
+                }
+            }
+        }
+
+        if (empty($ids)) {
+            return;
+        }
+
+        $teamPlayers = \App\Models\TeamPlayer::whereIn('id', array_values(array_unique($ids)))
+            ->with('player')
+            ->get()
+            ->keyBy('id');
+
+        foreach ($groups as $group) {
+            foreach (['players', 'practice_players'] as $col) {
+                $raw = $group->{$col};
+                if (!is_array($raw)) {
+                    continue;
+                }
+
+                $group->{$col} = array_map(function ($entry) use ($teamPlayers) {
+                    $id = is_array($entry) ? ($entry['id'] ?? null) : $entry;
+                    $assignedPosition = is_array($entry) ? ($entry['positions'] ?? null) : null;
+
+                    $tp = ($id !== null && $id !== '') ? $teamPlayers->get((int) $id) : null;
+                    $name = null;
+                    $number = null;
+                    $position = $assignedPosition;
+
+                    if ($tp) {
+                        $name = ($tp->name !== null && $tp->name !== '')
+                            ? $tp->name
+                            : ($tp->player?->name ?: null);
+                        $number = $tp->number;
+                        if ($position === null || $position === '') {
+                            $position = $tp->position ?: null;
+                        }
+                    }
+
+                    return [
+                        'id'        => $id,
+                        'positions' => $assignedPosition,
+                        'name'      => $name,
+                        'number'    => $number,
+                        'position'  => $position,
+                    ];
+                }, $raw);
+            }
+        }
     }
 
     public function store(Request $request, $teamId)
@@ -136,11 +210,17 @@ class TeamGroupController extends Controller
             $positionsMap = [];
 
             $practiceOwnTPs = \App\Models\TeamPlayer::where('team_id', $teamId)
-                ->with(['teamPlayerPosition' => fn ($q) => $q->orderBy('sort')])
+                ->with(['teamPlayerPosition' => fn ($q) => $q->orderBy('sort'), 'player.playerPosition'])
                 ->get();
 
             foreach ($practiceOwnTPs as $tp) {
                 $pos = $tp->teamPlayerPosition->pluck('position_name')->filter()->values()->all();
+                // A brand-new player has no team_player_position pivot rows yet (those are
+                // only created by the separate position-assignment flow) - fall back to the
+                // player's own position relation so they aren't shown with no position at all.
+                if (empty($pos) && $tp->player) {
+                    $pos = $tp->player->playerPosition->pluck('position_name')->filter()->values()->all();
+                }
                 $positionsMap['id:' . $tp->id] = $pos;
                 if ($tp->player_id) {
                     $positionsMap['pid:' . $tp->player_id] = $pos;
@@ -154,11 +234,14 @@ class TeamGroupController extends Controller
 
             if ($myTeam) {
                 $myTPs = \App\Models\TeamPlayer::where('team_id', $myTeam->id)
-                    ->with(['teamPlayerPosition' => fn ($q) => $q->orderBy('sort')])
+                    ->with(['teamPlayerPosition' => fn ($q) => $q->orderBy('sort'), 'player.playerPosition'])
                     ->get();
 
                 foreach ($myTPs as $tp) {
                     $pos = $tp->teamPlayerPosition->pluck('position_name')->filter()->values()->all();
+                    if (empty($pos) && $tp->player) {
+                        $pos = $tp->player->playerPosition->pluck('position_name')->filter()->values()->all();
+                    }
                     // My Team overrides practice-team entry only when it has richer data
                     if (!empty($pos) || !isset($positionsMap['id:' . $tp->id])) {
                         $positionsMap['id:' . $tp->id] = $pos;
@@ -219,11 +302,21 @@ class TeamGroupController extends Controller
         }
 
         $paginator = \App\Models\TeamPlayer::where('team_id', $teamId)
-            ->with(['teamPlayerPosition' => fn ($q) => $q->orderBy('sort')])
+            ->with(['teamPlayerPosition' => fn ($q) => $q->orderBy('sort'), 'player.playerPosition'])
             ->orderBy('id')
             ->paginate($perPage, ['*'], 'page', $page);
 
         $players = $paginator->getCollection()->map(function ($p) {
+            $positions = isset($p->teamPlayerPosition)
+                ? $p->teamPlayerPosition->pluck('position_name')->filter()->values()->all()
+                : [];
+            // A brand-new player has no team_player_position pivot rows yet (those are only
+            // created by the separate position-assignment flow) - fall back to the player's
+            // own position relation, same as TeamController::teamPlayerEditRowFormat().
+            if (empty($positions) && $p->player) {
+                $positions = $p->player->playerPosition->pluck('position_name')->filter()->values()->all();
+            }
+
             return [
                 'id'             => $p->id,
                 'name'           => $p->name ?? $p->player_name ?? null,
@@ -232,9 +325,7 @@ class TeamGroupController extends Controller
                 'position_value' => $p->position_value ?? null,
                 'rpp'            => $p->rpp ?? null,
                 'type'           => $p->type ?? null,
-                'positions'      => isset($p->teamPlayerPosition)
-                    ? $p->teamPlayerPosition->pluck('position_name')->filter()->values()->all()
-                    : [],
+                'positions'      => $positions,
             ];
         })->values()->all();
 
