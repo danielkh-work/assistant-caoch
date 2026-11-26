@@ -52,6 +52,18 @@
                                 <input required type="text" name="play_name" class="form-control">
                             </div>
 
+                        <div class="col-md-3">
+                            <label for="player_count">Number of Players</label>
+                            <select name="player_count" id="player_count" class="form-control">
+                                <option value="">— Not tagged —</option>
+                                <option value="11" {{ old('player_count') == '11' ? 'selected' : '' }}>11 Players</option>
+                                <option value="12" {{ old('player_count') == '12' ? 'selected' : '' }}>12 Players</option>
+                            </select>
+                            @error('player_count')
+                            <small class="text-danger">{{ $message }}</small>
+                            @enderror
+                        </div>
+
                         <div class="row mt-3">
                             @foreach (['hmark_left' => 'Left', 'hmark_center' => 'Center', 'hmark_right' => 'Right'] as $hmarkField => $label)
                                 <div class="col-md-3 mb-3">

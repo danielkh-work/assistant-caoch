@@ -44,6 +44,17 @@
                             <label for="">Name</label>
                             <input required type="text" name="play_name" class="form-control" value="{{ old('play_name', $play->play_name) }}">
                         </div>
+                        <div class="col-md-3">
+                            <label for="player_count">Number of Players</label>
+                            <select name="player_count" id="player_count" class="form-control">
+                                <option value="" {{ old('player_count', $play->player_count) == null ? 'selected' : '' }}>— Not tagged —</option>
+                                <option value="11" {{ old('player_count', $play->player_count) == '11' ? 'selected' : '' }}>11 Players</option>
+                                <option value="12" {{ old('player_count', $play->player_count) == '12' ? 'selected' : '' }}>12 Players</option>
+                            </select>
+                            @error('player_count')
+                            <small class="text-danger">{{ $message }}</small>
+                            @enderror
+                        </div>
                     </div>
 
                     <div class="row mt-3">
