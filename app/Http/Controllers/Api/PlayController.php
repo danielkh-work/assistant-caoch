@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Responses\BaseResponse;
 use App\Models\Play;
+use App\Models\League;
 use App\Models\OffensiveTargetStrength;
+use App\Services\PlayPositionCountValidator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -331,6 +333,17 @@ class PlayController extends Controller
     {
         $this->normalizePlayTypeRequest($request);
         $request->validate(array_merge($this->hmarkImageValidationRules(), $this->playPayloadValidationRules()));
+
+        // The coach never picks 11 vs 12 here - the league they're already
+        // inside already says which one it is.
+        $playerCount = League::find($request->league_id)->number_of_players ?? null;
+
+        if (PlayPositionCountValidator::exceedsLimit($playerCount, $request->offensive, $request->defensive)) {
+            throw ValidationException::withMessages([
+                'offensive' => ["This league plays {$playerCount}-a-side - only {$playerCount} positions can have a value in one play."],
+            ]);
+        }
+
         DB::beginTransaction();
 
         try {
@@ -338,6 +351,7 @@ class PlayController extends Controller
             $play->offensive_play_type = $request->playType;
             $play->play_name = $request->play_name;
             $play->league_id = $request->league_id;
+            $play->player_count = $playerCount;
             $play->created_by_user_id = auth()->id();
             $play->play_type = $request->play_type;
             $play->quarter = $request->quarter;
@@ -384,6 +398,21 @@ class PlayController extends Controller
                 $groups = [];
             }
             $groups = array_values(array_filter($groups, fn($g) => !is_null($g) && $g !== ''));
+
+            if (!empty($groups) && $playerCount) {
+                // The Groups dropdown only ever offers groups built for this
+                // league's own player count - this is the same rule enforced
+                // server-side, so a direct/tampered request can't attach a
+                // mismatched group the UI would never have shown.
+                $mismatched = \App\Models\TeamGroup::whereIn('id', $groups)
+                    ->where('group_level', '!=', $playerCount)
+                    ->pluck('group_name');
+                if ($mismatched->isNotEmpty()) {
+                    throw ValidationException::withMessages([
+                        'groups' => ["This league plays {$playerCount}-a-side - " . $mismatched->implode(', ') . " isn't built for that."],
+                    ]);
+                }
+            }
 
             if (!empty($groups)) {
                 $play->teamGroups()->sync($groups);
@@ -498,6 +527,14 @@ class PlayController extends Controller
         $request->validate($this->playUpdateValidationRules());
         $this->validateHmarkImagesOnUpdate($request, $play);
 
+        $playerCount = League::find($targetLeagueId)->number_of_players ?? null;
+
+        if (PlayPositionCountValidator::exceedsLimit($playerCount, $request->offensive, $request->defensive)) {
+            throw ValidationException::withMessages([
+                'offensive' => ["This league plays {$playerCount}-a-side - only {$playerCount} positions can have a value in one play."],
+            ]);
+        }
+
         // Captured before the clone swap below: drives both which row gets
         // edited and the hmark-replace decision further down.
         $wasGlobal = $play->is_global;
@@ -516,6 +553,7 @@ class PlayController extends Controller
             // head coach owns two leagues, honoring a different league_id from the request
             // would silently move this play into the other league's playbook.
             $target->play_type = $request->play_type;
+            $target->player_count = $playerCount;
 
             if ($request->filled('playType')) {
                 $target->offensive_play_type = $request->playType;

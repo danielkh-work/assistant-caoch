@@ -8,6 +8,7 @@ use App\Models\OffensivePosition;
 use App\Models\Play;
 use App\Models\PlayTargetDefensivePlayer;
 use App\Models\PlayTargetOffensivePlayer;
+use App\Services\PlayPositionCountValidator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -110,14 +111,34 @@ class PlayController extends Controller
 
      public function update(Request $request, $id)
     {
+        $request->validate(['player_count' => 'nullable|in:11,12']);
+        $leagueId = $request->filled('league_id') ? (int) $request->league_id : null;
+        $playerCount = $request->filled('player_count') ? (int) $request->player_count : null;
 
+        // A league that already states its own player count always wins - an
+        // admin picking a different value here for a league-owned play would
+        // silently recreate the exact 11-vs-12 mismatch this feature exists
+        // to prevent.
+        if ($leagueId) {
+            $leaguePlayerCount = League::find($leagueId)?->number_of_players;
+            if ($leaguePlayerCount) {
+                $playerCount = (int) $leaguePlayerCount;
+            }
+        }
+
+        if (PlayPositionCountValidator::exceedsLimit($playerCount, $request->offensive, $request->defensive)) {
+            return back()->withInput()->withErrors([
+                'player_count' => "You picked {$playerCount} players, but more positions than that have a value - lower some positions, or change the player count.",
+            ]);
+        }
 
         DB::beginTransaction();
 
             $play = Play::findOrFail($id);
             $play->play_name = $request->play_name;
-            if ($request->filled('league_id')) {
-                $play->league_id = $request->league_id;
+            $play->player_count = $playerCount;
+            if ($leagueId) {
+                $play->league_id = $leagueId;
                 $play->is_global = false;
             } else {
                 $play->league_id = null;
@@ -173,9 +194,8 @@ class PlayController extends Controller
                 }
             }
 
-            DB::commit();
             $play->roles()->sync($request->role_id); // assign to multiple roles
-             DB::commit();
+            DB::commit();
             return redirect()->route('play.index');
         // } catch (\Throwable $e) {
         //     DB::rollBack();
@@ -323,12 +343,32 @@ class PlayController extends Controller
 
     public function store(Request $request)
     {
+        $request->validate(['player_count' => 'nullable|in:11,12']);
+        $leagueId = $request->filled('league_id') ? (int) $request->league_id : null;
+        $playerCount = $request->filled('player_count') ? (int) $request->player_count : null;
+
+        // A league that already states its own player count always wins - the
+        // same rule update() already follows.
+        if ($leagueId) {
+            $leaguePlayerCount = League::find($leagueId)?->number_of_players;
+            if ($leaguePlayerCount) {
+                $playerCount = (int) $leaguePlayerCount;
+            }
+        }
+
+        if (PlayPositionCountValidator::exceedsLimit($playerCount, $request->offensive, $request->defensive)) {
+            return back()->withInput()->withErrors([
+                'player_count' => "You picked {$playerCount} players, but more positions than that have a value - lower some positions, or change the player count.",
+            ]);
+        }
+
         DB::beginTransaction();
         try {
             $play = new Play();
             $play->play_name = $request->play_name;
-            $play->league_id = null;
-            $play->is_global = true;
+            $play->league_id = $leagueId;
+            $play->is_global = !$leagueId;
+            $play->player_count = $playerCount;
             $play->play_type = 1;
             $play->quarter = 1;
             $play->created_by = 'admin';
