@@ -32,9 +32,9 @@
                         <div class="col-md-3">
                             <label for="">League</label>
                             <select name="league_id" class="form-control">
-                                <option value="" {{ $play->league_id === null ? 'selected' : '' }}>— Global (no league) —</option>
+                                <option value="" {{ old('league_id', $play->league_id) === null ? 'selected' : '' }}>— Global (no league) —</option>
                                 @foreach ($league as $leagu)
-                                    <option value="{{ $leagu->id }}" {{ $play->league_id == $leagu->id ? 'selected' : '' }}>
+                                    <option value="{{ $leagu->id }}" {{ old('league_id', $play->league_id) == $leagu->id ? 'selected' : '' }}>
                                         {{ $leagu->title }}
                                     </option>
                                 @endforeach
@@ -218,7 +218,7 @@
                                 @php
                                         $def_matching = $play->deffensivePositions->firstWhere('id', $position->id);
 
-                                        $def_strength = old('offensive.' . $position->id, $def_matching ? $def_matching->pivot->strength : 0);
+                                        $def_strength = old('defensive.' . $position->id, $def_matching ? $def_matching->pivot->strength : 0);
 
                                  @endphp
                                 <div class="row align-items-center mb-2">

@@ -399,6 +399,21 @@ class PlayController extends Controller
             }
             $groups = array_values(array_filter($groups, fn($g) => !is_null($g) && $g !== ''));
 
+            if (!empty($groups) && $playerCount) {
+                // The Groups dropdown only ever offers groups built for this
+                // league's own player count - this is the same rule enforced
+                // server-side, so a direct/tampered request can't attach a
+                // mismatched group the UI would never have shown.
+                $mismatched = \App\Models\TeamGroup::whereIn('id', $groups)
+                    ->where('group_level', '!=', $playerCount)
+                    ->pluck('group_name');
+                if ($mismatched->isNotEmpty()) {
+                    throw ValidationException::withMessages([
+                        'groups' => ["This league plays {$playerCount}-a-side - " . $mismatched->implode(', ') . " isn't built for that."],
+                    ]);
+                }
+            }
+
             if (!empty($groups)) {
                 $play->teamGroups()->sync($groups);
             }

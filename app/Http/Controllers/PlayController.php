@@ -344,7 +344,17 @@ class PlayController extends Controller
     public function store(Request $request)
     {
         $request->validate(['player_count' => 'nullable|in:11,12']);
+        $leagueId = $request->filled('league_id') ? (int) $request->league_id : null;
         $playerCount = $request->filled('player_count') ? (int) $request->player_count : null;
+
+        // A league that already states its own player count always wins - the
+        // same rule update() already follows.
+        if ($leagueId) {
+            $leaguePlayerCount = League::find($leagueId)?->number_of_players;
+            if ($leaguePlayerCount) {
+                $playerCount = (int) $leaguePlayerCount;
+            }
+        }
 
         if (PlayPositionCountValidator::exceedsLimit($playerCount, $request->offensive, $request->defensive)) {
             return back()->withInput()->withErrors([
@@ -356,8 +366,8 @@ class PlayController extends Controller
         try {
             $play = new Play();
             $play->play_name = $request->play_name;
-            $play->league_id = null;
-            $play->is_global = true;
+            $play->league_id = $leagueId;
+            $play->is_global = !$leagueId;
             $play->player_count = $playerCount;
             $play->play_type = 1;
             $play->quarter = 1;
